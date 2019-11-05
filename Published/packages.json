@@ -1,9 +1,9 @@
 {
-  packages: [
+  "packages": [
 	  
 	{
-		name: "Apollo_HTTP",
-		description: "Apollo Lib HTTP Module"
+		"name": "Apollo_HTTP",
+		"description": "Apollo Lib HTTP Module"
 	}
   ]	
 }
