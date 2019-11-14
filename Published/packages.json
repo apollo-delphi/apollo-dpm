@@ -4,6 +4,46 @@
 	{
 		"name": "Apollo_HTTP",
 		"description": "Apollo Lib HTTP Module"
+	},
+
+	{
+		"name": "Apollo_2",
+		"description": "Apollo Lib 2 Module"
+	},
+
+	{
+		"name": "Apollo_3",
+		"description": "Apollo Lib 3 Module"
+	},
+
+	{
+		"name": "Apollo_4",
+		"description": "Apollo Lib 4 Module"
+	},
+
+	{
+		"name": "Apollo_5",
+		"description": "Apollo Lib 5 Module"
+	},
+
+	{
+		"name": "Apollo_6",
+		"description": "Apollo Lib 6 Module"
+	},
+
+	{
+		"name": "Apollo_7",
+		"description": "Apollo Lib 7 Module"
+	},
+
+	{
+		"name": "Apollo_8",
+		"description": "Apollo Lib 8 Module"
+	},
+
+	{
+		"name": "Apollo_9",
+		"description": "Apollo Lib 9 Module"
 	}
   ]	
 }
