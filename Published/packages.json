@@ -3,7 +3,9 @@
 	  
 	{
 		"name": "Apollo_HTTP",
-		"description": "Apollo Lib HTTP Module"
+		"description": "Apollo Lib HTTP Module",
+		"owner": "apollo-delphi",
+		"repo": "apollo-http"
 	},
 
 	{
