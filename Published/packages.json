@@ -7,7 +7,7 @@
 		"owner": "apollo-delphi",
 		"repo": "apollo-http",
 		"removes": [
-			{"Source": "/"}
+			{"source": "Source", "destination": "/"}
 		],
 		"ignores": [
 			"Source/tst_Apollo_HTTP.pas",
