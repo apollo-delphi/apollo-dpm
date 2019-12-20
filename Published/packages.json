@@ -5,7 +5,16 @@
 		"name": "Apollo_HTTP",
 		"description": "Apollo Lib HTTP Module",
 		"owner": "apollo-delphi",
-		"repo": "apollo-http"
+		"repo": "apollo-http",
+		"removes": [
+			{"Source": "\"}
+		],
+		"ignores": [
+			"Source\tst_Apollo_HTTP.pas",
+			"Source\Apollo_HTTP_Test.dpr",
+			"Source\Apollo_HTTP_Test.dproj",
+			"Source\Apollo_HTTP_Group.groupproj"
+		]
 	},
 
 	{
