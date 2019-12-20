@@ -7,13 +7,13 @@
 		"owner": "apollo-delphi",
 		"repo": "apollo-http",
 		"removes": [
-			{"Source": "//"}
+			{"Source": "/"}
 		],
 		"ignores": [
-			"Source//tst_Apollo_HTTP.pas",
-			"Source//Apollo_HTTP_Test.dpr",
-			"Source//Apollo_HTTP_Test.dproj",
-			"Source//Apollo_HTTP_Group.groupproj"
+			"Source/tst_Apollo_HTTP.pas",
+			"Source/Apollo_HTTP_Test.dpr",
+			"Source/Apollo_HTTP_Test.dproj",
+			"Source/Apollo_HTTP_Group.groupproj"
 		]
 	},
 	{
