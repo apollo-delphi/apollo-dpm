@@ -1,0 +1,11 @@
+/Source/__history
+/Source/__recovery
+/Source/*.local
+/Source/*.identcache
+/Source/*.res
+/Source/*.stat
+*.local
+*.identcache
+*.res
+*.stat
+__history

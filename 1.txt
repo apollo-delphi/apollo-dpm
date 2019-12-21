@@ -1,0 +1,6 @@
+https://api.github.com/repos/apollo-delphi/apollo-dpm/git/trees/9ecefd924bb52f0af9f91e7ee82f5b4a41e7fd7f
+https://api.github.com/repos/apollo-delphi/apollo-dpm/branches/master
+https://api.github.com/repos/apollo-delphi/apollo-dpm/contents/README.md
+https://raw.githubusercontent.com/apollo-delphi/apollo-dpm/master/README.md
+
+https://api.github.com/repos/apollo-delphi/apollo-http/tags

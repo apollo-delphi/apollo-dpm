@@ -1,4 +1,4 @@
-package DelmePackageManager;
+package Apollo_DPM;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -28,9 +28,20 @@ package DelmePackageManager;
 {$IMPLICITBUILD ON}
 
 requires
-  designide;
+  designide,
+  rtl,
+  IndySystem,
+  IndyProtocols,
+  IndyCore,
+  vclwinx;
 
 contains
-  Delme_IDEWizard in 'Delme_IDEWizard.pas';
+  Apollo_DPM_IDEWizard in 'Apollo_DPM_IDEWizard.pas',
+  Apollo_DPM_Engine in 'Apollo_DPM_Engine.pas',
+  Apollo_DPM_GitHubAPI in 'Apollo_DPM_GitHubAPI.pas',
+  Apollo_DPM_Form in 'Apollo_DPM_Form.pas' {DPMForm},
+  Apollo_DPM_Package in 'Apollo_DPM_Package.pas',
+  Apollo_HTTP in '..\..\apollo-http\Source\Apollo_HTTP.pas',
+  Apollo_DPM_PackageFrame in 'Apollo_DPM_PackageFrame.pas' {frmPackage: TFrame};
 
 end.
