@@ -11,9 +11,23 @@ uses
 type
   TUINotifyProc = procedure(const aMsg: string) of object;
 
+  TDPMEngine = class;
+
+  TCompileNotifier = class(TInterfacedObject, IOTACompileNotifier)
+  private
+    FDPMEngine: TDPMEngine;
+  protected
+    procedure ProjectCompileStarted(const Project: IOTAProject; Mode: TOTACompileMode);
+    procedure ProjectCompileFinished(const Project: IOTAProject; Result: TOTACompileResult);
+    procedure ProjectGroupCompileStarted(Mode: TOTACompileMode);
+    procedure ProjectGroupCompileFinished(Result: TOTACompileResult);
+  end;
+
   TDPMEngine = class
   private
+    FCompileServices: IOTACompileServices;
     FGHAPI: TGHAPI;
+    FNotifierIndex: Integer;
     FNTAServices: INTAServices;
     FProjectPackages: TPackageList;
     FPublishedPackages: TPackageList;
@@ -22,15 +36,18 @@ type
     function GetActiveProject: IOTAProject;
     function GetActiveProjectPath: string;
     function GetApolloMenuItem: TMenuItem;
+    function GetFileSize(const aPath: string): Int64;
     function GetIDEMainMenu: TMainMenu;
+    function GetPackagePath(aPackage: TPackage): string;
     function GetPackagesJSONString(aPackageList: TPackageList): string;
     function GetProjectPackagesFilePath: string;
     function GetVendorsPath: string;
+    function SaveContent(const aVendorPath, aRepoPath, aContent: string): string;
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
+    procedure BuildBIN(const aTargetPath: string);
     procedure BuildMenu;
     procedure DPMMenuItemClick(Sender: TObject);
-    procedure SaveContent(const aVendorPath, aRepoPath, aContent: string);
     procedure SaveProjectPackages(aPackageList: TPackageList);
     procedure WriteFile(const aFilePath, aContent: string);
   public
@@ -38,13 +55,13 @@ type
     function GetPublishedPackages: TPackageList;
     function GetPackageVersions(aPackage: TPackage): TArray<TVersion>;
     procedure InstallPackage(const aVersionName: string; aPublishedPackage: TPackage);
-    constructor Create(aNTAServices: INTAServices);
+    constructor Create(aBorlandIDEServices: IBorlandIDEServices);
     destructor Destroy; override;
   end;
 
 const
-  cApolloDPMPablishedPackagePath = '/master/Published/packages.json';
-  cApolloDPMProjectPackagePath = 'packages.json';
+  cApolloDPMPablishedPackagePath = '/master/Published/Packages.json';
+  cApolloDPMProjectPackagePath = 'Packages.json';
   cApolloDPMRepo = 'apollo-dpm';
   cApolloLibOwner = 'apollo-delphi';
   cApolloMenuItemCaption = 'Apollo';
@@ -88,6 +105,36 @@ begin
   GetApolloMenuItem.Add(DPMMenuItem);
 end;
 
+procedure TDPMEngine.BuildBIN(const aTargetPath: string);
+var
+  Directories: TArray<string>;
+  Directory: string;
+  Files: TArray<string>;
+  Package: TPackage;
+  ProjectPackages: TPackageList;
+  sFile: string;
+  sTargetFile: string;
+begin
+  ProjectPackages := GetProjectPackageList;
+
+  for Package in ProjectPackages do
+    begin
+      Directories := TDirectory.GetDirectories(GetPackagePath(Package), 'BIN', TSearchOption.soAllDirectories);
+      for Directory in Directories do
+        begin
+          Files := TDirectory.GetFiles(Directory, '*', TSearchOption.soAllDirectories);
+          for sFile in Files do
+            begin
+              sTargetFile := aTargetPath + '\' + TPath.GetFileName(sFile);
+              if (not TFile.Exists(sTargetFile)) or
+                 (TFile.Exists(sTargetFile) and (GetFileSize(sTargetFile) <> GetFileSize(sFile)))
+              then
+                TFile.Copy(sFile, sTargetFile, True);
+            end;
+        end;
+    end;
+end;
+
 procedure TDPMEngine.BuildMenu;
 begin
   if GetApolloMenuItem = nil then
@@ -96,9 +143,17 @@ begin
   AddDPMMenuItem;
 end;
 
-constructor TDPMEngine.Create(aNTAServices: INTAServices);
+constructor TDPMEngine.Create(aBorlandIDEServices: IBorlandIDEServices);
+var
+  CompileNotifier: TCompileNotifier;
 begin
-  FNTAServices := aNTAServices;
+  FNTAServices := aBorlandIDEServices as INTAServices;
+
+  FCompileServices := BorlandIDEServices as IOTACompileServices;
+  CompileNotifier := TCompileNotifier.Create;
+  CompileNotifier.FDPMEngine := Self;
+  FNotifierIndex := FCompileServices.AddNotifier(CompileNotifier);
+
   FGHAPI := TGHAPI.Create;
   FPublishedPackages := nil;
   FProjectPackages := nil;
@@ -111,6 +166,8 @@ end;
 
 destructor TDPMEngine.Destroy;
 begin
+  FCompileServices.RemoveNotifier(FNotifierIndex);
+
   if GetApolloMenuItem <> nil then
     GetIDEMainMenu.Items.Remove(GetApolloMenuItem);
 
@@ -177,6 +234,18 @@ begin
       Exit(MenuItem);
 end;
 
+function TDPMEngine.GetFileSize(const aPath: string): Int64;
+var
+  FS: TFileStream;
+begin
+  FS := TFile.Open(aPath, TFileMode.fmOpen);
+  try
+    Result := FS.Size;
+  finally
+    FS.Free;
+  end;
+end;
+
 function TDPMEngine.GetIDEMainMenu: TMainMenu;
 begin
   Result := FNTAServices.MainMenu;
@@ -202,6 +271,11 @@ begin
   finally
     jsnPackagesObj.Free;
   end;
+end;
+
+function TDPMEngine.GetPackagePath(aPackage: TPackage): string;
+begin
+  Result := GetVendorsPath + '\' + aPackage.Name;
 end;
 
 function TDPMEngine.GetPackagesJSONString(aPackageList: TPackageList): string;
@@ -264,7 +338,7 @@ begin
   if not TFile.Exists(GetProjectPackagesFilePath) then
     sPackagesJSON := cEmptyPackagesFileContent
   else
-    sPackagesJSON := TFile.ReadAllText(GetProjectPackagesFilePath, TEncoding.Unicode);
+    sPackagesJSON := TFile.ReadAllText(GetProjectPackagesFilePath, TEncoding.ANSI);
 
   Result := CreatePackageList(sPackagesJSON);
   FProjectPackages := Result;
@@ -299,17 +373,16 @@ procedure TDPMEngine.InstallPackage(const aVersionName: string; aPublishedPackag
 var
   Blob: TBlob;
   Content: string;
+  FilePath: string;
   InstalledPackage: TPackage;
   ProjectPackageList: TPackageList;
   RepoTree: TTree;
   TreeNode: TTreeNode;
-  VendorPath: string;
   VersionSHA: string;
 begin
   FUINotifyProc(Format(#13#10 + 'Installing Package %s...', [aPublishedPackage.Name]));
 
   VersionSHA := aPublishedPackage.Version[aVersionName].SHA;
-  VendorPath := GetVendorsPath + '\' + aPublishedPackage.Name;
 
   RepoTree := FGHAPI.GetRepoTree(aPublishedPackage.Owner, aPublishedPackage.Repo, VersionSHA);
 
@@ -323,7 +396,9 @@ begin
           Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
           Content := TNetEncoding.Base64.Decode(Blob.Content);
 
-          SaveContent(VendorPath, TreeNode.Path, Content);
+          FilePath := SaveContent(GetPackagePath(aPublishedPackage), TreeNode.Path, Content);
+
+          GetActiveProject.AddFile(FilePath, True);
         end;
     end;
 
@@ -332,25 +407,26 @@ begin
   ProjectPackageList.Add(InstalledPackage);
   SaveProjectPackages(ProjectPackageList);
 
+  GetActiveProject.Save(False, True);
+
   FUINotifyProc('Success');
 end;
 
-procedure TDPMEngine.SaveContent(const aVendorPath, aRepoPath,
-  aContent: string);
+function TDPMEngine.SaveContent(const aVendorPath, aRepoPath,
+  aContent: string): string;
 var
-  Path: string;
   RepoPathPart: string;
   RepoPathParts: TArray<string>;
 begin
-  Path := aVendorPath;
+  Result := aVendorPath;
   RepoPathParts := aRepoPath.Split(['/']);
 
   for RepoPathPart in RepoPathParts do
-    Path := Path + '\' + RepoPathPart;
+    Result := Result + '\' + RepoPathPart;
 
-  FUINotifyProc('write ' + Path);
+  FUINotifyProc('write ' + Result);
 
-  WriteFile(Path, aContent);
+  WriteFile(Result, aContent);
 end;
 
 procedure TDPMEngine.SaveProjectPackages(aPackageList: TPackageList);
@@ -370,11 +446,35 @@ begin
 
   FS := TFile.Create(aFilePath);
   try
-    FS.Position := FS.Size;
-    FS.Write(aContent[1], Length(aContent) * SizeOf(Char));
+    //FS.Position := FS.Size;
+    //FS.Write(aContent[1], Length(aContent) * SizeOf(Char));
   finally
     FS.Free;
   end;
+
+  TFile.AppendAllText(aFilePath, aContent, TEncoding.ANSI);
+end;
+
+{ TCompileNotifier }
+
+procedure TCompileNotifier.ProjectCompileFinished(const Project: IOTAProject;
+  Result: TOTACompileResult);
+begin
+end;
+
+procedure TCompileNotifier.ProjectCompileStarted(const Project: IOTAProject;
+  Mode: TOTACompileMode);
+begin
+  FDPMEngine.BuildBIN(TDirectory.GetParent(Project.ProjectOptions.TargetName));
+end;
+
+procedure TCompileNotifier.ProjectGroupCompileFinished(
+  Result: TOTACompileResult);
+begin
+end;
+
+procedure TCompileNotifier.ProjectGroupCompileStarted(Mode: TOTACompileMode);
+begin
 end;
 
 end.

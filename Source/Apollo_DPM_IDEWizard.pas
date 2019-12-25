@@ -31,14 +31,10 @@ end;
 { TApolloWizard }
 
 constructor TApolloWizard.Create;
-var
-  NTAServices: INTAServices;
 begin
   inherited Create;
 
-  NTAServices := BorlandIDEServices as INTAServices;
-
-  FDPMEngine := TDPMEngine.Create(NTAServices);
+  FDPMEngine := TDPMEngine.Create(BorlandIDEServices);
 end;
 
 destructor TApolloWizard.Destroy;
