@@ -29,6 +29,7 @@
           "source": "Source",
           "destination": "/"
         }
+      ]  
     },
     {
       "name": "Apollo_VCL_MVC_Template",
