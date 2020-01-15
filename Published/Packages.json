@@ -23,7 +23,12 @@
       "name": "Apollo_MVC_Core",
       "description": "Apollo Lib MVC Core Module",
       "owner": "apollo-delphi",
-      "repo": "apollo-mvc-core"
+      "repo": "apollo-mvc-core",
+      "removes": [
+        {
+          "source": "Source",
+          "destination": "/"
+        }
     },
     {
       "name": "Apollo_VCL_MVC_Template",
