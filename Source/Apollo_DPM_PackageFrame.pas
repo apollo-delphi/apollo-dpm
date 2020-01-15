@@ -30,12 +30,10 @@ type
     property GetVersionsFunc: TGetVersionsFunc read FGetVersionsFunc write FGetVersionsFunc;
   end;
 
-const
-  cLatestVersion = 'latest';
-
 implementation
 
 uses
+  Apollo_DPM_Engine,
   System.Threading;
 
 {$R *.dfm}
@@ -67,6 +65,8 @@ begin
           cbbVersions.Items.Clear;
           for i := 0 to Length(Versions) - 1 do
             cbbVersions.Items.Add(Versions[i].Name);
+
+          cbbVersions.Items.Add(cLatestRevision);
         end
       );
     end
@@ -75,6 +75,8 @@ begin
 end;
 
 constructor TfrmPackage.Create(AOwner: TComponent; aPackage: TPackage);
+var
+  VersionItem: string;
 begin
   inherited Create(AOwner);
 
@@ -83,7 +85,12 @@ begin
   lblPackageName.Caption := FPackage.Name;
   lblPackageDescription.Caption := FPackage.Description;
 
-  cbbVersions.Items.Add(cLatestVersion);
+  if not aPackage.InstalledVersion.Name.IsEmpty then
+    VersionItem := Format('%s%s...', [aPackage.InstalledVersion.Name, aPackage.InstalledVersion.SHA.Substring(1,5)])
+  else
+    VersionItem := cLatestVersion;
+
+  cbbVersions.Items.Add(VersionItem);
   cbbVersions.ItemIndex := 0;
 end;
 

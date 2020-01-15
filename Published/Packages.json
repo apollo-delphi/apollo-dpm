@@ -1,52 +1,35 @@
 {
   "packages": [
-	  
-	{
-		"name": "Apollo_HTTP",
-		"description": "Apollo Lib HTTP Module",
-		"owner": "apollo-delphi",
-		"repo": "apollo-http",
-		"removes": [
-			{"source": "Source", "destination": "/"}
-		],
-		"ignores": [
-			"Source/tst_Apollo_HTTP.pas",
-			"Source/Apollo_HTTP_Test.dpr",
-			"Source/Apollo_HTTP_Test.dproj",
-			"Source/Apollo_HTTP_Group.groupproj"
-		]
-	},
-	{
-		"name": "Apollo_2",
-		"description": "Apollo Lib 2 Module"
-	},
-	{
-		"name": "Apollo_3",
-		"description": "Apollo Lib 3 Module"
-	},
-	{
-		"name": "Apollo_4",
-		"description": "Apollo Lib 4 Module"
-	},
-	{
-		"name": "Apollo_5",
-		"description": "Apollo Lib 5 Module"
-	},
-	{
-		"name": "Apollo_6",
-		"description": "Apollo Lib 6 Module"
-	},
-	{
-		"name": "Apollo_7",
-		"description": "Apollo Lib 7 Module"
-	},
-	{
-		"name": "Apollo_8",
-		"description": "Apollo Lib 8 Module"
-	},
-	{
-		"name": "Apollo_9",
-		"description": "Apollo Lib 9 Module"
-	}
-  ]	
+    {
+      "name": "Apollo_HTTP",
+      "description": "Apollo Lib HTTP Module",
+      "owner": "apollo-delphi",
+      "repo": "apollo-http",
+      "removes": [
+        {
+          "source": "Source",
+          "destination": "/"
+        }
+      ],
+      "ignores": [
+        ".gitignore",
+        "Source/tst_Apollo_HTTP.pas",
+        "Source/Apollo_HTTP_Test.dpr",
+        "Source/Apollo_HTTP_Test.dproj",
+        "Source/Apollo_HTTP_Group.groupproj"
+      ]
+    },
+    {
+      "name": "Apollo_MVC",
+      "description": "Apollo Lib MVC Module",
+      "owner": "apollo-delphi",
+      "repo": "apollo-mvc-core"
+    },
+    {
+      "name": "Apollo_VCL_MVC_Template",
+      "description": "Apollo Lib VLC Project Template (Supports MVC Module)",
+      "owner": "apollo-delphi",
+      "repo": "apollo-vcl-mvc-template"
+    }
+  ]
 }

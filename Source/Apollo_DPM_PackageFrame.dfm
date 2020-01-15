@@ -2,7 +2,7 @@ object frmPackage: TfrmPackage
   Left = 0
   Top = 0
   Width = 366
-  Height = 49
+  Height = 74
   TabOrder = 0
   object lblPackageName: TLabel
     Left = 12
@@ -27,15 +27,15 @@ object frmPackage: TfrmPackage
     Font.Style = [fsItalic]
   end
   object lblVersion: TLabel
-    Left = 120
-    Top = 8
+    Left = 12
+    Top = 50
     Width = 35
     Height = 13
     Caption = 'Version'
   end
   object btnInstall: TButton
-    Left = 304
-    Top = 2
+    Left = 305
+    Top = 44
     Width = 47
     Height = 25
     Caption = 'Install'
@@ -43,8 +43,8 @@ object frmPackage: TfrmPackage
     OnClick = btnInstallClick
   end
   object cbbVersions: TComboBox
-    Left = 161
-    Top = 4
+    Left = 53
+    Top = 46
     Width = 80
     Height = 22
     Style = csOwnerDrawFixed
@@ -56,8 +56,8 @@ object frmPackage: TfrmPackage
     Font.Charset = DEFAULT_CHARSET
   end
   object aiVerListLoad: TActivityIndicator
-    Left = 247
-    Top = 3
+    Left = 138
+    Top = 45
     IndicatorSize = aisSmall
     IndicatorType = aitRotatingSector
   end

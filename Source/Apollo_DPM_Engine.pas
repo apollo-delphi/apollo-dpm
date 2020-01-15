@@ -5,6 +5,7 @@ interface
 uses
   Apollo_DPM_GitHubAPI,
   Apollo_DPM_Package,
+  System.SysUtils,
   ToolsAPI,
   Vcl.Menus;
 
@@ -49,12 +50,13 @@ type
     procedure BuildMenu;
     procedure DPMMenuItemClick(Sender: TObject);
     procedure SaveProjectPackages(aPackageList: TPackageList);
-    procedure WriteFile(const aFilePath, aContent: string);
+    procedure WriteFile(const aFilePath: string; aBytes: TBytes);
   public
     function GetProjectPackageList: TPackageList;
     function GetPublishedPackages: TPackageList;
     function GetPackageVersions(aPackage: TPackage): TArray<TVersion>;
-    procedure InstallPackage(const aVersionName: string; aPublishedPackage: TPackage);
+    function IsProjectOpened: Boolean;
+    procedure InstallPackage(aVersionName: string; aPublishedPackage: TPackage);
     constructor Create(aBorlandIDEServices: IBorlandIDEServices);
     destructor Destroy; override;
   end;
@@ -69,7 +71,10 @@ const
   cDPMMenuItemCaption = 'DPM - Delphi Package Manager...';
 
   cEmptyPackagesFileContent = '{"packages": []}';
-  cPackageCurrentRevision = 'current revision';
+
+  cCustomRevision = 'rev.';
+  cLatestVersion = 'latest version';
+  cLatestRevision = 'latest revision';
 
 implementation
 
@@ -78,8 +83,7 @@ uses
   System.Classes,
   System.IOUtils,
   System.JSON,
-  System.NetEncoding,
-  System.SysUtils;
+  System.NetEncoding;
 
 { TDPMEngine }
 
@@ -308,7 +312,7 @@ var
   Tags: TArray<TTag>;
   Version: TVersion;
 begin
-  //Result := [cPackageCurrentRevision];
+  Result := [];
 
   Tags := FGHAPI.GetRepoTags(aPackage.Owner, aPackage.Repo);
 
@@ -369,12 +373,13 @@ begin
   Result := GetActiveProjectPath + '\Vendors';
 end;
 
-procedure TDPMEngine.InstallPackage(const aVersionName: string; aPublishedPackage: TPackage);
+procedure TDPMEngine.InstallPackage(aVersionName: string; aPublishedPackage: TPackage);
 var
   Blob: TBlob;
-  Content: string;
+  Extension: string;
   FilePath: string;
   InstalledPackage: TPackage;
+  InstalledVersion: TVersion;
   ProjectPackageList: TPackageList;
   RepoTree: TTree;
   TreeNode: TTreeNode;
@@ -382,7 +387,28 @@ var
 begin
   FUINotifyProc(Format(#13#10 + 'Installing Package %s...', [aPublishedPackage.Name]));
 
-  VersionSHA := aPublishedPackage.Version[aVersionName].SHA;
+  if aVersionName = cLatestVersion then
+    begin
+      GetPackageVersions(aPublishedPackage);
+      if Length(aPublishedPackage.Versions) > 0 then
+        begin
+          VersionSHA := aPublishedPackage.Versions[0].SHA;
+          aVersionName := aPublishedPackage.Versions[0].Name;
+        end
+      else
+        aVersionName := cLatestRevision;
+    end;
+
+  if aVersionName = cLatestRevision then
+    begin
+      VersionSHA := FGHAPI.GetMasterBranchSHA(aPublishedPackage.Owner, aPublishedPackage.Repo);
+      aVersionName := cCustomRevision;
+    end
+  else
+    begin
+      VersionSHA := aPublishedPackage.Version[aVersionName].SHA;
+      aVersionName := aPublishedPackage.Version[aVersionName].Name;
+    end;
 
   RepoTree := FGHAPI.GetRepoTree(aPublishedPackage.Owner, aPublishedPackage.Repo, VersionSHA);
 
@@ -394,16 +420,21 @@ begin
       if not aPublishedPackage.IsIgnorePath(TreeNode.Path) then
         begin
           Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
-          Content := TNetEncoding.Base64.Decode(Blob.Content);
 
-          FilePath := SaveContent(GetPackagePath(aPublishedPackage), TreeNode.Path, Content);
+          FilePath := SaveContent(GetPackagePath(aPublishedPackage), TreeNode.Path, Blob.Content);
+          Extension := TPath.GetExtension(FilePath);
 
-          GetActiveProject.AddFile(FilePath, True);
+          if Extension = '.pas' then
+            GetActiveProject.AddFile(FilePath, True);
         end;
     end;
 
-  ProjectPackageList := GetProjectPackageList;
   InstalledPackage := TPackage.Create(aPublishedPackage);
+  InstalledVersion.Name := aVersionName;
+  InstalledVersion.SHA := VersionSHA;
+  InstalledPackage.InstalledVersion := InstalledVersion;
+
+  ProjectPackageList := GetProjectPackageList;
   ProjectPackageList.Add(InstalledPackage);
   SaveProjectPackages(ProjectPackageList);
 
@@ -412,9 +443,15 @@ begin
   FUINotifyProc('Success');
 end;
 
+function TDPMEngine.IsProjectOpened: Boolean;
+begin
+  Result := GetActiveProject <> nil;
+end;
+
 function TDPMEngine.SaveContent(const aVendorPath, aRepoPath,
   aContent: string): string;
 var
+  Bytes: TBytes;
   RepoPathPart: string;
   RepoPathParts: TArray<string>;
 begin
@@ -424,21 +461,26 @@ begin
   for RepoPathPart in RepoPathParts do
     Result := Result + '\' + RepoPathPart;
 
+  Bytes := TNetEncoding.Base64.DecodeStringToBytes(aContent);
+
   FUINotifyProc('write ' + Result);
 
-  WriteFile(Result, aContent);
+  WriteFile(Result, Bytes);
 end;
 
 procedure TDPMEngine.SaveProjectPackages(aPackageList: TPackageList);
 var
+  Bytes: TBytes;
   sJSONObj: string;
 begin
   sJSONObj := GetPackagesJSONString(aPackageList);
 
-  WriteFile(GetProjectPackagesFilePath, sJSONObj);
+  Bytes := TEncoding.ANSI.GetBytes(sJSONObj);
+
+  WriteFile(GetProjectPackagesFilePath, Bytes);
 end;
 
-procedure TDPMEngine.WriteFile(const aFilePath, aContent: string);
+procedure TDPMEngine.WriteFile(const aFilePath: string; aBytes: TBytes);
 var
   FS: TFileStream;
 begin
@@ -446,13 +488,11 @@ begin
 
   FS := TFile.Create(aFilePath);
   try
-    //FS.Position := FS.Size;
-    //FS.Write(aContent[1], Length(aContent) * SizeOf(Char));
+    FS.Position := FS.Size;
+    FS.Write(aBytes[0], Length(aBytes));
   finally
     FS.Free;
   end;
-
-  TFile.AppendAllText(aFilePath, aContent, TEncoding.ANSI);
 end;
 
 { TCompileNotifier }

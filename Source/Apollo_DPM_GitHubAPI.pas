@@ -67,15 +67,20 @@ begin
 end;
 
 function TGHAPI.GetMasterBranchSHA(const aOwner, aRepo: string): string;
-//var
-//  jsnObj: TJSONObject;
-//  sJSON: string;
-//  URL: string;
+var
+  jsnObj: TJSONObject;
+  sJSON: string;
+  URL: string;
 begin
-//  URL := GetAPIHostBasePath(aOwner, aRepo) + '/branches/master';
-//  sJSON := FHTTP.Get(URL);
+  URL := GetAPIHostBasePath(aOwner, aRepo) + '/branches/master';
+  sJSON := FHTTP.Get(URL);
 
-//  jsnObj := TJSONObject.ParseJSONValue(sJSON) as TJSONObject;
+  jsnObj := TJSONObject.ParseJSONValue(sJSON) as TJSONObject;
+  try
+    Result := (jsnObj.GetValue('commit') as TJSONObject).GetValue('sha').Value;
+  finally
+    jsnObj.Free;
+  end;
 end;
 
 function TGHAPI.GetRepoBlob(const aURL: string): TBlob;

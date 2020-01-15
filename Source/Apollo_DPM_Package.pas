@@ -24,6 +24,7 @@ type
   private
     FDescription: string;
     FIgnores: TArray<string>;
+    FInstalledVersion: TVersion;
     FName: string;
     FOwner: string;
     FRemoves: TArray<TRemove>;
@@ -39,6 +40,7 @@ type
     constructor Create(aPackage: TPackage); overload;
     property Description: string read FDescription write FDescription;
     property Ignores: TArray<string> read FIgnores;
+    property InstalledVersion: TVersion read FInstalledVersion write FInstalledVersion;
     property Name: string read FName write FName;
     property Owner: string read FOwner write FOwner;
     property Removes: TArray<TRemove> read FRemoves;
@@ -50,6 +52,9 @@ type
   TPackageList = TObjectList<TPackage>;
 
 implementation
+
+uses
+  System.SysUtils;
 
 { TPackage }
 
@@ -65,6 +70,7 @@ constructor TPackage.Create(aJSONPackage: TJSONObject);
 var
   jsnIgnore: TJSONValue;
   jsnIgnores: TJSONArray;
+  jsnInstalled: TJSONObject;
   jsnRemoves: TJSONArray;
   jsnRemove: TJSONValue;
   Remove: TRemove;
@@ -92,6 +98,12 @@ begin
             Remove.Destination := (jsnRemove as TJSONObject).GetValue('destination').Value;
             FRemoves := FRemoves + [Remove];
           end;
+
+      if aJSONPackage.TryGetValue('installed', jsnInstalled) then
+        begin
+          FInstalledVersion.Name :=  jsnInstalled.GetValue('name').Value;
+          FInstalledVersion.SHA :=  jsnInstalled.GetValue('sha').Value;
+        end;
     end;
 end;
 
@@ -103,6 +115,8 @@ begin
 end;
 
 function TPackage.CreateJSON: TJSONObject;
+var
+  jsnInstalledVersion: TJSONObject;
 begin
   Result := TJSONObject.Create;
 
@@ -110,6 +124,15 @@ begin
   Result.AddPair('name', Name);
   Result.AddPair('owner', Owner);
   Result.AddPair('repo', Repo);
+
+  if not InstalledVersion.Name.IsEmpty then
+    begin
+      jsnInstalledVersion := TJSONObject.Create;
+      jsnInstalledVersion.AddPair('name', InstalledVersion.Name);
+      jsnInstalledVersion.AddPair('sha', InstalledVersion.SHA);
+
+      Result.AddPair('installed', jsnInstalledVersion);
+    end;
 end;
 
 function TPackage.GetVersion(const aName: string): TVersion;
@@ -128,6 +151,7 @@ begin
   FVersions := [];
   FRemoves := [];
   FIgnores := [];
+  FInstalledVersion.Init;
 end;
 
 function TPackage.IsIgnorePath(const aPath: string): Boolean;

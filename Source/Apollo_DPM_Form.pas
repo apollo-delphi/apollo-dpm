@@ -156,7 +156,7 @@ begin
       AsyncLoadPublishedPackages;
     end
   else
-  if Node.Text = cProjectDependencies then
+  if FDPMEngine.IsProjectOpened and (Node.Text = cProjectDependencies) then
     RenderPackageList(FDPMEngine.GetProjectPackageList);
 end;
 
