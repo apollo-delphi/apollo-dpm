@@ -370,7 +370,7 @@ end;
 
 function TDPMEngine.GetVendorsPath: string;
 begin
-  Result := GetActiveProjectPath + '\Vendors';
+  Result := TDirectory.GetParent(GetActiveProjectPath) + '\Vendors';
 end;
 
 procedure TDPMEngine.InstallPackage(aVersionName: string; aPublishedPackage: TPackage);
