@@ -8,7 +8,7 @@
       "removes": [
         {
           "source": "Source",
-          "destination": "/"
+          "destination": ""
         }
       ],
       "ignores": [
@@ -27,7 +27,7 @@
       "removes": [
         {
           "source": "Source",
-          "destination": "/"
+          "destination": ""
         }
       ]  
     },

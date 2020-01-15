@@ -380,7 +380,9 @@ var
   FilePath: string;
   InstalledPackage: TPackage;
   InstalledVersion: TVersion;
+  NodePath: string;
   ProjectPackageList: TPackageList;
+  Remove: TRemove;
   RepoTree: TTree;
   TreeNode: TTreeNode;
   VersionSHA: string;
@@ -421,7 +423,11 @@ begin
         begin
           Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
 
-          FilePath := SaveContent(GetPackagePath(aPublishedPackage), TreeNode.Path, Blob.Content);
+          NodePath := TreeNode.Path;
+          for Remove in aPublishedPackage.Removes do
+            NodePath := NodePath.Replace(Remove.Source, Remove.Destination);
+
+          FilePath := SaveContent(GetPackagePath(aPublishedPackage), NodePath, Blob.Content);
           Extension := TPath.GetExtension(FilePath);
 
           if Extension = '.pas' then
