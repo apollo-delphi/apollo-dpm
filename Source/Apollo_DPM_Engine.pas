@@ -52,6 +52,7 @@ type
     procedure SaveProjectPackages(aPackageList: TPackageList);
     procedure WriteFile(const aFilePath: string; aBytes: TBytes);
   public
+    function CreateNewPackageForRepo(aRepoURL: string): TPackage;
     function GetProjectPackageList: TPackageList;
     function GetPublishedPackages: TPackageList;
     function GetPackageVersions(aPackage: TPackage): TArray<TVersion>;
@@ -83,7 +84,8 @@ uses
   System.Classes,
   System.IOUtils,
   System.JSON,
-  System.NetEncoding;
+  System.NetEncoding,
+  Vcl.Dialogs;
 
 { TDPMEngine }
 
@@ -166,6 +168,40 @@ begin
     Exit;
 
   BuildMenu;
+end;
+
+function TDPMEngine.CreateNewPackageForRepo(aRepoURL: string): TPackage;
+var
+  SHA: string;
+  URLWords: TArray<string>;
+begin
+  Result := nil;
+
+  if aRepoURL.Contains('://') then
+    aRepoURL := aRepoURL.Substring(aRepoURL.IndexOf('://') + 3, aRepoURL.Length);
+  URLWords := aRepoURL.Split(['/']);
+
+  if (not (Length(URLWords) >= 3)) or
+   ((Length(URLWords) > 0) and (URLWords[0].ToLower <> 'github.com'))
+  then
+    begin
+      ShowMessage('The repo URL is invalid!');
+      Exit;
+    end;
+
+  try
+    SHA := FGHAPI.GetMasterBranchSHA(URLWords[1], URLWords[2]);
+  except
+    ShowMessage('Can`t load the repo URL!');
+    Exit;
+  end;
+
+  if SHA.IsEmpty then
+    Exit;
+
+  Result := TPackage.Create;
+  Result.Owner := URLWords[1];
+  Result.Repo := URLWords[2];
 end;
 
 destructor TDPMEngine.Destroy;
@@ -419,10 +455,13 @@ begin
       if TreeNode.FileType <> 'blob' then
         Continue;
 
+// do Allow Path      
       if not aPublishedPackage.IsIgnorePath(TreeNode.Path) then
         begin
           Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
 
+          
+//aPublishedPackage.ApplyRemoves()...	
           NodePath := TreeNode.Path;
           for Remove in aPublishedPackage.Removes do
             NodePath := NodePath.Replace(Remove.Source, Remove.Destination);

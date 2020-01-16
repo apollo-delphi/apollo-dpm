@@ -21,9 +21,13 @@ type
     aiPabPkgLoad: TActivityIndicator;
     mmoActionLog: TMemo;
     splMain2Log: TSplitter;
+    pnlButtons: TPanel;
+    pnlContent: TPanel;
+    btnNewPackage: TButton;
     procedure tvStructureCustomDrawItem(Sender: TCustomTreeView;
       Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure tvStructureChange(Sender: TObject; Node: TTreeNode);
+    procedure btnNewPackageClick(Sender: TObject);
   private
     { Private declarations }
     FDPMEngine: TDPMEngine;
@@ -53,6 +57,7 @@ implementation
 {$R *.dfm}
 
 uses
+  Apollo_DPM_PackageForm,
   Apollo_DPM_PackageFrame,
   System.Threading;
 
@@ -81,6 +86,18 @@ begin
     end
   );
   AsyncTask.Start;
+end;
+
+procedure TDPMForm.btnNewPackageClick(Sender: TObject);
+var
+  PackageForm: TPackageForm;
+begin
+  PackageForm := TPackageForm.Create(FDPMEngine);
+  try
+    PackageForm.ShowModal;
+  finally
+    PackageForm.Free;
+  end;
 end;
 
 procedure TDPMForm.ClearPackageFrames;

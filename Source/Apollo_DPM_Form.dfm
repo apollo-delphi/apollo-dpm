@@ -19,10 +19,10 @@ object DPMForm: TDPMForm
   end
   object pnlMain: TPanel
     Left = 0
-    Top = 29
+    Top = 0
     Width = 624
-    Height = 280
-    Align = alBottom
+    Height = 309
+    Align = alClient
     BevelOuter = bvNone
     Caption = 'pnlMain'
     TabOrder = 0
@@ -30,33 +30,13 @@ object DPMForm: TDPMForm
       Left = 170
       Top = 0
       Width = 2
-      Height = 280
-    end
-    object sbPackages: TScrollBox
-      Left = 172
-      Top = 0
-      Width = 452
-      Height = 280
-      Align = alClient
-      BevelInner = bvNone
-      BevelOuter = bvNone
-      BorderStyle = bsNone
-      Color = clWindow
-      ParentColor = False
-      TabOrder = 0
-      object aiPabPkgLoad: TActivityIndicator
-        Left = 203
-        Top = 116
-        Anchors = []
-        IndicatorSize = aisLarge
-        IndicatorType = aitRotatingSector
-      end
+      Height = 309
     end
     object tvStructure: TTreeView
       Left = 0
       Top = 0
       Width = 170
-      Height = 280
+      Height = 309
       Align = alLeft
       BevelInner = bvNone
       BevelOuter = bvNone
@@ -65,10 +45,60 @@ object DPMForm: TDPMForm
       Indent = 19
       ReadOnly = True
       ShowLines = False
-      TabOrder = 1
+      TabOrder = 0
       ToolTips = False
       OnChange = tvStructureChange
       OnCustomDrawItem = tvStructureCustomDrawItem
+    end
+    object pnlContent: TPanel
+      Left = 172
+      Top = 0
+      Width = 452
+      Height = 309
+      Align = alClient
+      BevelOuter = bvNone
+      TabOrder = 1
+      object sbPackages: TScrollBox
+        Left = 0
+        Top = 41
+        Width = 452
+        Height = 268
+        Align = alClient
+        BevelInner = bvNone
+        BevelOuter = bvNone
+        BorderStyle = bsNone
+        Color = clWindow
+        ParentColor = False
+        TabOrder = 0
+        object aiPabPkgLoad: TActivityIndicator
+          Left = 203
+          Top = 110
+          Anchors = []
+          IndicatorSize = aisLarge
+          IndicatorType = aitRotatingSector
+        end
+      end
+      object pnlButtons: TPanel
+        Left = 0
+        Top = 0
+        Width = 452
+        Height = 41
+        Align = alTop
+        BevelOuter = bvNone
+        Caption = 'pnlButtons'
+        Color = clWindow
+        ParentBackground = False
+        TabOrder = 1
+        object btnNewPackage: TButton
+          Left = 24
+          Top = 8
+          Width = 105
+          Height = 25
+          Caption = 'btnNewPackage'
+          TabOrder = 0
+          OnClick = btnNewPackageClick
+        end
+      end
     end
   end
   object mmoActionLog: TMemo
