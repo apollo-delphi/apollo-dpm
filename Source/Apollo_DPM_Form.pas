@@ -90,13 +90,16 @@ end;
 
 procedure TDPMForm.btnNewPackageClick(Sender: TObject);
 var
+  Package: TPackage;
   PackageForm: TPackageForm;
 begin
-  PackageForm := TPackageForm.Create(FDPMEngine);
+  Package := TPackage.Create;
+  PackageForm := TPackageForm.Create(FDPMEngine, Package);
   try
     PackageForm.ShowModal;
   finally
     PackageForm.Free;
+    Package.Free;
   end;
 end;
 

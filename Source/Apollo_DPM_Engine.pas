@@ -52,12 +52,13 @@ type
     procedure SaveProjectPackages(aPackageList: TPackageList);
     procedure WriteFile(const aFilePath: string; aBytes: TBytes);
   public
-    function CreateNewPackageForRepo(aRepoURL: string): TPackage;
     function GetProjectPackageList: TPackageList;
     function GetPublishedPackages: TPackageList;
     function GetPackageVersions(aPackage: TPackage): TArray<TVersion>;
     function IsProjectOpened: Boolean;
+    function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
     procedure InstallPackage(aVersionName: string; aPublishedPackage: TPackage);
+    procedure SavePackage(aPackage: TPackage; const aPath: string);
     constructor Create(aBorlandIDEServices: IBorlandIDEServices);
     destructor Destroy; override;
   end;
@@ -84,8 +85,7 @@ uses
   System.Classes,
   System.IOUtils,
   System.JSON,
-  System.NetEncoding,
-  Vcl.Dialogs;
+  System.NetEncoding;
 
 { TDPMEngine }
 
@@ -170,38 +170,43 @@ begin
   BuildMenu;
 end;
 
-function TDPMEngine.CreateNewPackageForRepo(aRepoURL: string): TPackage;
+function TDPMEngine.LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
 var
+  RepoURL: string;
   SHA: string;
   URLWords: TArray<string>;
 begin
-  Result := nil;
+  Result := False;
+  RepoURL := aRepoURL;
+  aOwner := '';
+  aRepo := '';
+  aError := '';
 
-  if aRepoURL.Contains('://') then
-    aRepoURL := aRepoURL.Substring(aRepoURL.IndexOf('://') + 3, aRepoURL.Length);
-  URLWords := aRepoURL.Split(['/']);
+  if RepoURL.Contains('://') then
+    RepoURL := RepoURL.Substring(RepoURL.IndexOf('://') + 3, RepoURL.Length);
+  URLWords := RepoURL.Split(['/']);
 
   if (not (Length(URLWords) >= 3)) or
    ((Length(URLWords) > 0) and (URLWords[0].ToLower <> 'github.com'))
   then
     begin
-      ShowMessage('The repo URL is invalid!');
+      aError := 'The repo URL is invalid!';
       Exit;
     end;
 
   try
     SHA := FGHAPI.GetMasterBranchSHA(URLWords[1], URLWords[2]);
   except
-    ShowMessage('Can`t load the repo URL!');
+    aError := 'Can`t load the repo URL!';
     Exit;
   end;
 
   if SHA.IsEmpty then
     Exit;
 
-  Result := TPackage.Create;
-  Result.Owner := URLWords[1];
-  Result.Repo := URLWords[2];
+  Result := True;
+  aOwner := URLWords[1];
+  aRepo := URLWords[2];
 end;
 
 destructor TDPMEngine.Destroy;
@@ -410,7 +415,7 @@ begin
 end;
 
 procedure TDPMEngine.InstallPackage(aVersionName: string; aPublishedPackage: TPackage);
-var
+{var
   Blob: TBlob;
   Extension: string;
   FilePath: string;
@@ -421,9 +426,9 @@ var
   Remove: TRemove;
   RepoTree: TTree;
   TreeNode: TTreeNode;
-  VersionSHA: string;
+  VersionSHA: string; }
 begin
-  FUINotifyProc(Format(#13#10 + 'Installing Package %s...', [aPublishedPackage.Name]));
+{  FUINotifyProc(Format(#13#10 + 'Installing Package %s...', [aPublishedPackage.Name]));
 
   if aVersionName = cLatestVersion then
     begin
@@ -485,7 +490,7 @@ begin
 
   GetActiveProject.Save(False, True);
 
-  FUINotifyProc('Success');
+  FUINotifyProc('Success'); }
 end;
 
 function TDPMEngine.IsProjectOpened: Boolean;
@@ -511,6 +516,21 @@ begin
   FUINotifyProc('write ' + Result);
 
   WriteFile(Result, Bytes);
+end;
+
+procedure TDPMEngine.SavePackage(aPackage: TPackage; const aPath: string);
+var
+  Bytes: TBytes;
+  jsnPackageObj: TJSONObject;
+begin
+  jsnPackageObj := aPackage.CreateJSON;
+  try
+    Bytes := TEncoding.ANSI.GetBytes(jsnPackageObj.ToJSON);
+
+    WriteFile(aPath, Bytes);
+  finally
+    jsnPackageObj.Free;
+  end;
 end;
 
 procedure TDPMEngine.SaveProjectPackages(aPackageList: TPackageList);

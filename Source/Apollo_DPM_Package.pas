@@ -14,20 +14,24 @@ type
     procedure Init;
   end;
 
-  TRemove = record
+  TMove = record
   public
     Destination: string;
     Source: string;
   end;
 
+  TFilterType = (ftNone, ftWhiteList, ftBlackList);
+
   TPackage = class
   private
     FDescription: string;
-    FIgnores: TArray<string>;
+    FFileName: string;
+    FFilters: TArray<string>;
+    FFilterType: TFilterType;
     FInstalledVersion: TVersion;
+    FMoves: TArray<TMove>;
     FName: string;
     FOwner: string;
-    FRemoves: TArray<TRemove>;
     FRepo: string;
     FVersions: TArray<TVersion>;
     function GetVersion(const aName: string): TVersion;
@@ -39,11 +43,13 @@ type
     constructor Create(aJSONPackage: TJSONObject); overload;
     constructor Create(aPackage: TPackage); overload;
     property Description: string read FDescription write FDescription;
-    property Ignores: TArray<string> read FIgnores;
+    property FileName: string read FFileName write FFileName;
+    property Filters: TArray<string> read FFilters write FFilters;
+    property FilterType: TFilterType read FFilterType write FFilterType;
     property InstalledVersion: TVersion read FInstalledVersion write FInstalledVersion;
+    property Moves: TArray<TMove> read FMoves write FMoves;
     property Name: string read FName write FName;
     property Owner: string read FOwner write FOwner;
-    property Removes: TArray<TRemove> read FRemoves;
     property Repo: string read FRepo write FRepo;
     property Version[const aName: string]: TVersion read GetVersion;
     property Versions: TArray<TVersion> read FVersions write FVersions;
@@ -67,15 +73,15 @@ begin
 end;
 
 constructor TPackage.Create(aJSONPackage: TJSONObject);
-var
+{var
   jsnIgnore: TJSONValue;
   jsnIgnores: TJSONArray;
   jsnInstalled: TJSONObject;
   jsnRemoves: TJSONArray;
   jsnRemove: TJSONValue;
-  Remove: TRemove;
+  Remove: TRemove;}
 begin
-  Init;
+ { Init;
 
   if aJSONPackage <> nil then
     begin
@@ -104,7 +110,7 @@ begin
           FInstalledVersion.Name :=  jsnInstalled.GetValue('name').Value;
           FInstalledVersion.SHA :=  jsnInstalled.GetValue('sha').Value;
         end;
-    end;
+    end;   }
 end;
 
 constructor TPackage.Create(aPackage: TPackage);
@@ -116,7 +122,12 @@ end;
 
 function TPackage.CreateJSON: TJSONObject;
 var
+  jsnFilters: TJSONArray;
   jsnInstalledVersion: TJSONObject;
+  jsnMove: TJSONObject;
+  jsnMoves: TJSONArray;
+  Move: TMove;
+  sFilter: string;
 begin
   Result := TJSONObject.Create;
 
@@ -124,6 +135,34 @@ begin
   Result.AddPair('name', Name);
   Result.AddPair('owner', Owner);
   Result.AddPair('repo', Repo);
+
+  if not FileName.IsEmpty then
+    Result.AddPair('fileName', FileName);
+
+  if FilterType <> ftNone then
+    begin
+      Result.AddPair('filterType', TJSONNumber.Create(Ord(FilterType)));
+
+      jsnFilters := TJSONArray.Create;
+      for sFilter in Filters do
+        jsnFilters.Add(sFilter);
+
+      Result.AddPair('filters', jsnFilters);
+    end;
+
+  if Length(Moves) > 0 then
+    begin
+      jsnMoves := TJSONArray.Create;
+      for Move in Moves do
+        begin
+          jsnMove := TJSONObject.Create;
+          jsnMove.AddPair('source', Move.Source);
+          jsnMove.AddPair('destination', Move.Destination);
+
+          jsnMoves.AddElement(jsnMove);
+        end;
+      Result.AddPair('moves', jsnMoves);
+    end;
 
   if not InstalledVersion.Name.IsEmpty then
     begin
@@ -149,20 +188,28 @@ end;
 procedure TPackage.Init;
 begin
   FVersions := [];
-  FRemoves := [];
-  FIgnores := [];
+  FMoves := [];
+  FFilters := [];
+  FFilterType := ftNone;
+
+  FDescription := '';
+  FFileName := '';
+  FName := '';
+  FOwner := '';
+  FRepo := '';
+
   FInstalledVersion.Init;
 end;
 
 function TPackage.IsIgnorePath(const aPath: string): Boolean;
-var
-  IgnorePath: string;
+{var
+  IgnorePath: string;}
 begin
-  Result := False;
+  {Result := False;
 
   for IgnorePath in FIgnores do
     if IgnorePath = aPath then
-      Exit(True);
+      Exit(True);   }
 end;
 
 { TVersion }

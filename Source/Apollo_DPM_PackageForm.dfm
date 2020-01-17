@@ -102,12 +102,21 @@ object PackageForm: TPackageForm
       TabOrder = 1
       TabStop = True
     end
-    object mmoFiltering: TMemo
+    object sgFiltering: TStringGrid
       Left = 5
       Top = 36
       Width = 190
       Height = 207
+      ColCount = 1
+      DefaultRowHeight = 21
+      FixedCols = 0
+      RowCount = 1
+      FixedRows = 0
+      Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goColSizing, goEditing, goAlwaysShowEditor]
       TabOrder = 2
+      OnKeyDown = sgFilteringKeyDown
+      ColWidths = (
+        180)
     end
   end
   object grpMoving: TGroupBox
@@ -131,7 +140,7 @@ object PackageForm: TPackageForm
       OnKeyDown = sgMovingKeyDown
       ColWidths = (
         93
-        83)
+        85)
     end
   end
   object btnSaveJSON: TButton
@@ -141,9 +150,10 @@ object PackageForm: TPackageForm
     Height = 25
     Caption = 'Save JSON'
     TabOrder = 8
+    OnClick = btnSaveJSONClick
   end
   object btnPublish: TButton
-    Left = 101
+    Left = 91
     Top = 408
     Width = 75
     Height = 25
@@ -158,5 +168,17 @@ object PackageForm: TPackageForm
     Caption = 'Cancel'
     ModalResult = 2
     TabOrder = 10
+  end
+  object fsdSaveJSON: TFileSaveDialog
+    DefaultExtension = 'json'
+    FavoriteLinks = <>
+    FileTypes = <
+      item
+        DisplayName = 'json'
+        FileMask = '*.json'
+      end>
+    Options = [fdoStrictFileTypes]
+    Left = 56
+    Top = 328
   end
 end
