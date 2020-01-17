@@ -4,7 +4,7 @@ object PackageForm: TPackageForm
   BorderIcons = [biSystemMenu, biMinimize]
   BorderStyle = bsSingle
   Caption = 'PackageForm'
-  ClientHeight = 456
+  ClientHeight = 439
   ClientWidth = 415
   Color = clBtnFace
   OldCreateOrder = False
@@ -133,5 +133,30 @@ object PackageForm: TPackageForm
         93
         83)
     end
+  end
+  object btnSaveJSON: TButton
+    Left = 8
+    Top = 408
+    Width = 75
+    Height = 25
+    Caption = 'Save JSON'
+    TabOrder = 8
+  end
+  object btnPublish: TButton
+    Left = 101
+    Top = 408
+    Width = 75
+    Height = 25
+    Caption = 'Publish'
+    TabOrder = 9
+  end
+  object btnCancel: TButton
+    Left = 328
+    Top = 408
+    Width = 75
+    Height = 25
+    Caption = 'Cancel'
+    ModalResult = 2
+    TabOrder = 10
   end
 end

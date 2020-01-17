@@ -21,6 +21,9 @@ type
     mmoFiltering: TMemo;
     grpMoving: TGroupBox;
     sgMoving: TStringGrid;
+    btnSaveJSON: TButton;
+    btnPublish: TButton;
+    btnCancel: TButton;
     procedure btnGoClick(Sender: TObject);
     procedure sgMovingKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
