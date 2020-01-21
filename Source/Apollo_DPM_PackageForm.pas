@@ -71,11 +71,11 @@ procedure TPackageForm.btnSaveJSONClick(Sender: TObject);
 begin
   ReadControls;
 
-  fsdSaveJSON.FileName := 'DPMPackage.json';
+  fsdSaveJSON.FileName := 'PublicPackages.json';
   if fsdSaveJSON.Execute then
     begin
-      FPackage.FileName := ExtractFileName(fsdSaveJSON.FileName);
-      FDPMEngine.SavePackage(FPackage, fsdSaveJSON.FileName);
+      FDPMEngine.GetPublicPackages.Add(FPackage);
+      FDPMEngine.SavePackages(FDPMEngine.GetPublicPackages, fsdSaveJSON.FileName);
     end;
 end;
 

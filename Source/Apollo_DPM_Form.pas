@@ -71,16 +71,16 @@ end;
 procedure TDPMForm.AsyncLoadPublishedPackages;
 var
   AsyncTask: ITask;
-  PublishedPackages: TPackageList;
+  PublicPackages: TPackageList;
 begin
   AsyncTask := TTask.Create(procedure()
     begin
-      PublishedPackages := FDPMEngine.GetPublishedPackages;
+      PublicPackages := FDPMEngine.GetPublicPackages;
 
       TThread.Synchronize(nil, procedure()
         begin
           aiPabPkgLoad.Animate := False;
-          RenderPackageList(PublishedPackages);
+          RenderPackageList(PublicPackages);
         end
       );
     end

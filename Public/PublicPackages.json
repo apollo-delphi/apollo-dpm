@@ -1,0 +1,1 @@
+{"packages":[{"description":"Apollo Lib HTTP Module","name":"Apollo_HTTP","owner":"apollo-delphi","repo":"apollo-http","filterType":1,"filters":[".gitignore","Source\/tst_Apollo_HTTP.pas","Source\/Apollo_HTTP_Test.dpr","Source\/Apollo_HTTP_Test.dproj","Source\/Apollo_HTTP_Group.groupproj"],"moves":[{"source":"Source","destination":"\/"}]}]}

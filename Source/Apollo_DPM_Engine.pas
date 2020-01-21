@@ -31,7 +31,7 @@ type
     FNotifierIndex: Integer;
     FNTAServices: INTAServices;
     FProjectPackages: TPackageList;
-    FPublishedPackages: TPackageList;
+    FPublicPackages: TPackageList;
     FUINotifyProc: TUINotifyProc;
     function CreatePackageList(const aJSONString: string): TPackageList;
     function GetActiveProject: IOTAProject;
@@ -49,23 +49,24 @@ type
     procedure BuildBIN(const aTargetPath: string);
     procedure BuildMenu;
     procedure DPMMenuItemClick(Sender: TObject);
-    procedure SaveProjectPackages(aPackageList: TPackageList);
     procedure WriteFile(const aFilePath: string; aBytes: TBytes);
   public
     function GetProjectPackageList: TPackageList;
-    function GetPublishedPackages: TPackageList;
+    function GetPublicPackages: TPackageList;
     function GetPackageVersions(aPackage: TPackage): TArray<TVersion>;
     function IsProjectOpened: Boolean;
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
     procedure InstallPackage(aVersionName: string; aPublishedPackage: TPackage);
     procedure SavePackage(aPackage: TPackage; const aPath: string);
+    procedure SavePackages(aPackageList: TPackageList; const aPath: string);
     constructor Create(aBorlandIDEServices: IBorlandIDEServices);
     destructor Destroy; override;
   end;
 
 const
-  cApolloDPMPablishedPackagePath = '/master/Published/Packages.json';
-  cApolloDPMProjectPackagePath = 'Packages.json';
+  cApolloDPMPublicPackagesPath = '/master/Public/PublicPackages.json';
+  cApolloDPMPrivatePackagesPath = 'PrivatePackages.json';
+  cApolloDPMProjectPackagesPath = 'ProjectPackages.json';
   cApolloDPMRepo = 'apollo-dpm';
   cApolloLibOwner = 'apollo-delphi';
   cApolloMenuItemCaption = 'Apollo';
@@ -161,7 +162,7 @@ begin
   FNotifierIndex := FCompileServices.AddNotifier(CompileNotifier);
 
   FGHAPI := TGHAPI.Create;
-  FPublishedPackages := nil;
+  FPublicPackages := nil;
   FProjectPackages := nil;
 
   if FNTAServices = nil then
@@ -218,8 +219,8 @@ begin
 
   FGHAPI.Free;
 
-  if Assigned(FPublishedPackages) then
-    FreeAndNil(FPublishedPackages);
+  if Assigned(FPublicPackages) then
+    FreeAndNil(FPublicPackages);
 
   if Assigned(FProjectPackages) then
     FreeAndNil(FProjectPackages);
@@ -370,7 +371,7 @@ end;
 
 function TDPMEngine.GetProjectPackagesFilePath: string;
 begin
-  Result := GetActiveProjectPath + '\' + cApolloDPMProjectPackagePath;
+  Result := GetActiveProjectPath + '\' + cApolloDPMProjectPackagesPath;
 end;
 
 function TDPMEngine.GetProjectPackageList: TPackageList;
@@ -389,24 +390,24 @@ begin
   FProjectPackages := Result;
 end;
 
-function TDPMEngine.GetPublishedPackages: TPackageList;
+function TDPMEngine.GetPublicPackages: TPackageList;
 var
   sPackagesJSON: string;
 begin
-  if FPublishedPackages = nil then
+  if FPublicPackages = nil then
     begin
       sPackagesJSON := FGHAPI.GetTextFileContent(
         cApolloLibOwner,
         cApolloDPMRepo,
-        cApolloDPMPablishedPackagePath
+        cApolloDPMPublicPackagesPath
       );
 
       Result := CreatePackageList(sPackagesJSON);
 
-      FPublishedPackages := Result;
+      FPublicPackages := Result;
     end
   else
-    Result := FPublishedPackages;
+    Result := FPublicPackages;
 end;
 
 function TDPMEngine.GetVendorsPath: string;
@@ -533,7 +534,8 @@ begin
   end;
 end;
 
-procedure TDPMEngine.SaveProjectPackages(aPackageList: TPackageList);
+procedure TDPMEngine.SavePackages(aPackageList: TPackageList;
+  const aPath: string);
 var
   Bytes: TBytes;
   sJSONObj: string;
@@ -542,7 +544,7 @@ begin
 
   Bytes := TEncoding.ANSI.GetBytes(sJSONObj);
 
-  WriteFile(GetProjectPackagesFilePath, Bytes);
+  WriteFile(aPath, Bytes);
 end;
 
 procedure TDPMEngine.WriteFile(const aFilePath: string; aBytes: TBytes);

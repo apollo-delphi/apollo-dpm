@@ -158,6 +158,7 @@ object PackageForm: TPackageForm
     Width = 75
     Height = 25
     Caption = 'Publish'
+    Enabled = False
     TabOrder = 9
   end
   object btnCancel: TButton
