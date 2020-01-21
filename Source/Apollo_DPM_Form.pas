@@ -47,7 +47,7 @@ type
 const
   cProjectDependencies = 'Project Dependencies';
   cIDEDependencies = 'IDE Dependencies';
-  cPublishedPackages = 'Published Packages';
+  cPublicPackages = 'Public Packages';
 
 var
   DPMForm: TDPMForm;
@@ -163,14 +163,14 @@ procedure TDPMForm.RenderStructureTree;
 begin
   tvStructure.Items.Add(nil, cProjectDependencies);
   tvStructure.Items.Add(nil, cIDEDependencies);
-  tvStructure.Items.Add(nil, cPublishedPackages);
+  tvStructure.Items.Add(nil, cPublicPackages);
 end;
 
 procedure TDPMForm.tvStructureChange(Sender: TObject; Node: TTreeNode);
 begin
   ClearPackageFrames;
 
-  if Node.Text = cPublishedPackages then
+  if Node.Text = cPublicPackages then
     begin
       aiPabPkgLoad.Animate := True;
       AsyncLoadPublishedPackages;

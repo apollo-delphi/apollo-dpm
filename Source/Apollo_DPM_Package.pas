@@ -73,36 +73,39 @@ begin
 end;
 
 constructor TPackage.Create(aJSONPackage: TJSONObject);
-{var
-  jsnIgnore: TJSONValue;
-  jsnIgnores: TJSONArray;
+var
+  FilterType: Integer;
+  jsnFilter: TJSONValue;
+  jsnFilters: TJSONArray;
   jsnInstalled: TJSONObject;
-  jsnRemoves: TJSONArray;
-  jsnRemove: TJSONValue;
-  Remove: TRemove;}
+  jsnMove: TJSONValue;
+  jsnMoves: TJSONArray;
+  Move: TMove;
 begin
- { Init;
+  Init;
 
   if aJSONPackage <> nil then
     begin
-      if aJSONPackage.GetValue('repo') = nil then
-        Exit;
-
       Description := aJSONPackage.GetValue('description').Value;
       Name := aJSONPackage.GetValue('name').Value;
       Owner := aJSONPackage.GetValue('owner').Value;
       Repo := aJSONPackage.GetValue('repo').Value;
 
-      if aJSONPackage.TryGetValue('ignores', jsnIgnores) then
-        for jsnIgnore in jsnIgnores do
-          FIgnores := FIgnores + [jsnIgnore.Value];
+      if aJSONPackage.TryGetValue<Integer>('filterType', FilterType) then
+        FFilterType := TFilterType(FilterType)
+      else
+        FFilterType := ftNone;
 
-      if aJSONPackage.TryGetValue('removes', jsnRemoves) then
-        for jsnRemove in jsnRemoves do
+      if aJSONPackage.TryGetValue('filters', jsnFilters) then
+        for jsnFilter in jsnFilters do
+          FFilters := FFilters + [jsnFilter.Value];
+
+      if aJSONPackage.TryGetValue('moves', jsnMoves) then
+        for jsnMove in jsnMoves do
           begin
-            Remove.Source := (jsnRemove as TJSONObject).GetValue('source').Value;
-            Remove.Destination := (jsnRemove as TJSONObject).GetValue('destination').Value;
-            FRemoves := FRemoves + [Remove];
+            Move.Source := (jsnMove as TJSONObject).GetValue('source').Value;
+            Move.Destination := (jsnMove as TJSONObject).GetValue('destination').Value;
+            FMoves := FMoves + [Move];
           end;
 
       if aJSONPackage.TryGetValue('installed', jsnInstalled) then
@@ -110,7 +113,7 @@ begin
           FInstalledVersion.Name :=  jsnInstalled.GetValue('name').Value;
           FInstalledVersion.SHA :=  jsnInstalled.GetValue('sha').Value;
         end;
-    end;   }
+    end;
 end;
 
 constructor TPackage.Create(aPackage: TPackage);
