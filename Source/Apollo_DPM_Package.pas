@@ -34,11 +34,14 @@ type
     FOwner: string;
     FRepo: string;
     FVersions: TArray<TVersion>;
+    function CheckBlackList(const aPath: string): Boolean;
+    function CheckWhiteList(const aPath: string): Boolean;
     function GetVersion(const aName: string): TVersion;
     procedure Init;
   public
+    function AllowPath(const aPath: string): Boolean;
+    function ApplyMoves(const aNodePath: string): string;
     function CreateJSON: TJSONObject;
-    function IsIgnorePath(const aPath: string): Boolean;
     procedure Assign(aPackage: TPackage);
     constructor Create(aJSONPackage: TJSONObject); overload;
     constructor Create(aPackage: TPackage); overload;
@@ -63,6 +66,16 @@ uses
   System.SysUtils;
 
 { TPackage }
+
+function TPackage.ApplyMoves(const aNodePath: string): string;
+var
+  Move: TMove;
+begin
+  Result := aNodePath;
+
+  for Move in Moves do
+    Result := Result.Replace(Move.Source, Move.Destination);
+end;
 
 procedure TPackage.Assign(aPackage: TPackage);
 begin
@@ -114,6 +127,28 @@ begin
           FInstalledVersion.SHA :=  jsnInstalled.GetValue('sha').Value;
         end;
     end;
+end;
+
+function TPackage.CheckBlackList(const aPath: string): Boolean;
+var
+  Filter: string;
+begin
+  Result := True;
+
+  for Filter in Filters do
+    if aPath.StartsWith(Filter) then
+      Exit(False);
+end;
+
+function TPackage.CheckWhiteList(const aPath: string): Boolean;
+var
+  Filter: string;
+begin
+  Result := False;
+
+  for Filter in Filters do
+    if aPath.StartsWith(Filter) then
+      Exit(True);
 end;
 
 constructor TPackage.Create(aPackage: TPackage);
@@ -204,15 +239,14 @@ begin
   FInstalledVersion.Init;
 end;
 
-function TPackage.IsIgnorePath(const aPath: string): Boolean;
-{var
-  IgnorePath: string;}
+function TPackage.AllowPath(const aPath: string): Boolean;
 begin
-  {Result := False;
+  Result := True;
 
-  for IgnorePath in FIgnores do
-    if IgnorePath = aPath then
-      Exit(True);   }
+  case FilterType of
+    ftWhiteList: Result := CheckWhiteList(aPath);
+    ftBlackList: Result := CheckBlackList(aPath);
+  end;
 end;
 
 { TVersion }

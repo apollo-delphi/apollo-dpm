@@ -85,7 +85,6 @@ object DPMForm: TDPMForm
         Height = 41
         Align = alTop
         BevelOuter = bvNone
-        Caption = 'pnlButtons'
         Color = clWindow
         ParentBackground = False
         TabOrder = 1
@@ -96,6 +95,7 @@ object DPMForm: TDPMForm
           Height = 25
           Caption = 'btnNewPackage'
           TabOrder = 0
+          Visible = False
           OnClick = btnNewPackageClick
         end
       end

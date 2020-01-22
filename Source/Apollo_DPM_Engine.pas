@@ -56,7 +56,7 @@ type
     function GetPackageVersions(aPackage: TPackage): TArray<TVersion>;
     function IsProjectOpened: Boolean;
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
-    procedure InstallPackage(aVersionName: string; aPublishedPackage: TPackage);
+    procedure InstallPackage(aVersionName: string; aPackage: TPackage);
     procedure SavePackage(aPackage: TPackage; const aPath: string);
     procedure SavePackages(aPackageList: TPackageList; const aPath: string);
     constructor Create(aBorlandIDEServices: IBorlandIDEServices);
@@ -415,8 +415,8 @@ begin
   Result := TDirectory.GetParent(GetActiveProjectPath) + '\Vendors';
 end;
 
-procedure TDPMEngine.InstallPackage(aVersionName: string; aPublishedPackage: TPackage);
-{var
+procedure TDPMEngine.InstallPackage(aVersionName: string; aPackage: TPackage);
+var
   Blob: TBlob;
   Extension: string;
   FilePath: string;
@@ -424,20 +424,19 @@ procedure TDPMEngine.InstallPackage(aVersionName: string; aPublishedPackage: TPa
   InstalledVersion: TVersion;
   NodePath: string;
   ProjectPackageList: TPackageList;
-  Remove: TRemove;
   RepoTree: TTree;
   TreeNode: TTreeNode;
-  VersionSHA: string; }
+  VersionSHA: string;
 begin
-{  FUINotifyProc(Format(#13#10 + 'Installing Package %s...', [aPublishedPackage.Name]));
+  FUINotifyProc(Format(#13#10 + 'Installing Package %s...', [aPackage.Name]));
 
   if aVersionName = cLatestVersion then
     begin
-      GetPackageVersions(aPublishedPackage);
-      if Length(aPublishedPackage.Versions) > 0 then
+      GetPackageVersions(aPackage);
+      if Length(aPackage.Versions) > 0 then
         begin
-          VersionSHA := aPublishedPackage.Versions[0].SHA;
-          aVersionName := aPublishedPackage.Versions[0].Name;
+          VersionSHA := aPackage.Versions[0].SHA;
+          aVersionName := aPackage.Versions[0].Name;
         end
       else
         aVersionName := cLatestRevision;
@@ -445,34 +444,28 @@ begin
 
   if aVersionName = cLatestRevision then
     begin
-      VersionSHA := FGHAPI.GetMasterBranchSHA(aPublishedPackage.Owner, aPublishedPackage.Repo);
+      VersionSHA := FGHAPI.GetMasterBranchSHA(aPackage.Owner, aPackage.Repo);
       aVersionName := cCustomRevision;
     end
   else
     begin
-      VersionSHA := aPublishedPackage.Version[aVersionName].SHA;
-      aVersionName := aPublishedPackage.Version[aVersionName].Name;
+      VersionSHA := aPackage.Version[aVersionName].SHA;
+      aVersionName := aPackage.Version[aVersionName].Name;
     end;
 
-  RepoTree := FGHAPI.GetRepoTree(aPublishedPackage.Owner, aPublishedPackage.Repo, VersionSHA);
+  RepoTree := FGHAPI.GetRepoTree(aPackage.Owner, aPackage.Repo, VersionSHA);
 
   for TreeNode in RepoTree do
     begin
       if TreeNode.FileType <> 'blob' then
         Continue;
 
-// do Allow Path      
-      if not aPublishedPackage.IsIgnorePath(TreeNode.Path) then
+      if not aPackage.AllowPath(TreeNode.Path) then
         begin
           Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
 
-          
-//aPublishedPackage.ApplyRemoves()...	
-          NodePath := TreeNode.Path;
-          for Remove in aPublishedPackage.Removes do
-            NodePath := NodePath.Replace(Remove.Source, Remove.Destination);
-
-          FilePath := SaveContent(GetPackagePath(aPublishedPackage), NodePath, Blob.Content);
+          NodePath := aPackage.ApplyMoves(TreeNode.Path);
+          FilePath := SaveContent(GetPackagePath(aPackage), NodePath, Blob.Content);
           Extension := TPath.GetExtension(FilePath);
 
           if Extension = '.pas' then
@@ -480,18 +473,18 @@ begin
         end;
     end;
 
-  InstalledPackage := TPackage.Create(aPublishedPackage);
+  InstalledPackage := TPackage.Create(aPackage);
   InstalledVersion.Name := aVersionName;
   InstalledVersion.SHA := VersionSHA;
   InstalledPackage.InstalledVersion := InstalledVersion;
 
   ProjectPackageList := GetProjectPackageList;
   ProjectPackageList.Add(InstalledPackage);
-  SaveProjectPackages(ProjectPackageList);
+  SavePackages(ProjectPackageList, cApolloDPMProjectPackagesPath);
 
   GetActiveProject.Save(False, True);
 
-  FUINotifyProc('Success'); }
+  FUINotifyProc('Success');
 end;
 
 function TDPMEngine.IsProjectOpened: Boolean;
