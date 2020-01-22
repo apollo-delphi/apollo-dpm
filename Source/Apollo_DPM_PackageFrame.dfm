@@ -3,6 +3,9 @@ object frmPackage: TfrmPackage
   Top = 0
   Width = 366
   Height = 74
+  Color = clWindow
+  ParentBackground = False
+  ParentColor = False
   TabOrder = 0
   object lblPackageName: TLabel
     Left = 12
@@ -34,11 +37,13 @@ object frmPackage: TfrmPackage
     Caption = 'Version'
   end
   object btnInstall: TButton
-    Left = 305
+    Left = 280
     Top = 44
-    Width = 47
+    Width = 83
     Height = 25
     Caption = 'Install'
+    DropDownMenu = pm1
+    Style = bsSplitButton
     TabOrder = 0
     OnClick = btnInstallClick
   end
@@ -60,5 +65,12 @@ object frmPackage: TfrmPackage
     Top = 45
     IndicatorSize = aisSmall
     IndicatorType = aitRotatingSector
+  end
+  object pm1: TPopupMenu
+    Left = 200
+    Top = 16
+    object hj1: TMenuItem
+      Caption = 'hj'
+    end
   end
 end

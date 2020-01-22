@@ -460,7 +460,7 @@ begin
       if TreeNode.FileType <> 'blob' then
         Continue;
 
-      if not aPackage.AllowPath(TreeNode.Path) then
+      if aPackage.AllowPath(TreeNode.Path) then
         begin
           Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
 

@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.WinXCtrls,
   Apollo_DPM_Form,
-  Apollo_DPM_Package;
+  Apollo_DPM_Package, Vcl.Menus;
 
 type
   TfrmPackage = class(TFrame)
@@ -16,6 +16,8 @@ type
     cbbVersions: TComboBox;
     lblVersion: TLabel;
     aiVerListLoad: TActivityIndicator;
+    pm1: TPopupMenu;
+    hj1: TMenuItem;
     procedure cbbVersionsDropDown(Sender: TObject);
     procedure btnInstallClick(Sender: TObject);
   private

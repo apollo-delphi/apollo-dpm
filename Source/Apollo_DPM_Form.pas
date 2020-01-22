@@ -34,7 +34,7 @@ type
     FPackageFrames: TArray<TFrame>;
     function GetVersionsFunc(aPackage: TPackage): TArray<TVersion>;
     procedure ActionProc(const aVersionName: string; aPackage: TPackage);
-    procedure AsyncLoadPublishedPackages;
+    procedure AsyncLoadPublicPackages;
     procedure ClearPackageFrames;
     procedure RenderPackageList(aPackageList: TPackageList);
     procedure RenderStructureTree;
@@ -68,7 +68,7 @@ begin
   FDPMEngine.InstallPackage(aVersionName, aPackage);
 end;
 
-procedure TDPMForm.AsyncLoadPublishedPackages;
+procedure TDPMForm.AsyncLoadPublicPackages;
 var
   AsyncTask: ITask;
   PublicPackages: TPackageList;
@@ -152,6 +152,8 @@ begin
       PackageFrame.Left := 0;
       PackageFrame.GetVersionsFunc := GetVersionsFunc;
       PackageFrame.ActionProc := ActionProc;
+      if not Odd(i) then
+        PackageFrame.Color := clBtnFace;
 
       Inc(i);
       Top := Top + PackageFrame.Height + 1;
@@ -173,7 +175,7 @@ begin
   if Node.Text = cPublicPackages then
     begin
       aiPabPkgLoad.Animate := True;
-      AsyncLoadPublishedPackages;
+      AsyncLoadPublicPackages;
     end
   else
   if FDPMEngine.IsProjectOpened and (Node.Text = cProjectDependencies) then

@@ -41,8 +41,8 @@ contains
   Apollo_DPM_GitHubAPI in 'Apollo_DPM_GitHubAPI.pas',
   Apollo_DPM_Form in 'Apollo_DPM_Form.pas' {DPMForm},
   Apollo_DPM_Package in 'Apollo_DPM_Package.pas',
-  Apollo_HTTP in '..\..\apollo-http\Source\Apollo_HTTP.pas',
   Apollo_DPM_PackageFrame in 'Apollo_DPM_PackageFrame.pas' {frmPackage: TFrame},
-  Apollo_DPM_PackageForm in 'Apollo_DPM_PackageForm.pas' {PackageForm};
+  Apollo_DPM_PackageForm in 'Apollo_DPM_PackageForm.pas' {PackageForm},
+  Apollo_HTTP in '..\..\apollo-http\Source\Apollo_HTTP.pas';
 
 end.
