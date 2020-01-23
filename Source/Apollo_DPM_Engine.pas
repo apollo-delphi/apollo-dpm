@@ -122,6 +122,7 @@ var
   sFile: string;
   sTargetFile: string;
 begin
+  ForceDirectories(aTargetPath);
   ProjectPackages := GetProjectPackageList;
 
   for Package in ProjectPackages do
