@@ -37,6 +37,7 @@ type
     FDPMEngine: TDPMEngine;
     FPackage: TPackage;
     procedure ReadControls;
+    procedure WriteControls;
   public
     { Public declarations }
     constructor Create(aDPMEngine: TDPMEngine; aPackage: TPackage); reintroduce;
@@ -48,6 +49,9 @@ var
 implementation
 
 {$R *.dfm}
+
+uses
+  System.Math;
 
 { TPackageForm }
 
@@ -88,6 +92,8 @@ begin
 
   sgMoving.Cells[0, 0] := 'Source';
   sgMoving.Cells[1, 0] := 'Destination';
+
+  WriteControls;
 end;
 
 procedure TPackageForm.ReadControls;
@@ -162,6 +168,36 @@ begin
     begin
       sgMoving.Row := sgMoving.RowCount - 2;
       sgMoving.RowCount := sgMoving.RowCount - 1;
+    end;
+end;
+
+procedure TPackageForm.WriteControls;
+var
+  i: Integer;
+begin
+  if not FPackage.Name.IsEmpty then
+    begin
+      leRepoURL.Enabled := False;
+      btnGo.Enabled := False;
+    end;
+
+  leOwner.Text := FPackage.Owner;
+  leRepo.Text := FPackage.Repo;
+  leName.Text := FPackage.Name;
+  leDescription.Text := FPackage.Description;
+
+  if FPackage.FilterType = ftBlackList then
+    rbBlackList.Checked := True;
+
+  sgFiltering.RowCount := Max(Length(FPackage.Filters), 1);
+  for i := 0 to Length(FPackage.Filters) - 1 do
+    sgFiltering.Cells[0, i] := FPackage.Filters[i];
+
+  sgMoving.RowCount := Max(Length(FPackage.Moves) + 1, 2);
+  for i := 0 to Length(FPackage.Moves) - 1 do
+    begin
+      sgMoving.Cells[0, i + 1] := FPackage.Moves[i].Source;
+      sgMoving.Cells[1, i + 1] := FPackage.Moves[i].Destination;
     end;
 end;
 

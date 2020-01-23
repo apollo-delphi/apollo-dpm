@@ -41,11 +41,10 @@ object frmPackage: TfrmPackage
     Top = 44
     Width = 83
     Height = 25
-    Caption = 'Install'
-    DropDownMenu = pm1
+    Caption = 'Action'
+    DropDownMenu = pmActions
     Style = bsSplitButton
     TabOrder = 0
-    OnClick = btnInstallClick
   end
   object cbbVersions: TComboBox
     Left = 53
@@ -66,11 +65,16 @@ object frmPackage: TfrmPackage
     IndicatorSize = aisSmall
     IndicatorType = aitRotatingSector
   end
-  object pm1: TPopupMenu
-    Left = 200
-    Top = 16
-    object hj1: TMenuItem
-      Caption = 'hj'
+  object pmActions: TPopupMenu
+    Left = 208
+    Top = 8
+    object mniInstall: TMenuItem
+      Caption = 'Install'
+      OnClick = mniInstallClick
+    end
+    object mniPackageSettings: TMenuItem
+      Caption = 'Package settings...'
+      OnClick = mniPackageSettingsClick
     end
   end
 end

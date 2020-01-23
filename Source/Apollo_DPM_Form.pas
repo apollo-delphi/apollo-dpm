@@ -10,8 +10,11 @@ uses
   Apollo_DPM_Package;
 
 type
+  TActionType = (atInstall, atPackageSettings);
+
   TGetVersionsFunc = function(aPackage: TPackage): TArray<TVersion> of object;
-  TActionProc = procedure(const aVersionName: string; aPackage: TPackage) of object;
+  TActionProc = procedure(const aActionType: TActionType;
+    const aVersionName: string; aPackage: TPackage) of object;
 
   TDPMForm = class(TForm)
     pnlMain: TPanel;
@@ -33,11 +36,13 @@ type
     FDPMEngine: TDPMEngine;
     FPackageFrames: TArray<TFrame>;
     function GetVersionsFunc(aPackage: TPackage): TArray<TVersion>;
-    procedure ActionProc(const aVersionName: string; aPackage: TPackage);
+    procedure ActionProc(const aActionType: TActionType;
+      const aVersionName: string; aPackage: TPackage);
     procedure AsyncLoadPublicPackages;
     procedure ClearPackageFrames;
     procedure RenderPackageList(aPackageList: TPackageList);
     procedure RenderStructureTree;
+    procedure SetPackageSettings(aPackage: TPackage);
   public
     { Public declarations }
     procedure NotifyListener(const aMsg: string);
@@ -63,9 +68,13 @@ uses
 
 { TDPMForm }
 
-procedure TDPMForm.ActionProc(const aVersionName: string; aPackage: TPackage);
+procedure TDPMForm.ActionProc(const aActionType: TActionType;
+  const aVersionName: string; aPackage: TPackage);
 begin
-  FDPMEngine.InstallPackage(aVersionName, aPackage);
+  case aActionType of
+    atInstall:  FDPMEngine.InstallPackage(aVersionName, aPackage);
+    atPackageSettings: SetPackageSettings(aPackage);
+  end;
 end;
 
 procedure TDPMForm.AsyncLoadPublicPackages;
@@ -89,18 +98,8 @@ begin
 end;
 
 procedure TDPMForm.btnNewPackageClick(Sender: TObject);
-var
-  Package: TPackage;
-  PackageForm: TPackageForm;
 begin
-  Package := TPackage.Create;
-  PackageForm := TPackageForm.Create(FDPMEngine, Package);
-  try
-    PackageForm.ShowModal;
-  finally
-    PackageForm.Free;
-    Package.Free;
-  end;
+  SetPackageSettings(nil);
 end;
 
 procedure TDPMForm.ClearPackageFrames;
@@ -166,6 +165,27 @@ begin
   tvStructure.Items.Add(nil, cProjectDependencies);
   tvStructure.Items.Add(nil, cIDEDependencies);
   tvStructure.Items.Add(nil, cPublicPackages);
+end;
+
+procedure TDPMForm.SetPackageSettings(aPackage: TPackage);
+var
+  Package: TPackage;
+  PackageForm: TPackageForm;
+begin
+  if aPackage = nil then
+    Package := TPackage.Create
+  else
+    Package := aPackage;
+
+  PackageForm := TPackageForm.Create(FDPMEngine, Package);
+  try
+    PackageForm.ShowModal;
+  finally
+    PackageForm.Free;
+  end;
+
+  if aPackage = nil then
+    Package.Free;
 end;
 
 procedure TDPMForm.tvStructureChange(Sender: TObject; Node: TTreeNode);

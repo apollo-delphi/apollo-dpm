@@ -5,8 +5,9 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.WinXCtrls,
+  Vcl.Menus,
   Apollo_DPM_Form,
-  Apollo_DPM_Package, Vcl.Menus;
+  Apollo_DPM_Package;
 
 type
   TfrmPackage = class(TFrame)
@@ -16,10 +17,12 @@ type
     cbbVersions: TComboBox;
     lblVersion: TLabel;
     aiVerListLoad: TActivityIndicator;
-    pm1: TPopupMenu;
-    hj1: TMenuItem;
+    pmActions: TPopupMenu;
+    mniInstall: TMenuItem;
+    mniPackageSettings: TMenuItem;
     procedure cbbVersionsDropDown(Sender: TObject);
-    procedure btnInstallClick(Sender: TObject);
+    procedure mniInstallClick(Sender: TObject);
+    procedure mniPackageSettingsClick(Sender: TObject);
   private
     { Private declarations }
     FActionProc: TActionProc;
@@ -41,11 +44,6 @@ uses
 {$R *.dfm}
 
 { TfrmPackage }
-
-procedure TfrmPackage.btnInstallClick(Sender: TObject);
-begin
-  FActionProc(cbbVersions.Text, FPackage);
-end;
 
 procedure TfrmPackage.cbbVersionsDropDown(Sender: TObject);
 var
@@ -94,6 +92,16 @@ begin
 
   cbbVersions.Items.Add(VersionItem);
   cbbVersions.ItemIndex := 0;
+end;
+
+procedure TfrmPackage.mniInstallClick(Sender: TObject);
+begin
+  FActionProc(atInstall, cbbVersions.Text, FPackage);
+end;
+
+procedure TfrmPackage.mniPackageSettingsClick(Sender: TObject);
+begin
+  FActionProc(atPackageSettings, cbbVersions.Text, FPackage);
 end;
 
 end.

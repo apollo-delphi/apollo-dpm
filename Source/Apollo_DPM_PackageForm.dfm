@@ -3,7 +3,7 @@ object PackageForm: TPackageForm
   Top = 0
   BorderIcons = [biSystemMenu, biMinimize]
   BorderStyle = bsSingle
-  Caption = 'PackageForm'
+  Caption = 'Package Settings'
   ClientHeight = 439
   ClientWidth = 415
   Color = clBtnFace
