@@ -78,7 +78,8 @@ begin
   fsdSaveJSON.FileName := 'PublicPackages.json';
   if fsdSaveJSON.Execute then
     begin
-      FDPMEngine.GetPublicPackages.Add(FPackage);
+      if not FDPMEngine.GetPublicPackages.Contains(FPackage) then
+        FDPMEngine.GetPublicPackages.Add(FPackage);
       FDPMEngine.SavePackages(FDPMEngine.GetPublicPackages, fsdSaveJSON.FileName);
     end;
 end;
@@ -105,6 +106,8 @@ begin
   FPackage.Repo := leRepo.Text;
   FPackage.Name := leName.Text;
   FPackage.Description := leDescription.Text;
+  FPackage.Filters := [];
+  FPackage.Moves := [];
 
   if (sgFiltering.RowCount > 0) and (not sgFiltering.Cells[0, 0].IsEmpty) then
     begin
