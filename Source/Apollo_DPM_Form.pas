@@ -10,11 +10,10 @@ uses
   Apollo_DPM_Package;
 
 type
-  TActionType = (atInstall, atPackageSettings);
-
   TGetVersionsFunc = function(aPackage: TPackage): TArray<TVersion> of object;
   TActionProc = procedure(const aActionType: TActionType;
     const aVersionName: string; aPackage: TPackage) of object;
+  TAllowActionFunc = function(aPackage: TPackage; const aActionType: TActionType): Boolean of object;
 
   TDPMForm = class(TForm)
     pnlMain: TPanel;
@@ -35,6 +34,7 @@ type
     { Private declarations }
     FDPMEngine: TDPMEngine;
     FPackageFrames: TArray<TFrame>;
+    function AllowActionFunc(aPackage: TPackage; const aActionType: TActionType): Boolean;
     function GetVersionsFunc(aPackage: TPackage): TArray<TVersion>;
     procedure ActionProc(const aActionType: TActionType;
       const aVersionName: string; aPackage: TPackage);
@@ -72,9 +72,15 @@ procedure TDPMForm.ActionProc(const aActionType: TActionType;
   const aVersionName: string; aPackage: TPackage);
 begin
   case aActionType of
-    atInstall:  FDPMEngine.InstallPackage(aVersionName, aPackage);
+    atAdd:  FDPMEngine.AddPackage(aVersionName, aPackage);
     atPackageSettings: SetPackageSettings(aPackage);
   end;
+end;
+
+function TDPMForm.AllowActionFunc(aPackage: TPackage;
+  const aActionType: TActionType): Boolean;
+begin
+  Result := FDPMEngine.AllowAction(aPackage, aActionType);
 end;
 
 procedure TDPMForm.AsyncLoadPublicPackages;
@@ -144,13 +150,13 @@ begin
 
   for Package in aPackageList do
     begin
-      PackageFrame := TfrmPackage.Create(sbPackages, Package);
+      PackageFrame := TfrmPackage.Create(sbPackages, Package, ActionProc,
+        GetVersionsFunc, AllowActionFunc
+      );
       PackageFrame.Name := Format('PackageFrame%d', [i]);
       PackageFrame.Parent := sbPackages;
       PackageFrame.Top := Top;
       PackageFrame.Left := 0;
-      PackageFrame.GetVersionsFunc := GetVersionsFunc;
-      PackageFrame.ActionProc := ActionProc;
       if not Odd(i) then
         PackageFrame.Color := clBtnFace;
 

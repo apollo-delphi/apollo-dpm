@@ -68,9 +68,15 @@ object frmPackage: TfrmPackage
   object pmActions: TPopupMenu
     Left = 208
     Top = 8
-    object mniInstall: TMenuItem
-      Caption = 'Install'
-      OnClick = mniInstallClick
+    object mniAdd: TMenuItem
+      Caption = 'Add'
+      OnClick = mniAddClick
+    end
+    object mniRemove: TMenuItem
+      Caption = 'Remove'
+    end
+    object mniUpgrade: TMenuItem
+      Caption = 'Upgrade'
     end
     object mniPackageSettings: TMenuItem
       Caption = 'Package settings...'

@@ -24,6 +24,8 @@ type
     procedure ProjectGroupCompileFinished(Result: TOTACompileResult);
   end;
 
+  TActionType = (atAdd, atRemove, atUpgrade, atPackageSettings);
+
   TDPMEngine = class
   private
     FCompileServices: IOTACompileServices;
@@ -51,12 +53,13 @@ type
     procedure DPMMenuItemClick(Sender: TObject);
     procedure WriteFile(const aFilePath: string; aBytes: TBytes);
   public
+    function AllowAction(aPackage: TPackage; const aActionType: TActionType): Boolean;
     function GetProjectPackageList: TPackageList;
     function GetPublicPackages: TPackageList;
     function GetPackageVersions(aPackage: TPackage): TArray<TVersion>;
     function IsProjectOpened: Boolean;
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
-    procedure InstallPackage(aVersionName: string; aPackage: TPackage);
+    procedure AddPackage(aVersionName: string; aPackage: TPackage);
     procedure SavePackage(aPackage: TPackage; const aPath: string);
     procedure SavePackages(aPackageList: TPackageList; const aPath: string);
     constructor Create(aBorlandIDEServices: IBorlandIDEServices);
@@ -110,6 +113,29 @@ begin
   DPMMenuItem.OnClick := DPMMenuItemClick;
 
   GetApolloMenuItem.Add(DPMMenuItem);
+end;
+
+function TDPMEngine.AllowAction(aPackage: TPackage;
+  const aActionType: TActionType): Boolean;
+var
+  ProjectPackageList: TPackageList;
+begin
+  Result := False;
+
+  if IsProjectOpened then
+    begin
+
+      ProjectPackageList := GetProjectPackageList;
+
+      case aActionType of
+        atAdd: Result := not ProjectPackageList.Contains(aPackage);
+        atRemove: Result := ProjectPackageList.Contains(aPackage);
+      end;
+    end;
+
+  case aActionType of
+    atPackageSettings: Result := True;
+  end;
 end;
 
 procedure TDPMEngine.BuildBIN(const aTargetPath: string);
@@ -382,6 +408,9 @@ begin
   if Assigned(FProjectPackages) then
     FreeAndNil(FProjectPackages);
 
+  if not IsProjectOpened then
+    Exit(nil);
+
   if not TFile.Exists(GetProjectPackagesFilePath) then
     sPackagesJSON := cEmptyPackagesFileContent
   else
@@ -416,20 +445,20 @@ begin
   Result := TDirectory.GetParent(GetActiveProjectPath) + '\Vendors';
 end;
 
-procedure TDPMEngine.InstallPackage(aVersionName: string; aPackage: TPackage);
+procedure TDPMEngine.AddPackage(aVersionName: string; aPackage: TPackage);
 var
+  AddedPackage: TPackage;
+  AddedVersion: TVersion;
   Blob: TBlob;
   Extension: string;
   FilePath: string;
-  InstalledPackage: TPackage;
-  InstalledVersion: TVersion;
   NodePath: string;
   ProjectPackageList: TPackageList;
   RepoTree: TTree;
   TreeNode: TTreeNode;
   VersionSHA: string;
 begin
-  FUINotifyProc(Format(#13#10 + 'Installing Package %s...', [aPackage.Name]));
+  FUINotifyProc(Format(#13#10 + 'Adding Package %s...', [aPackage.Name]));
 
   if aVersionName = cLatestVersion then
     begin
@@ -474,14 +503,14 @@ begin
         end;
     end;
 
-  InstalledPackage := TPackage.Create(aPackage);
-  InstalledVersion.Name := aVersionName;
-  InstalledVersion.SHA := VersionSHA;
-  InstalledPackage.InstalledVersion := InstalledVersion;
+  AddedPackage := TPackage.Create(aPackage);
+  AddedVersion.Name := aVersionName;
+  AddedVersion.SHA := VersionSHA;
+  AddedPackage.InstalledVersion := AddedVersion;
 
   ProjectPackageList := GetProjectPackageList;
-  ProjectPackageList.Add(InstalledPackage);
-  SavePackages(ProjectPackageList, cApolloDPMProjectPackagesPath);
+  ProjectPackageList.Add(AddedPackage);
+  SavePackages(ProjectPackageList, GetProjectPackagesFilePath);
 
   GetActiveProject.Save(False, True);
 

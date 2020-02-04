@@ -18,21 +18,25 @@ type
     lblVersion: TLabel;
     aiVerListLoad: TActivityIndicator;
     pmActions: TPopupMenu;
-    mniInstall: TMenuItem;
+    mniAdd: TMenuItem;
     mniPackageSettings: TMenuItem;
+    mniRemove: TMenuItem;
+    mniUpgrade: TMenuItem;
     procedure cbbVersionsDropDown(Sender: TObject);
-    procedure mniInstallClick(Sender: TObject);
+    procedure mniAddClick(Sender: TObject);
     procedure mniPackageSettingsClick(Sender: TObject);
   private
     { Private declarations }
     FActionProc: TActionProc;
+    FAllowAction: TAllowActionFunc;
     FGetVersionsFunc: TGetVersionsFunc;
     FPackage: TPackage;
+    procedure InitActions;
   public
     { Public declarations }
-    constructor Create(AOwner: TComponent; aPackage: TPackage); reintroduce;
-    property ActionProc: TActionProc read FActionProc write FActionProc;
-    property GetVersionsFunc: TGetVersionsFunc read FGetVersionsFunc write FGetVersionsFunc;
+    constructor Create(AOwner: TComponent; aPackage: TPackage;
+      aActionProc: TActionProc; aGetVersionsFunc: TGetVersionsFunc;
+      aAllowAction: TAllowActionFunc); reintroduce;
   end;
 
 implementation
@@ -74,13 +78,18 @@ begin
   AsyncTask.Start;
 end;
 
-constructor TfrmPackage.Create(AOwner: TComponent; aPackage: TPackage);
+constructor TfrmPackage.Create(AOwner: TComponent; aPackage: TPackage;
+      aActionProc: TActionProc; aGetVersionsFunc: TGetVersionsFunc;
+      aAllowAction: TAllowActionFunc);
 var
   VersionItem: string;
 begin
   inherited Create(AOwner);
 
   FPackage := aPackage;
+  FActionProc := aActionProc;
+  FAllowAction := aAllowAction;
+  FGetVersionsFunc := aGetVersionsFunc;
 
   lblPackageName.Caption := FPackage.Name;
   lblPackageDescription.Caption := FPackage.Description;
@@ -92,11 +101,21 @@ begin
 
   cbbVersions.Items.Add(VersionItem);
   cbbVersions.ItemIndex := 0;
+
+  InitActions;
 end;
 
-procedure TfrmPackage.mniInstallClick(Sender: TObject);
+procedure TfrmPackage.InitActions;
 begin
-  FActionProc(atInstall, cbbVersions.Text, FPackage);
+  mniAdd.Visible := FAllowAction(FPackage, atAdd);
+  mniRemove.Visible := FAllowAction(FPackage, atRemove);
+  mniUpgrade.Visible := FAllowAction(FPackage, atUpgrade);
+  mniPackageSettings.Visible := FAllowAction(FPackage, atPackageSettings);
+end;
+
+procedure TfrmPackage.mniAddClick(Sender: TObject);
+begin
+  FActionProc(atAdd, cbbVersions.Text, FPackage);
 end;
 
 procedure TfrmPackage.mniPackageSettingsClick(Sender: TObject);
