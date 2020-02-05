@@ -25,6 +25,7 @@ type
     procedure cbbVersionsDropDown(Sender: TObject);
     procedure mniAddClick(Sender: TObject);
     procedure mniPackageSettingsClick(Sender: TObject);
+    procedure mniRemoveClick(Sender: TObject);
   private
     { Private declarations }
     FActionProc: TActionProc;
@@ -121,6 +122,11 @@ end;
 procedure TfrmPackage.mniPackageSettingsClick(Sender: TObject);
 begin
   FActionProc(atPackageSettings, cbbVersions.Text, FPackage);
+end;
+
+procedure TfrmPackage.mniRemoveClick(Sender: TObject);
+begin
+  FActionProc(atRemove, cbbVersions.Text, FPackage);
 end;
 
 end.

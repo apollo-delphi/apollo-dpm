@@ -73,6 +73,7 @@ procedure TDPMForm.ActionProc(const aActionType: TActionType;
 begin
   case aActionType of
     atAdd:  FDPMEngine.AddPackage(aVersionName, aPackage);
+    atRemove: FDPMEngine.RemovePackage(aPackage);
     atPackageSettings: SetPackageSettings(aPackage);
   end;
 end;

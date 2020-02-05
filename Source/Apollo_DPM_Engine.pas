@@ -41,8 +41,10 @@ type
     function GetApolloMenuItem: TMenuItem;
     function GetFileSize(const aPath: string): Int64;
     function GetIDEMainMenu: TMainMenu;
+    function GetPackageFiles(aPackage: TPackage; const aDirectoryPattren, aFilePattren: string): TArray<string>;
     function GetPackagePath(aPackage: TPackage): string;
     function GetPackagesJSONString(aPackageList: TPackageList): string;
+    function GetProjectConfigTargetPaths(aProjectConfig :IOTABuildConfiguration): TArray<string>;
     function GetProjectPackagesFilePath: string;
     function GetVendorsPath: string;
     function SaveContent(const aVendorPath, aRepoPath, aContent: string): string;
@@ -51,6 +53,8 @@ type
     procedure BuildBIN(const aTargetPath: string);
     procedure BuildMenu;
     procedure DPMMenuItemClick(Sender: TObject);
+    procedure RemovePackageFromActiveProject(aPackage: TPackage);
+    procedure RemovePackageFromBIN(aPackage: TPackage);
     procedure WriteFile(const aFilePath: string; aBytes: TBytes);
   public
     function AllowAction(aPackage: TPackage; const aActionType: TActionType): Boolean;
@@ -60,6 +64,7 @@ type
     function IsProjectOpened: Boolean;
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
     procedure AddPackage(aVersionName: string; aPackage: TPackage);
+    procedure RemovePackage(aPackage: TPackage);
     procedure SavePackage(aPackage: TPackage; const aPath: string);
     procedure SavePackages(aPackageList: TPackageList; const aPath: string);
     constructor Create(aBorlandIDEServices: IBorlandIDEServices);
@@ -140,8 +145,6 @@ end;
 
 procedure TDPMEngine.BuildBIN(const aTargetPath: string);
 var
-  Directories: TArray<string>;
-  Directory: string;
   Files: TArray<string>;
   Package: TPackage;
   ProjectPackages: TPackageList;
@@ -153,18 +156,15 @@ begin
 
   for Package in ProjectPackages do
     begin
-      Directories := TDirectory.GetDirectories(GetPackagePath(Package), 'BIN', TSearchOption.soAllDirectories);
-      for Directory in Directories do
+      Files := GetPackageFiles(Package, 'BIN', '*');
+
+      for sFile in Files do
         begin
-          Files := TDirectory.GetFiles(Directory, '*', TSearchOption.soAllDirectories);
-          for sFile in Files do
-            begin
-              sTargetFile := aTargetPath + '\' + TPath.GetFileName(sFile);
-              if (not TFile.Exists(sTargetFile)) or
-                 (TFile.Exists(sTargetFile) and (GetFileSize(sTargetFile) <> GetFileSize(sFile)))
-              then
-                TFile.Copy(sFile, sTargetFile, True);
-            end;
+          sTargetFile := aTargetPath + '\' + TPath.GetFileName(sFile);
+          if (not TFile.Exists(sTargetFile)) or
+             (TFile.Exists(sTargetFile) and (GetFileSize(sTargetFile) <> GetFileSize(sFile)))
+          then
+            TFile.Copy(sFile, sTargetFile, True);
         end;
     end;
 end;
@@ -235,6 +235,53 @@ begin
   Result := True;
   aOwner := URLWords[1];
   aRepo := URLWords[2];
+end;
+
+procedure TDPMEngine.RemovePackage(aPackage: TPackage);
+begin
+  RemovePackageFromActiveProject(aPackage);
+  RemovePackageFromBIN(aPackage);
+
+  //3. delete package directory
+  //4. remove from ProjectPackageList
+end;
+
+procedure TDPMEngine.RemovePackageFromActiveProject(aPackage: TPackage);
+var
+  ActiveProject: IOTAProject;
+  Files: TArray<string>;
+  sFile: string;
+begin
+  ActiveProject := GetActiveProject;
+  Files := GetPackageFiles(aPackage, '*', '*');
+
+  for sFile in Files do
+    if ActiveProject.FindModuleInfo(sFile) <> nil then
+      ActiveProject.RemoveFile(sFile);
+end;
+
+procedure TDPMEngine.RemovePackageFromBIN(aPackage: TPackage);
+var
+  ActiveProject: IOTAProject;
+  i: Integer;
+  PackageBINFiles: TArray<string>;
+  ProjectConfigTargetPath: string;
+  ProjectOptionsConfigurations: IOTAProjectOptionsConfigurations;
+
+  s: string;
+begin
+  ActiveProject := GetActiveProject;
+  ProjectOptionsConfigurations := ActiveProject.ProjectOptions as IOTAProjectOptionsConfigurations;
+
+  for i := 0 to ProjectOptionsConfigurations.ConfigurationCount - 1 do
+    begin
+      ProjectConfigTargetPath := GetProjectConfigTargetPath(ProjectOptionsConfigurations.Configurations[i]);
+    end;
+
+  //ActiveProjectBINFiles :=
+
+  PackageBINFiles := GetPackageFiles(aPackage, 'BIN', '*');
+
 end;
 
 destructor TDPMEngine.Destroy;
@@ -346,6 +393,19 @@ begin
   end;
 end;
 
+function TDPMEngine.GetPackageFiles(aPackage: TPackage; const aDirectoryPattren,
+  aFilePattren: string): TArray<string>;
+var
+  Directories: TArray<string>;
+  Directory: string;
+begin
+  Result := [];
+  Directories := TDirectory.GetDirectories(GetPackagePath(aPackage), aDirectoryPattren, TSearchOption.soAllDirectories);
+
+  for Directory in Directories do
+    Result := Result + TDirectory.GetFiles(Directory, aFilePattren, TSearchOption.soAllDirectories);
+end;
+
 function TDPMEngine.GetPackagePath(aPackage: TPackage): string;
 begin
   Result := GetVendorsPath + '\' + aPackage.Name;
@@ -399,6 +459,18 @@ end;
 function TDPMEngine.GetProjectPackagesFilePath: string;
 begin
   Result := GetActiveProjectPath + '\' + cApolloDPMProjectPackagesPath;
+end;
+
+function TDPMEngine.GetProjectConfigTargetPaths(aProjectConfig :IOTABuildConfiguration): TArray<string>;
+var
+  sResult: string;
+begin
+  Result := [];
+
+  sResult := aProjectConfig.Value['DCC_ExeOutput'];
+
+  Result := Result.Replace('$(Platform)', aProjectConfig.Platform);
+  Result := Result.Replace('$(Config)', aProjectConfig.Name);
 end;
 
 function TDPMEngine.GetProjectPackageList: TPackageList;
