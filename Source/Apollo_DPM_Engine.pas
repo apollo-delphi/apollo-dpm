@@ -40,6 +40,7 @@ type
     function GetActiveProjectPath: string;
     function GetApolloMenuItem: TMenuItem;
     function GetFileSize(const aPath: string): Int64;
+    function GetFullPath(const aBasePath, aRelativePath: string): string;
     function GetIDEMainMenu: TMainMenu;
     function GetPackageFiles(aPackage: TPackage; const aDirectoryPattren, aFilePattren: string): TArray<string>;
     function GetPackagePath(aPackage: TPackage): string;
@@ -52,6 +53,7 @@ type
     procedure AddDPMMenuItem;
     procedure BuildBIN(const aTargetPath: string);
     procedure BuildMenu;
+    procedure DeletePackagePath(aPackage: TPackage);
     procedure DPMMenuItemClick(Sender: TObject);
     procedure RemovePackageFromActiveProject(aPackage: TPackage);
     procedure RemovePackageFromBIN(aPackage: TPackage);
@@ -65,7 +67,7 @@ type
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
     procedure AddPackage(aVersionName: string; aPackage: TPackage);
     procedure RemovePackage(aPackage: TPackage);
-    procedure SavePackage(aPackage: TPackage; const aPath: string);
+    procedure SavePackage(aPackage: TPackage; const aPath: string);  //need for publish package
     procedure SavePackages(aPackageList: TPackageList; const aPath: string);
     constructor Create(aBorlandIDEServices: IBorlandIDEServices);
     destructor Destroy; override;
@@ -238,12 +240,19 @@ begin
 end;
 
 procedure TDPMEngine.RemovePackage(aPackage: TPackage);
+var
+  ProjectPackageList: TPackageList;
 begin
   RemovePackageFromActiveProject(aPackage);
   RemovePackageFromBIN(aPackage);
+  DeletePackagePath(aPackage);
 
-  //3. delete package directory
-  //4. remove from ProjectPackageList
+  ProjectPackageList := GetProjectPackageList;
+  ProjectPackageList.Remove(aPackage);
+  if ProjectPackageList.Count > 0 then
+    SavePackages(ProjectPackageList, GetProjectPackagesFilePath)
+  else
+    TFile.Delete(GetProjectPackagesFilePath);
 end;
 
 procedure TDPMEngine.RemovePackageFromActiveProject(aPackage: TPackage);
@@ -264,24 +273,48 @@ procedure TDPMEngine.RemovePackageFromBIN(aPackage: TPackage);
 var
   ActiveProject: IOTAProject;
   i: Integer;
+  PackageBINFile: string;
   PackageBINFiles: TArray<string>;
-  ProjectConfigTargetPath: string;
+  ProjectBINFile: string;
+  ProjectBINFiles: TArray<string>;
+  ProjectConfigTargetPaths: TArray<string>;
   ProjectOptionsConfigurations: IOTAProjectOptionsConfigurations;
-
-  s: string;
+  ProjectTargetPath: string;
 begin
+  PackageBINFiles := GetPackageFiles(aPackage, 'BIN', '*');
+  if Length(PackageBINFiles) = 0 then
+    Exit;
+
   ActiveProject := GetActiveProject;
   ProjectOptionsConfigurations := ActiveProject.ProjectOptions as IOTAProjectOptionsConfigurations;
 
   for i := 0 to ProjectOptionsConfigurations.ConfigurationCount - 1 do
     begin
-      ProjectConfigTargetPath := GetProjectConfigTargetPath(ProjectOptionsConfigurations.Configurations[i]);
+      ProjectConfigTargetPaths := GetProjectConfigTargetPaths(ProjectOptionsConfigurations.Configurations[i]);
+
+      ProjectBINFiles := [];
+      for ProjectTargetPath in ProjectConfigTargetPaths do
+        if TDirectory.Exists(ProjectTargetPath) then
+          begin
+            ProjectBINFiles := ProjectBINFiles + TDirectory.GetFiles(ProjectTargetPath, '*', TSearchOption.soAllDirectories);
+
+            for PackageBINFile in PackageBINFiles do
+              for ProjectBINFile in ProjectBINFiles do
+                if TPath.GetFileName(PackageBINFile) = TPath.GetFileName(ProjectBINFile) then
+                  begin
+                    TFile.Delete(ProjectBINFile);
+                    Break;
+                  end;
+          end;
     end;
+end;
 
-  //ActiveProjectBINFiles :=
+procedure TDPMEngine.DeletePackagePath(aPackage: TPackage);
+begin
+  TDirectory.Delete(GetPackagePath(aPackage), True);
 
-  PackageBINFiles := GetPackageFiles(aPackage, 'BIN', '*');
-
+  if Length(TDirectory.GetDirectories(GetVendorsPath, '*', TSearchOption.soTopDirectoryOnly)) = 0 then
+    TDirectory.Delete(GetVendorsPath);
 end;
 
 destructor TDPMEngine.Destroy;
@@ -366,6 +399,35 @@ begin
   end;
 end;
 
+function TDPMEngine.GetFullPath(const aBasePath, aRelativePath: string): string;
+var
+  Dirs: TArray<string>;
+  i: Integer;
+  ResultDirArr: TArray<string>;
+  SkipDir: Boolean;
+begin
+  Result := TPath.Combine(aBasePath, aRelativePath);
+
+  ResultDirArr := [];
+  SkipDir := False;
+  Dirs := Result.Split([TPath.DirectorySeparatorChar]);
+
+  for i := Length(Dirs) - 1 downto 0 do
+    begin
+      if (Dirs[i] = '.') or (Dirs[i] = '..') then
+        SkipDir := True;
+
+      if not SkipDir then
+        ResultDirArr := [Dirs[i]] + ResultDirArr;
+
+      SkipDir := False;
+      if Dirs[i] = '..' then
+        SkipDir := True;
+    end;
+
+  Result := Result.Join(TPath.DirectorySeparatorChar, ResultDirArr);
+end;
+
 function TDPMEngine.GetIDEMainMenu: TMainMenu;
 begin
   Result := FNTAServices.MainMenu;
@@ -408,7 +470,10 @@ end;
 
 function TDPMEngine.GetPackagePath(aPackage: TPackage): string;
 begin
-  Result := GetVendorsPath + '\' + aPackage.Name;
+  Result := TPath.Combine(GetVendorsPath, aPackage.Name);
+
+  if not TDirectory.Exists(Result) then
+    ForceDirectories(Result);
 end;
 
 function TDPMEngine.GetPackagesJSONString(aPackageList: TPackageList): string;
@@ -462,15 +527,28 @@ begin
 end;
 
 function TDPMEngine.GetProjectConfigTargetPaths(aProjectConfig :IOTABuildConfiguration): TArray<string>;
+const
+  cConfig = '$(Config)';
+  cPlatform = '$(Platform)';
 var
+  Platforms: TArray<string>;
+  sPlatform: string;
   sResult: string;
 begin
   Result := [];
 
-  sResult := aProjectConfig.Value['DCC_ExeOutput'];
+  sResult := GetFullPath(GetActiveProjectPath, aProjectConfig.Value['DCC_ExeOutput']);
+  sResult := sResult.Replace(cConfig, aProjectConfig.Name);
 
-  Result := Result.Replace('$(Platform)', aProjectConfig.Platform);
-  Result := Result.Replace('$(Config)', aProjectConfig.Name);
+  if sResult.Contains(cPlatform) then
+    begin
+      Platforms := aProjectConfig.Platforms;
+
+      for sPlatform in Platforms do
+        Result := Result + [sResult.Replace(cPlatform, sPlatform)];
+    end
+  else
+    Result := [sResult];
 end;
 
 function TDPMEngine.GetProjectPackageList: TPackageList;
@@ -515,6 +593,9 @@ end;
 function TDPMEngine.GetVendorsPath: string;
 begin
   Result := TDirectory.GetParent(GetActiveProjectPath) + '\Vendors';
+
+  if not TDirectory.Exists(Result) then
+    ForceDirectories(Result);
 end;
 
 procedure TDPMEngine.AddPackage(aVersionName: string; aPackage: TPackage);
