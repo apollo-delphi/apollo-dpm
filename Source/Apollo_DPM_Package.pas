@@ -22,6 +22,8 @@ type
 
   TFilterType = (ftNone, ftWhiteList, ftBlackList);
 
+  TPackageType = (ptSource, ptTemplate);
+
   TPackage = class
   private
     FDescription: string;
@@ -32,6 +34,7 @@ type
     FMoves: TArray<TMove>;
     FName: string;
     FOwner: string;
+    FPackageType: TPackageType;
     FRepo: string;
     FVersions: TArray<TVersion>;
     function CheckBlackList(const aPath: string): Boolean;
@@ -53,6 +56,7 @@ type
     property Moves: TArray<TMove> read FMoves write FMoves;
     property Name: string read FName write FName;
     property Owner: string read FOwner write FOwner;
+    property PackageType: TPackageType read FPackageType write FPackageType;
     property Repo: string read FRepo write FRepo;
     property Version[const aName: string]: TVersion read GetVersion;
     property Versions: TArray<TVersion> read FVersions write FVersions;
@@ -88,6 +92,7 @@ end;
 constructor TPackage.Create(aJSONPackage: TJSONObject);
 var
   FilterType: Integer;
+  iPackageType: Integer;
   jsnFilter: TJSONValue;
   jsnFilters: TJSONArray;
   jsnInstalled: TJSONObject;
@@ -103,6 +108,9 @@ begin
       Name := aJSONPackage.GetValue('name').Value;
       Owner := aJSONPackage.GetValue('owner').Value;
       Repo := aJSONPackage.GetValue('repo').Value;
+
+      if aJSONPackage.TryGetValue<Integer>('packageType', iPackageType) then
+        PackageType := TPackageType(iPackageType);
 
       if aJSONPackage.TryGetValue<Integer>('filterType', FilterType) then
         FFilterType := TFilterType(FilterType)
@@ -173,6 +181,7 @@ begin
   Result.AddPair('name', Name);
   Result.AddPair('owner', Owner);
   Result.AddPair('repo', Repo);
+  Result.AddPair('packageType', TJSONNumber.Create(Ord(PackageType)));
 
   if not FileName.IsEmpty then
     Result.AddPair('fileName', FileName);
@@ -229,6 +238,7 @@ begin
   FMoves := [];
   FFilters := [];
   FFilterType := ftNone;
+  FPackageType := ptSource;
 
   FDescription := '';
   FFileName := '';

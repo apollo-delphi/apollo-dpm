@@ -4,13 +4,20 @@ object PackageForm: TPackageForm
   BorderIcons = [biSystemMenu, biMinimize]
   BorderStyle = bsSingle
   Caption = 'Package Settings'
-  ClientHeight = 439
+  ClientHeight = 461
   ClientWidth = 415
   Color = clBtnFace
   OldCreateOrder = False
   Position = poOwnerFormCenter
   PixelsPerInch = 96
   TextHeight = 13
+  object lblPackageType: TLabel
+    Left = 24
+    Top = 152
+    Width = 68
+    Height = 13
+    Caption = 'Package Type'
+  end
   object leRepoURL: TLabeledEdit
     Left = 95
     Top = 8
@@ -79,7 +86,7 @@ object PackageForm: TPackageForm
   end
   object grpFiltering: TGroupBox
     Left = 3
-    Top = 153
+    Top = 176
     Width = 200
     Height = 249
     Caption = 'Filtering'
@@ -121,7 +128,7 @@ object PackageForm: TPackageForm
   end
   object grpMoving: TGroupBox
     Left = 208
-    Top = 153
+    Top = 176
     Width = 200
     Height = 249
     Caption = 'Moving'
@@ -145,7 +152,7 @@ object PackageForm: TPackageForm
   end
   object btnSaveJSON: TButton
     Left = 8
-    Top = 408
+    Top = 431
     Width = 75
     Height = 25
     Caption = 'Save JSON'
@@ -154,12 +161,20 @@ object PackageForm: TPackageForm
   end
   object btnCancel: TButton
     Left = 328
-    Top = 408
+    Top = 431
     Width = 75
     Height = 25
     Caption = 'Cancel'
     ModalResult = 2
     TabOrder = 9
+  end
+  object cbbPackageType: TComboBox
+    Left = 95
+    Top = 147
+    Width = 145
+    Height = 22
+    Style = csOwnerDrawFixed
+    TabOrder = 10
   end
   object fsdSaveJSON: TFileSaveDialog
     DefaultExtension = 'json'

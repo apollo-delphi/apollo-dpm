@@ -25,6 +25,8 @@ type
     btnCancel: TButton;
     fsdSaveJSON: TFileSaveDialog;
     sgFiltering: TStringGrid;
+    cbbPackageType: TComboBox;
+    lblPackageType: TLabel;
     procedure btnGoClick(Sender: TObject);
     procedure sgMovingKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
@@ -51,6 +53,9 @@ implementation
 
 uses
   System.Math;
+
+const
+ cPackageTypes: array[TPackageType] of string = ('Source Lib', 'Project Template');
 
 { TPackageForm }
 
@@ -105,6 +110,7 @@ begin
   FPackage.Repo := leRepo.Text;
   FPackage.Name := leName.Text;
   FPackage.Description := leDescription.Text;
+  FPackage.PackageType := TPackageType(cbbPackageType.ItemIndex);
   FPackage.Filters := [];
   FPackage.Moves := [];
 
@@ -201,6 +207,11 @@ begin
       sgMoving.Cells[0, i + 1] := FPackage.Moves[i].Source;
       sgMoving.Cells[1, i + 1] := FPackage.Moves[i].Destination;
     end;
+
+  for i := 0 to Length(cPackageTypes) - 1 do
+    cbbPackageType.Items.Add(cPackageTypes[TPackageType(i)]);
+
+  cbbPackageType.ItemIndex := Ord(FPackage.PackageType);
 end;
 
 end.
