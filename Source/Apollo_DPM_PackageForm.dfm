@@ -152,15 +152,6 @@ object PackageForm: TPackageForm
     TabOrder = 8
     OnClick = btnSaveJSONClick
   end
-  object btnPublish: TButton
-    Left = 91
-    Top = 408
-    Width = 75
-    Height = 25
-    Caption = 'Publish'
-    Enabled = False
-    TabOrder = 9
-  end
   object btnCancel: TButton
     Left = 328
     Top = 408
@@ -168,7 +159,7 @@ object PackageForm: TPackageForm
     Height = 25
     Caption = 'Cancel'
     ModalResult = 2
-    TabOrder = 10
+    TabOrder = 9
   end
   object fsdSaveJSON: TFileSaveDialog
     DefaultExtension = 'json'

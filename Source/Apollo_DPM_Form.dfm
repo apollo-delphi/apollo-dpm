@@ -88,15 +88,15 @@ object DPMForm: TDPMForm
         Color = clWindow
         ParentBackground = False
         TabOrder = 1
-        object btnNewPackage: TButton
-          Left = 24
-          Top = 8
+        object btnRegisterPackage: TButton
+          Left = 21
+          Top = 4
           Width = 105
           Height = 25
-          Caption = 'btnNewPackage'
+          Caption = 'Register Package'
           TabOrder = 0
           Visible = False
-          OnClick = btnNewPackageClick
+          OnClick = btnRegisterPackageClick
         end
       end
     end

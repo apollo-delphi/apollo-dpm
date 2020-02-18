@@ -22,7 +22,6 @@ type
     grpMoving: TGroupBox;
     sgMoving: TStringGrid;
     btnSaveJSON: TButton;
-    btnPublish: TButton;
     btnCancel: TButton;
     fsdSaveJSON: TFileSaveDialog;
     sgFiltering: TStringGrid;

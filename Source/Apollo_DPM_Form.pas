@@ -25,11 +25,11 @@ type
     splMain2Log: TSplitter;
     pnlButtons: TPanel;
     pnlContent: TPanel;
-    btnNewPackage: TButton;
+    btnRegisterPackage: TButton;
     procedure tvStructureCustomDrawItem(Sender: TCustomTreeView;
       Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure tvStructureChange(Sender: TObject; Node: TTreeNode);
-    procedure btnNewPackageClick(Sender: TObject);
+    procedure btnRegisterPackageClick(Sender: TObject);
   private
     { Private declarations }
     FDPMEngine: TDPMEngine;
@@ -104,7 +104,7 @@ begin
   AsyncTask.Start;
 end;
 
-procedure TDPMForm.btnNewPackageClick(Sender: TObject);
+procedure TDPMForm.btnRegisterPackageClick(Sender: TObject);
 begin
   SetPackageSettings(nil);
 end;
@@ -207,6 +207,8 @@ begin
   else
   if FDPMEngine.IsProjectOpened and (Node.Text = cProjectDependencies) then
     RenderPackageList(FDPMEngine.GetProjectPackageList);
+
+  btnRegisterPackage.Visible := Node.Text = cPublicPackages;
 end;
 
 procedure TDPMForm.tvStructureCustomDrawItem(Sender: TCustomTreeView;
