@@ -112,4 +112,12 @@ object DPMForm: TDPMForm
     ReadOnly = True
     TabOrder = 1
   end
+  object fodSelectProjectFolder: TFileOpenDialog
+    FavoriteLinks = <>
+    FileTypes = <>
+    Options = [fdoPickFolders]
+    Title = 'Select folder for project template'
+    Left = 236
+    Top = 57
+  end
 end

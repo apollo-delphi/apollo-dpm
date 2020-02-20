@@ -12,7 +12,7 @@ uses
 type
   TGetVersionsFunc = function(aPackage: TPackage): TArray<TVersion> of object;
   TActionProc = procedure(const aActionType: TActionType;
-    const aVersionName: string; aPackage: TPackage) of object;
+    const aDisplayVersionName: string; aPackage: TPackage) of object;
   TAllowActionFunc = function(aPackage: TPackage; const aActionType: TActionType): Boolean of object;
 
   TDPMForm = class(TForm)
@@ -26,6 +26,7 @@ type
     pnlButtons: TPanel;
     pnlContent: TPanel;
     btnRegisterPackage: TButton;
+    fodSelectProjectFolder: TFileOpenDialog;
     procedure tvStructureCustomDrawItem(Sender: TCustomTreeView;
       Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure tvStructureChange(Sender: TObject; Node: TTreeNode);
@@ -37,7 +38,7 @@ type
     function AllowActionFunc(aPackage: TPackage; const aActionType: TActionType): Boolean;
     function GetVersionsFunc(aPackage: TPackage): TArray<TVersion>;
     procedure ActionProc(const aActionType: TActionType;
-      const aVersionName: string; aPackage: TPackage);
+      const aDisplayVersionName: string; aPackage: TPackage);
     procedure AsyncLoadPublicPackages;
     procedure ClearPackageFrames;
     procedure RenderPackageList(aPackageList: TPackageList);
@@ -45,6 +46,7 @@ type
     procedure SetPackageSettings(aPackage: TPackage);
   public
     { Public declarations }
+    function GetFolder: string;
     procedure NotifyListener(const aMsg: string);
     constructor Create(aDPMEngine: TDPMEngine); reintroduce;
   end;
@@ -69,10 +71,10 @@ uses
 { TDPMForm }
 
 procedure TDPMForm.ActionProc(const aActionType: TActionType;
-  const aVersionName: string; aPackage: TPackage);
+  const aDisplayVersionName: string; aPackage: TPackage);
 begin
   case aActionType of
-    atAdd:  FDPMEngine.AddPackage(aVersionName, aPackage);
+    atAdd:  FDPMEngine.AddPackage(aDisplayVersionName, aPackage);
     atRemove: FDPMEngine.RemovePackage(aPackage);
     atPackageSettings: SetPackageSettings(aPackage);
   end;
@@ -127,6 +129,14 @@ begin
 
   FPackageFrames := [];
   RenderStructureTree;
+end;
+
+function TDPMForm.GetFolder: string;
+begin
+  Result := '';
+
+  if fodSelectProjectFolder.Execute then
+    Result := fodSelectProjectFolder.FileName;
 end;
 
 function TDPMForm.GetVersionsFunc(aPackage: TPackage): TArray<TVersion>;

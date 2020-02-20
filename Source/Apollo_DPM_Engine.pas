@@ -11,6 +11,7 @@ uses
 
 type
   TUINotifyProc = procedure(const aMsg: string) of object;
+  TUIGetFolderFunc = function: string of object;
 
   TDPMEngine = class;
 
@@ -34,7 +35,9 @@ type
     FNTAServices: INTAServices;
     FProjectPackages: TPackageList;
     FPublicPackages: TPackageList;
+    FUIGetFolder: TUIGetFolderFunc;
     FUINotifyProc: TUINotifyProc;
+    function AddPackageFiles(const aDispalyVersionName, aPackagePath: string; aPackage: TPackage): TArray<string>;
     function CreatePackageList(const aJSONString: string): TPackageList;
     function GetActiveProject: IOTAProject;
     function GetActiveProjectPath: string;
@@ -47,14 +50,18 @@ type
     function GetPackagesJSONString(aPackageList: TPackageList): string;
     function GetProjectConfigTargetPaths(aProjectConfig :IOTABuildConfiguration): TArray<string>;
     function GetProjectPackagesFilePath: string;
+    function GetSelectedVersionSHA(const aDisplayVersionName: string; aPackage: TPackage;
+      out aVersionName: string): string;
     function GetVendorsPath: string;
     function SaveContent(const aVendorPath, aRepoPath, aContent: string): string;
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
+    procedure AddTemplate(const aDisplayVersionName: string; aPackage: TPackage);
     procedure BuildBIN(const aTargetPath: string);
     procedure BuildMenu;
     procedure DeletePackagePath(aPackage: TPackage);
     procedure DPMMenuItemClick(Sender: TObject);
+    procedure OpenProject(const aProjectPath: string);
     procedure RemovePackageFromActiveProject(aPackage: TPackage);
     procedure RemovePackageFromBIN(aPackage: TPackage);
     procedure WriteFile(const aFilePath: string; aBytes: TBytes);
@@ -65,7 +72,7 @@ type
     function GetPackageVersions(aPackage: TPackage): TArray<TVersion>;
     function IsProjectOpened: Boolean;
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
-    procedure AddPackage(aVersionName: string; aPackage: TPackage);
+    procedure AddPackage(const aDispalyVersionName: string; aPackage: TPackage);
     procedure RemovePackage(aPackage: TPackage);
     procedure SavePackage(aPackage: TPackage; const aPath: string);  //need for publish package
     procedure SavePackages(aPackageList: TPackageList; const aPath: string);
@@ -97,6 +104,8 @@ uses
   System.IOUtils,
   System.JSON,
   System.NetEncoding;
+  //System.UITypes,
+  //Vcl.Dialogs;
 
 { TDPMEngine }
 
@@ -131,14 +140,16 @@ begin
 
   if IsProjectOpened then
     begin
-
       ProjectPackageList := GetProjectPackageList;
 
       case aActionType of
         atAdd: Result := not ProjectPackageList.Contains(aPackage);
         atRemove: Result := ProjectPackageList.Contains(aPackage);
       end;
-    end;
+    end
+  else
+    if (aActionType = atAdd) and (aPackage.PackageType = ptTemplate) then
+      Result := True;
 
   case aActionType of
     atPackageSettings: Result := True;
@@ -237,6 +248,14 @@ begin
   Result := True;
   aOwner := URLWords[1];
   aRepo := URLWords[2];
+end;
+
+procedure TDPMEngine.OpenProject(const aProjectPath: string);
+var
+  ModuleServices: IOTAModuleServices;
+begin
+  ModuleServices := BorlandIDEServices as IOTAModuleServices;
+  ModuleServices.OpenModule(aProjectPath);
 end;
 
 procedure TDPMEngine.RemovePackage(aPackage: TPackage);
@@ -342,6 +361,7 @@ begin
   DPMForm := TDPMForm.Create(Self);
   try
     FUINotifyProc := DPMForm.NotifyListener;
+    FUIGetFolder := DPMForm.GetFolder;
     DPMForm.ShowModal;
   finally
     FUINotifyProc := nil;
@@ -590,6 +610,32 @@ begin
     Result := FPublicPackages;
 end;
 
+function TDPMEngine.GetSelectedVersionSHA(const aDisplayVersionName: string; aPackage: TPackage;
+  out aVersionName: string): string;
+begin
+  if aDisplayVersionName = cLatestVersion then
+    begin
+      GetPackageVersions(aPackage);
+      if Length(aPackage.Versions) > 0 then
+        begin
+          Result := aPackage.Versions[0].SHA;
+          aVersionName := aPackage.Versions[0].Name;
+          Exit;
+        end
+    end;
+
+  if (aDisplayVersionName = cLatestRevision) or (aDisplayVersionName = cLatestVersion) then
+    begin
+      Result := FGHAPI.GetMasterBranchSHA(aPackage.Owner, aPackage.Repo);
+      aVersionName := cCustomRevision;
+    end
+  else
+    begin
+      Result := aPackage.Version[aDisplayVersionName].SHA;
+      aVersionName := aPackage.Version[aDisplayVersionName].Name;
+    end;
+end;
+
 function TDPMEngine.GetVendorsPath: string;
 begin
   Result := TDirectory.GetParent(GetActiveProjectPath) + '\Vendors';
@@ -598,43 +644,35 @@ begin
     ForceDirectories(Result);
 end;
 
-procedure TDPMEngine.AddPackage(aVersionName: string; aPackage: TPackage);
-var
+procedure TDPMEngine.AddPackage(const aDispalyVersionName: string; aPackage: TPackage);
+{var
   AddedPackage: TPackage;
   AddedVersion: TVersion;
   Blob: TBlob;
   Extension: string;
   FilePath: string;
   NodePath: string;
+  PackagePath: string;
   ProjectPackageList: TPackageList;
   RepoTree: TTree;
   TreeNode: TTreeNode;
-  VersionSHA: string;
+  VersionName: string;
+  VersionSHA: string;}
 begin
+  case aPackage.PackageType of
+  //  ptSource: ;
+    ptTemplate: AddTemplate(aDispalyVersionName, aPackage);
+  end;
+
+
+  {if aPackage.PackageType = ptTemplate then
+    PackagePath := FUIGetFolder
+  else
+    PackagePath := GetPackagePath(aPackage);
+
   FUINotifyProc(Format(#13#10 + 'Adding Package %s...', [aPackage.Name]));
 
-  if aVersionName = cLatestVersion then
-    begin
-      GetPackageVersions(aPackage);
-      if Length(aPackage.Versions) > 0 then
-        begin
-          VersionSHA := aPackage.Versions[0].SHA;
-          aVersionName := aPackage.Versions[0].Name;
-        end
-      else
-        aVersionName := cLatestRevision;
-    end;
-
-  if aVersionName = cLatestRevision then
-    begin
-      VersionSHA := FGHAPI.GetMasterBranchSHA(aPackage.Owner, aPackage.Repo);
-      aVersionName := cCustomRevision;
-    end
-  else
-    begin
-      VersionSHA := aPackage.Version[aVersionName].SHA;
-      aVersionName := aPackage.Version[aVersionName].Name;
-    end;
+  VersionSHA := GetSelectedVersionSHA(aDispalyVersionName, aPackage, VersionName);
 
   RepoTree := FGHAPI.GetRepoTree(aPackage.Owner, aPackage.Repo, VersionSHA);
 
@@ -648,16 +686,16 @@ begin
           Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
 
           NodePath := aPackage.ApplyMoves(TreeNode.Path);
-          FilePath := SaveContent(GetPackagePath(aPackage), NodePath, Blob.Content);
+          FilePath := SaveContent(PackagePath, NodePath, Blob.Content);
           Extension := TPath.GetExtension(FilePath);
 
-          if Extension = '.pas' then
+          if (Extension = '.pas') and (aPackage.PackageType = ptSource) then
             GetActiveProject.AddFile(FilePath, True);
         end;
     end;
 
   AddedPackage := TPackage.Create(aPackage);
-  AddedVersion.Name := aVersionName;
+  AddedVersion.Name := VersionName;
   AddedVersion.SHA := VersionSHA;
   AddedPackage.InstalledVersion := AddedVersion;
 
@@ -665,7 +703,78 @@ begin
   ProjectPackageList.Add(AddedPackage);
   SavePackages(ProjectPackageList, GetProjectPackagesFilePath);
 
-  GetActiveProject.Save(False, True);
+  GetActiveProject.Save(False, True);}
+end;
+
+function TDPMEngine.AddPackageFiles(const aDispalyVersionName, aPackagePath: string; aPackage: TPackage): TArray<string>;
+var
+  Blob: TBlob;
+  FilePath: string;
+  NodePath: string;
+  RepoTree: TTree;
+  TreeNode: TTreeNode;
+  VersionName: string;
+  VersionSHA: string;
+begin
+  Result := [];
+  VersionSHA := GetSelectedVersionSHA(aDispalyVersionName, aPackage, VersionName);
+
+  RepoTree := FGHAPI.GetRepoTree(aPackage.Owner, aPackage.Repo, VersionSHA);
+
+  for TreeNode in RepoTree do
+    begin
+      if TreeNode.FileType <> 'blob' then
+        Continue;
+
+      if aPackage.AllowPath(TreeNode.Path) then
+        begin
+          Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
+
+          NodePath := aPackage.ApplyMoves(TreeNode.Path);
+          FilePath := SaveContent(aPackagePath, NodePath, Blob.Content);
+
+          Result := Result + [FilePath];
+        end;
+    end;
+end;
+
+procedure TDPMEngine.AddTemplate(const aDisplayVersionName: string; aPackage: TPackage);
+var
+  Extension: string;
+  PackageFile: string;
+  PackageFiles: TArray<string>;
+  PackagePath: string;
+begin
+  PackagePath := FUIGetFolder;
+  if PackagePath.IsEmpty then
+    Exit;
+
+  FUINotifyProc(Format(#13#10 + 'Adding %s...', [aPackage.Name]));
+
+  PackageFiles := AddPackageFiles(aDisplayVersionName, PackagePath, aPackage);
+
+  for PackageFile in PackageFiles do
+    begin
+      Extension := TPath.GetExtension(PackageFile);
+
+      if Extension = '.dproj' then
+        begin
+          FUINotifyProc('Opening project...');
+          OpenProject(PackageFile);
+          Break;
+        end;
+    end;
+
+  for PackageFile in PackageFiles do
+    begin
+      Extension := TPath.GetExtension(PackageFile);
+
+      if Extension = '.pas' then
+        begin
+          GetActiveProject.ShowFilename(PackageFile);
+          Break;
+        end;
+    end;
 
   FUINotifyProc('Success');
 end;
