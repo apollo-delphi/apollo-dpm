@@ -48,6 +48,7 @@ type
     { Public declarations }
     function GetFolder: string;
     procedure NotifyListener(const aMsg: string);
+    procedure UpdateListener(aPackage: TPackage);
     constructor Create(aDPMEngine: TDPMEngine); reintroduce;
   end;
 
@@ -244,6 +245,21 @@ begin
 
   Rect := Node.DisplayRect(True);
   Sender.Canvas.TextOut(Rect.Left, Rect.Top, Node.Text);
+end;
+
+procedure TDPMForm.UpdateListener(aPackage: TPackage);
+var
+  i: Integer;
+  PackageFrame: TfrmPackage;
+begin
+  for i := 0 to Length(FPackageFrames) - 1 do
+    begin
+      PackageFrame := FPackageFrames[i] as TfrmPackage;
+
+      if PackageFrame.IsShowThisPackage(aPackage) then
+        PackageFrame.InitActions;
+    end;
+
 end;
 
 end.

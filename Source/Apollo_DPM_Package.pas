@@ -79,6 +79,8 @@ begin
 
   for Move in Moves do
     Result := Result.Replace(Move.Source, Move.Destination);
+
+  Result := Result.Replace('\\', '\', [rfReplaceAll]);
 end;
 
 procedure TPackage.Assign(aPackage: TPackage);

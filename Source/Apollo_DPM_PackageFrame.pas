@@ -31,9 +31,10 @@ type
     FAllowAction: TAllowActionFunc;
     FGetVersionsFunc: TGetVersionsFunc;
     FPackage: TPackage;
-    procedure InitActions;
   public
     { Public declarations }
+    function IsShowThisPackage(aPackage: TPackage): Boolean;
+    procedure InitActions;
     constructor Create(AOwner: TComponent; aPackage: TPackage;
       aActionProc: TActionProc; aGetVersionsFunc: TGetVersionsFunc;
       aAllowAction: TAllowActionFunc); reintroduce;
@@ -110,6 +111,11 @@ begin
   mniRemove.Visible := FAllowAction(FPackage, atRemove);
   mniUpgrade.Visible := FAllowAction(FPackage, atUpgrade);
   mniPackageSettings.Visible := FAllowAction(FPackage, atPackageSettings);
+end;
+
+function TfrmPackage.IsShowThisPackage(aPackage: TPackage): Boolean;
+begin
+  Result := aPackage.Name = FPackage.Name;
 end;
 
 procedure TfrmPackage.mniAddClick(Sender: TObject);
