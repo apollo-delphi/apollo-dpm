@@ -11,6 +11,7 @@ uses
 
 type
   TUINotifyProc = procedure(const aMsg: string) of object;
+  TUIUpdateProc = procedure(aPackage: TPackage) of object;
   TUIGetFolderFunc = function: string of object;
 
   TDPMEngine = class;
@@ -104,8 +105,6 @@ uses
   System.IOUtils,
   System.JSON,
   System.NetEncoding;
-  //System.UITypes,
-  //Vcl.Dialogs;
 
 { TDPMEngine }
 
@@ -740,10 +739,13 @@ end;
 
 procedure TDPMEngine.AddTemplate(const aDisplayVersionName: string; aPackage: TPackage);
 var
+  ActiveProject: IOTAProject;
   Extension: string;
+  i: Integer;
   PackageFile: string;
   PackageFiles: TArray<string>;
   PackagePath: string;
+  ProjectModuleInfo: IOTAModuleInfo;
 begin
   PackagePath := FUIGetFolder;
   if PackagePath.IsEmpty then
@@ -765,16 +767,17 @@ begin
         end;
     end;
 
-  for PackageFile in PackageFiles do
+  ActiveProject := GetActiveProject;
+  for i := 0 to ActiveProject.GetModuleCount - 1 do
     begin
-      Extension := TPath.GetExtension(PackageFile);
-
+      ProjectModuleInfo := ActiveProject.GetModule(i) as IOTAModuleInfo;
+      Extension := TPath.GetExtension(ProjectModuleInfo.FileName);
       if Extension = '.pas' then
         begin
-          GetActiveProject.ShowFilename(PackageFile);
+          ProjectModuleInfo.OpenModule.Show;
           Break;
         end;
-    end;
+    end;    
 
   FUINotifyProc('Success');
 end;

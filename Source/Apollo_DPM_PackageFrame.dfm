@@ -7,27 +7,15 @@ object frmPackage: TfrmPackage
   ParentBackground = False
   ParentColor = False
   TabOrder = 0
-  object lblPackageName: TLabel
-    Left = 12
-    Top = 8
-    Width = 77
-    Height = 13
-    Caption = 'lblPackageName'
-    ParentFont = False
-    Font.Name = 'Tahoma'
-    Font.Charset = DEFAULT_CHARSET
-  end
   object lblPackageDescription: TLabel
     Left = 12
-    Top = 27
+    Top = 5
     Width = 103
     Height = 13
     Caption = 'lblPackageDescription'
     ParentFont = False
     Font.Name = 'Tahoma'
-    Font.Color = clBtnShadow
     Font.Charset = DEFAULT_CHARSET
-    Font.Style = [fsItalic]
   end
   object lblVersion: TLabel
     Left = 12

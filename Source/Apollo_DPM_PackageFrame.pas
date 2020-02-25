@@ -11,7 +11,6 @@ uses
 
 type
   TfrmPackage = class(TFrame)
-    lblPackageName: TLabel;
     lblPackageDescription: TLabel;
     btnInstall: TButton;
     cbbVersions: TComboBox;
@@ -92,7 +91,6 @@ begin
   FAllowAction := aAllowAction;
   FGetVersionsFunc := aGetVersionsFunc;
 
-  lblPackageName.Caption := FPackage.Name;
   lblPackageDescription.Caption := FPackage.Description;
 
   if not aPackage.InstalledVersion.Name.IsEmpty then
