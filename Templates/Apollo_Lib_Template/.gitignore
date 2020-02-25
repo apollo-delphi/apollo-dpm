@@ -1,7 +1,7 @@
-BIN
-DCU
-__history
-__recovery
 *.local
-*.identcache
 *.res
+*.identcache
+*.stat
+__history
+DCU
+BIN

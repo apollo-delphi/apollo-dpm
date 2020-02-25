@@ -57,6 +57,7 @@ type
     function SaveContent(const aVendorPath, aRepoPath, aContent: string): string;
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
+    procedure AddSourceLib(const aDisplayVersionName: string; aPackage: TPackage);
     procedure AddTemplate(const aDisplayVersionName: string; aPackage: TPackage);
     procedure BuildBIN(const aTargetPath: string);
     procedure BuildMenu;
@@ -380,14 +381,14 @@ begin
 
   ModuleServices := BorlandIDEServices as IOTAModuleServices;
   for i := 0 to ModuleServices.ModuleCount - 1 do
-  begin
-    Module := ModuleServices.Modules[i];
-    if Supports(Module, IOTAProjectGroup, ProjectGroup) then
-      Exit(ProjectGroup.ActiveProject)
-    else
-    if Supports(Module, IOTAProject, Project) then
-      Exit(Project);
-  end;
+    begin
+      Module := ModuleServices.Modules[i];
+      if Supports(Module, IOTAProjectGroup, ProjectGroup) then
+        Exit(ProjectGroup.ActiveProject)
+      else
+      if Supports(Module, IOTAProject, Project) then
+        Exit(Project);
+    end;
 end;
 
 function TDPMEngine.GetActiveProjectPath: string;
@@ -644,6 +645,47 @@ begin
 end;
 
 procedure TDPMEngine.AddPackage(const aDispalyVersionName: string; aPackage: TPackage);
+begin
+  case aPackage.PackageType of
+    ptSource: AddSourceLib(aDispalyVersionName, aPackage);
+    ptTemplate: AddTemplate(aDispalyVersionName, aPackage);
+  end;
+end;
+
+function TDPMEngine.AddPackageFiles(const aDispalyVersionName, aPackagePath: string; aPackage: TPackage): TArray<string>;
+var
+  Blob: TBlob;
+  FilePath: string;
+  NodePath: string;
+  RepoTree: TTree;
+  TreeNode: TTreeNode;
+  VersionName: string;
+  VersionSHA: string;
+begin
+  Result := [];
+  VersionSHA := GetSelectedVersionSHA(aDispalyVersionName, aPackage, VersionName);
+
+  RepoTree := FGHAPI.GetRepoTree(aPackage.Owner, aPackage.Repo, VersionSHA);
+
+  for TreeNode in RepoTree do
+    begin
+      if TreeNode.FileType <> 'blob' then
+        Continue;
+
+      if aPackage.AllowPath(TreeNode.Path) then
+        begin
+          Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
+
+          NodePath := aPackage.ApplyMoves(TreeNode.Path);
+          FilePath := SaveContent(aPackagePath, NodePath, Blob.Content);
+
+          Result := Result + [FilePath];
+        end;
+    end;
+end;
+
+procedure TDPMEngine.AddSourceLib(const aDisplayVersionName: string;
+  aPackage: TPackage);
 {var
   AddedPackage: TPackage;
   AddedVersion: TVersion;
@@ -657,13 +699,9 @@ procedure TDPMEngine.AddPackage(const aDispalyVersionName: string; aPackage: TPa
   TreeNode: TTreeNode;
   VersionName: string;
   VersionSHA: string;}
+var
+  PackagePath: string;
 begin
-  case aPackage.PackageType of
-  //  ptSource: ;
-    ptTemplate: AddTemplate(aDispalyVersionName, aPackage);
-  end;
-
-
   {if aPackage.PackageType = ptTemplate then
     PackagePath := FUIGetFolder
   else
@@ -703,38 +741,13 @@ begin
   SavePackages(ProjectPackageList, GetProjectPackagesFilePath);
 
   GetActiveProject.Save(False, True);}
-end;
 
-function TDPMEngine.AddPackageFiles(const aDispalyVersionName, aPackagePath: string; aPackage: TPackage): TArray<string>;
-var
-  Blob: TBlob;
-  FilePath: string;
-  NodePath: string;
-  RepoTree: TTree;
-  TreeNode: TTreeNode;
-  VersionName: string;
-  VersionSHA: string;
-begin
-  Result := [];
-  VersionSHA := GetSelectedVersionSHA(aDispalyVersionName, aPackage, VersionName);
+  FUINotifyProc(Format(#13#10 + 'Adding %s...', [aPackage.Name]));
 
-  RepoTree := FGHAPI.GetRepoTree(aPackage.Owner, aPackage.Repo, VersionSHA);
+  PackagePath := GetPackagePath(aPackage);
+  AddPackageFiles(aDisplayVersionName, PackagePath, aPackage);
 
-  for TreeNode in RepoTree do
-    begin
-      if TreeNode.FileType <> 'blob' then
-        Continue;
-
-      if aPackage.AllowPath(TreeNode.Path) then
-        begin
-          Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
-
-          NodePath := aPackage.ApplyMoves(TreeNode.Path);
-          FilePath := SaveContent(aPackagePath, NodePath, Blob.Content);
-
-          Result := Result + [FilePath];
-        end;
-    end;
+  FUINotifyProc('Success');
 end;
 
 procedure TDPMEngine.AddTemplate(const aDisplayVersionName: string; aPackage: TPackage);
