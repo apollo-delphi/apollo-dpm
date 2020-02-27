@@ -27,13 +27,16 @@ type
     procedure mniAddClick(Sender: TObject);
     procedure mniPackageSettingsClick(Sender: TObject);
     procedure mniRemoveClick(Sender: TObject);
+    procedure cbbVersionsChange(Sender: TObject);
   private
     { Private declarations }
     FActionProc: TActionProc;
     FAllowAction: TAllowActionFunc;
     FGetVersionsFunc: TGetVersionsFunc;
     FPackage: TPackage;
+    procedure FillVersions;
     procedure InitActions;
+    procedure SetInstallDescribe;
   public
     { Public declarations }
     function IsShowThisPackage(aPackage: TPackage): Boolean;
@@ -54,6 +57,11 @@ uses
 
 { TfrmPackage }
 
+procedure TfrmPackage.cbbVersionsChange(Sender: TObject);
+begin
+  lblInstallDescribe.Caption := 'fdsfs';
+end;
+
 procedure TfrmPackage.cbbVersionsDropDown(Sender: TObject);
 var
   AsyncTask: ITask;
@@ -66,16 +74,10 @@ begin
       Versions := FGetVersionsFunc(FPackage);
 
       TThread.Synchronize(nil, procedure()
-        var
-          i: Integer;
         begin
           aiVerListLoad.Animate := False;
 
-          cbbVersions.Items.Clear;
-          for i := 0 to Length(Versions) - 1 do
-            cbbVersions.Items.Add(Versions[i].Name);
-
-          cbbVersions.Items.Add(cLatestRevision);
+          FillVersions;
         end
       );
     end
@@ -106,6 +108,32 @@ begin
   inherited;
 end;
 
+procedure TfrmPackage.FillVersions;
+var
+  i: Integer;
+  VersionItem: string;
+begin
+  cbbVersions.Items.Clear;
+  for i := 0 to Length(FPackage.Versions) - 1 do
+    cbbVersions.Items.Add(FPackage.Versions[i].DisplayName);
+
+  cbbVersions.Items.Add(cLatestCommit);
+
+  {if not FPackage.InstalledVersion.Name.IsEmpty then
+    VersionItem := Format('%s%s...', [FPackage.InstalledVersion.Name, FPackage.InstalledVersion.SHA.Substring(1,5)])
+  else
+    VersionItem := cLatestVersion;
+
+  cbbVersions.Items.Add(VersionItem);
+  cbbVersions.ItemIndex := 0;
+
+  cbbVersions.Items.Clear;
+  for i := 0 to Length(FPackage.Versions) - 1 do
+    cbbVersions.Items.Add(FPackage.Versions[i].Name);
+
+  cbbVersions.Items.Add(cLatestRevision);}
+end;
+
 procedure TfrmPackage.InitActions;
 begin
   mniAdd.Visible := FAllowAction(FPackage, atAdd);
@@ -115,17 +143,8 @@ begin
 end;
 
 procedure TfrmPackage.InitState;
-var
-  VersionItem: string;
 begin
-  if not FPackage.InstalledVersion.Name.IsEmpty then
-    VersionItem := Format('%s%s...', [FPackage.InstalledVersion.Name, FPackage.InstalledVersion.SHA.Substring(1,5)])
-  else
-    VersionItem := cLatestVersion;
-
-  cbbVersions.Items.Add(VersionItem);
-  cbbVersions.ItemIndex := 0;
-
+  FillVersions;
   InitActions;
 end;
 
@@ -147,6 +166,11 @@ end;
 procedure TfrmPackage.mniRemoveClick(Sender: TObject);
 begin
   FActionProc(atRemove, cbbVersions.Text, FPackage);
+end;
+
+procedure TfrmPackage.SetInstallDescribe;
+begin
+
 end;
 
 end.

@@ -8,11 +8,15 @@ uses
 
 type
   TVersion = record
+  private
+    function GetDispalayName: string;
   public
     InstallTime: TDateTime;
     Name: string;
     SHA: string;
+    function IsEmpty: Boolean;
     procedure Init;
+    property DisplayName: string read GetDispalayName;
   end;
 
   TMove = record
@@ -41,6 +45,7 @@ type
     function CheckBlackList(const aPath: string): Boolean;
     function CheckWhiteList(const aPath: string): Boolean;
     function GetVersion(const aName: string): TVersion;
+    function GetVersions: TArray<TVersion>;
     procedure Init;
   public
     function AllowPath(const aPath: string): Boolean;
@@ -60,7 +65,7 @@ type
     property PackageType: TPackageType read FPackageType write FPackageType;
     property Repo: string read FRepo write FRepo;
     property Version[const aName: string]: TVersion read GetVersion;
-    property Versions: TArray<TVersion> read FVersions write FVersions;
+    property Versions: TArray<TVersion> read GetVersions write FVersions;
   end;
 
   TPackageList = class(TObjectList<TPackage>)
@@ -97,6 +102,8 @@ begin
   Owner := aPackage.Owner;
   Repo := aPackage.Repo;
   PackageType := aPackage.PackageType;
+
+  InstalledVersion := aPackage.InstalledVersion;
 end;
 
 constructor TPackage.Create(aJSONPackage: TJSONObject);
@@ -240,6 +247,14 @@ begin
       Exit(Version);
 end;
 
+function TPackage.GetVersions: TArray<TVersion>;
+begin
+  Result := [];
+
+  if not InstalledVersion.IsEmpty then
+    Result := Result + [InstalledVersion];
+end;
+
 procedure TPackage.Init;
 begin
   FVersions := [];
@@ -269,10 +284,27 @@ end;
 
 { TVersion }
 
+function TVersion.GetDispalayName: string;
+begin
+  Result := '';
+
+  if not Name.IsEmpty then
+    Result := Name
+  else
+  if not SHA.IsEmpty then
+    Result := Format('commit %s', [SHA.Substring(0, 7)]);
+end;
+
 procedure TVersion.Init;
 begin
   Name := '';
   SHA := '';
+  InstallTime := 0;
+end;
+
+function TVersion.IsEmpty: Boolean;
+begin
+  Result := Name.IsEmpty and SHA.IsEmpty;
 end;
 
 { TPackageList }

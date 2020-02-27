@@ -96,9 +96,8 @@ const
 
   cEmptyPackagesFileContent = '{"packages": []}';
 
-  cCustomRevision = 'revision';
-  cLatestVersion = 'latest version';
-  cLatestRevision = 'latest revision';
+  cLatestVersion = 'the latest version';
+  cLatestCommit = 'the latest commit';
 
 implementation
 
@@ -637,10 +636,10 @@ begin
         end
     end;
 
-  if (aDisplayVersionName = cLatestRevision) or (aDisplayVersionName = cLatestVersion) then
+  if (aDisplayVersionName = cLatestCommit) or (aDisplayVersionName = cLatestVersion) then
     begin
       Result := FGHAPI.GetMasterBranchSHA(aPackage.Owner, aPackage.Repo);
-      aVersionName := cCustomRevision;
+      aVersionName := '';
     end
   else
     begin

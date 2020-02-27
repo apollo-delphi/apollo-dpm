@@ -61,6 +61,7 @@ object frmPackage: TfrmPackage
     Style = csOwnerDrawFixed
     ParentFont = False
     TabOrder = 1
+    OnChange = cbbVersionsChange
     OnDropDown = cbbVersionsDropDown
     Font.Name = 'Tahoma'
     Font.Height = -9
