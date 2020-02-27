@@ -9,6 +9,7 @@ uses
 type
   TVersion = record
   public
+    InstallTime: TDateTime;
     Name: string;
     SHA: string;
     procedure Init;
@@ -27,9 +28,9 @@ type
   TPackage = class
   private
     FDescription: string;
-    FFileName: string;
     FFilters: TArray<string>;
     FFilterType: TFilterType;
+    FInstallHistory: TArray<TVersion>;
     FInstalledVersion: TVersion;
     FMoves: TArray<TMove>;
     FName: string;
@@ -49,9 +50,9 @@ type
     constructor Create(aJSONPackage: TJSONObject); overload;
     constructor Create(aPackage: TPackage); overload;
     property Description: string read FDescription write FDescription;
-    property FileName: string read FFileName write FFileName;
     property Filters: TArray<string> read FFilters write FFilters;
     property FilterType: TFilterType read FFilterType write FFilterType;
+    property InstallHistory: TArray<TVersion> read FInstallHistory;
     property InstalledVersion: TVersion read FInstalledVersion write FInstalledVersion;
     property Moves: TArray<TMove> read FMoves write FMoves;
     property Name: string read FName write FName;
@@ -62,7 +63,13 @@ type
     property Versions: TArray<TVersion> read FVersions write FVersions;
   end;
 
-  TPackageList = TObjectList<TPackage>;
+  TPackageList = class(TObjectList<TPackage>)
+  private
+    function GetByName(const aPackageName: string): TPackage;
+  public
+    function ContainsWithName(const aPackageName: string): Boolean;
+    procedure RemoveWithName(const aPackageName: string);
+  end;
 
 implementation
 
@@ -89,6 +96,7 @@ begin
   Name := aPackage.Name;
   Owner := aPackage.Owner;
   Repo := aPackage.Repo;
+  PackageType := aPackage.PackageType;
 end;
 
 constructor TPackage.Create(aJSONPackage: TJSONObject);
@@ -185,9 +193,6 @@ begin
   Result.AddPair('repo', Repo);
   Result.AddPair('packageType', TJSONNumber.Create(Ord(PackageType)));
 
-  if not FileName.IsEmpty then
-    Result.AddPair('fileName', FileName);
-
   if FilterType <> ftNone then
     begin
       Result.AddPair('filterType', TJSONNumber.Create(Ord(FilterType)));
@@ -218,6 +223,7 @@ begin
       jsnInstalledVersion := TJSONObject.Create;
       jsnInstalledVersion.AddPair('name', InstalledVersion.Name);
       jsnInstalledVersion.AddPair('sha', InstalledVersion.SHA);
+      jsnInstalledVersion.AddPair('time', TJSONNumber.Create(InstalledVersion.InstallTime));
 
       Result.AddPair('installed', jsnInstalledVersion);
     end;
@@ -237,13 +243,13 @@ end;
 procedure TPackage.Init;
 begin
   FVersions := [];
+  FInstallHistory := [];
   FMoves := [];
   FFilters := [];
   FFilterType := ftNone;
   FPackageType := ptSource;
 
   FDescription := '';
-  FFileName := '';
   FName := '';
   FOwner := '';
   FRepo := '';
@@ -267,6 +273,36 @@ procedure TVersion.Init;
 begin
   Name := '';
   SHA := '';
+end;
+
+{ TPackageList }
+
+function TPackageList.ContainsWithName(const aPackageName: string): Boolean;
+begin
+  if GetByName(aPackageName) <> nil then
+    Result := True
+  else
+    Result := False;
+end;
+
+function TPackageList.GetByName(const aPackageName: string): TPackage;
+var
+  Package: TPackage;
+begin
+  Result := nil;
+
+  for Package in Self do
+    if Package.Name = aPackageName then
+      Exit(Package);
+end;
+
+procedure TPackageList.RemoveWithName(const aPackageName: string);
+var
+  Package: TPackage;
+begin
+  Package := GetByName(aPackageName);
+  if Assigned(Package) then
+    Remove(Package);
 end;
 
 end.

@@ -1,7 +1,7 @@
 object frmPackage: TfrmPackage
   Left = 0
   Top = 0
-  Width = 366
+  Width = 371
   Height = 74
   Color = clWindow
   ParentBackground = False
@@ -9,7 +9,7 @@ object frmPackage: TfrmPackage
   TabOrder = 0
   object lblPackageDescription: TLabel
     Left = 12
-    Top = 5
+    Top = 3
     Width = 103
     Height = 13
     Caption = 'lblPackageDescription'
@@ -19,15 +19,34 @@ object frmPackage: TfrmPackage
   end
   object lblVersion: TLabel
     Left = 12
-    Top = 50
+    Top = 30
     Width = 35
     Height = 13
     Caption = 'Version'
   end
+  object lblInstalled: TLabel
+    Left = 322
+    Top = 3
+    Width = 41
+    Height = 13
+    Caption = 'Installed'
+    ParentFont = False
+    Visible = False
+    Font.Name = 'Tahoma'
+    Font.Color = clGreen
+    Font.Charset = DEFAULT_CHARSET
+  end
+  object lblInstallDescribe: TLabel
+    Left = 53
+    Top = 54
+    Width = 80
+    Height = 13
+    Caption = 'lblInstallDescribe'
+  end
   object btnInstall: TButton
-    Left = 280
-    Top = 44
-    Width = 83
+    Left = 282
+    Top = 25
+    Width = 80
     Height = 25
     Caption = 'Action'
     DropDownMenu = pmActions
@@ -36,8 +55,8 @@ object frmPackage: TfrmPackage
   end
   object cbbVersions: TComboBox
     Left = 53
-    Top = 46
-    Width = 80
+    Top = 26
+    Width = 194
     Height = 22
     Style = csOwnerDrawFixed
     ParentFont = False
@@ -48,13 +67,13 @@ object frmPackage: TfrmPackage
     Font.Charset = DEFAULT_CHARSET
   end
   object aiVerListLoad: TActivityIndicator
-    Left = 138
-    Top = 45
+    Left = 252
+    Top = 25
     IndicatorSize = aisSmall
     IndicatorType = aitRotatingSector
   end
   object pmActions: TPopupMenu
-    Left = 208
+    Left = 160
     Top = 8
     object mniAdd: TMenuItem
       Caption = 'Add'

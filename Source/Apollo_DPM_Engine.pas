@@ -96,7 +96,7 @@ const
 
   cEmptyPackagesFileContent = '{"packages": []}';
 
-  cCustomRevision = 'rev.';
+  cCustomRevision = 'revision';
   cLatestVersion = 'latest version';
   cLatestRevision = 'latest revision';
 
@@ -145,8 +145,8 @@ begin
       ProjectPackageList := GetProjectPackageList;
 
       case aActionType of
-        atAdd: Result := not ProjectPackageList.Contains(aPackage);
-        atRemove: Result := ProjectPackageList.Contains(aPackage);
+        atAdd: Result := not ProjectPackageList.ContainsWithName(aPackage.Name);
+        atRemove: Result := ProjectPackageList.ContainsWithName(aPackage.Name);
       end;
     end
   else
@@ -271,7 +271,7 @@ begin
   DeletePackagePath(aPackage);
 
   ProjectPackageList := GetProjectPackageList;
-  ProjectPackageList.Remove(aPackage);
+  ProjectPackageList.RemoveWithName(aPackage.Name);
 
   if ProjectPackageList.Count > 0 then
     SavePackages(ProjectPackageList, GetProjectPackagesFilePath)
@@ -281,6 +281,7 @@ begin
   GetActiveProject.Save(False, True);
 
   FUINotifyProc('Success');
+  FUIUpdateProc(aPackage);
 end;
 
 procedure TDPMEngine.RemovePackageFromActiveProject(aPackage: TPackage);
@@ -724,6 +725,7 @@ begin
     end;
 
   AddedPackage := TPackage.Create(aPackage);
+  AddedVersion.InstallTime := Now;
   AddedPackage.InstalledVersion := AddedVersion;
 
   ProjectPackageList := GetProjectPackageList;

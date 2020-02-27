@@ -21,6 +21,8 @@ type
     mniPackageSettings: TMenuItem;
     mniRemove: TMenuItem;
     mniUpgrade: TMenuItem;
+    lblInstalled: TLabel;
+    lblInstallDescribe: TLabel;
     procedure cbbVersionsDropDown(Sender: TObject);
     procedure mniAddClick(Sender: TObject);
     procedure mniPackageSettingsClick(Sender: TObject);
@@ -31,13 +33,15 @@ type
     FAllowAction: TAllowActionFunc;
     FGetVersionsFunc: TGetVersionsFunc;
     FPackage: TPackage;
+    procedure InitActions;
   public
     { Public declarations }
     function IsShowThisPackage(aPackage: TPackage): Boolean;
-    procedure InitActions;
+    procedure InitState;
     constructor Create(AOwner: TComponent; aPackage: TPackage;
       aActionProc: TActionProc; aGetVersionsFunc: TGetVersionsFunc;
       aAllowAction: TAllowActionFunc); reintroduce;
+    destructor Destroy; override;
   end;
 
 implementation
@@ -82,27 +86,24 @@ end;
 constructor TfrmPackage.Create(AOwner: TComponent; aPackage: TPackage;
       aActionProc: TActionProc; aGetVersionsFunc: TGetVersionsFunc;
       aAllowAction: TAllowActionFunc);
-var
-  VersionItem: string;
 begin
   inherited Create(AOwner);
 
-  FPackage := aPackage;
+  FPackage := TPackage.Create(aPackage);
   FActionProc := aActionProc;
   FAllowAction := aAllowAction;
   FGetVersionsFunc := aGetVersionsFunc;
 
   lblPackageDescription.Caption := FPackage.Description;
 
-  if not aPackage.InstalledVersion.Name.IsEmpty then
-    VersionItem := Format('%s%s...', [aPackage.InstalledVersion.Name, aPackage.InstalledVersion.SHA.Substring(1,5)])
-  else
-    VersionItem := cLatestVersion;
+  InitState;
+end;
 
-  cbbVersions.Items.Add(VersionItem);
-  cbbVersions.ItemIndex := 0;
+destructor TfrmPackage.Destroy;
+begin
+  FPackage.Free;
 
-  InitActions;
+  inherited;
 end;
 
 procedure TfrmPackage.InitActions;
@@ -111,6 +112,21 @@ begin
   mniRemove.Visible := FAllowAction(FPackage, atRemove);
   mniUpgrade.Visible := FAllowAction(FPackage, atUpgrade);
   mniPackageSettings.Visible := FAllowAction(FPackage, atPackageSettings);
+end;
+
+procedure TfrmPackage.InitState;
+var
+  VersionItem: string;
+begin
+  if not FPackage.InstalledVersion.Name.IsEmpty then
+    VersionItem := Format('%s%s...', [FPackage.InstalledVersion.Name, FPackage.InstalledVersion.SHA.Substring(1,5)])
+  else
+    VersionItem := cLatestVersion;
+
+  cbbVersions.Items.Add(VersionItem);
+  cbbVersions.ItemIndex := 0;
+
+  InitActions;
 end;
 
 function TfrmPackage.IsShowThisPackage(aPackage: TPackage): Boolean;

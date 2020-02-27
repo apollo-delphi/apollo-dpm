@@ -257,7 +257,7 @@ begin
       PackageFrame := FPackageFrames[i] as TfrmPackage;
 
       if PackageFrame.IsShowThisPackage(aPackage) then
-        PackageFrame.InitActions;
+        PackageFrame.InitState;
     end;
 
 end;
