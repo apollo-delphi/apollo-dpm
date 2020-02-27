@@ -43,7 +43,6 @@ contains
   Apollo_DPM_Package in 'Apollo_DPM_Package.pas',
   Apollo_DPM_PackageFrame in 'Apollo_DPM_PackageFrame.pas' {frmPackage: TFrame},
   Apollo_DPM_PackageForm in 'Apollo_DPM_PackageForm.pas' {PackageForm},
-  Apollo_HTTP in '..\Vendors\Apollo_HTTP\Source\Apollo_HTTP.pas',
-  Apollo_MVC_Core in '..\Vendors\Apollo_MVC_Core\Source\Apollo_MVC_Core.pas';
+  Apollo_HTTP in '..\Vendors\Apollo_HTTP\Source\Apollo_HTTP.pas';
 
 end.
