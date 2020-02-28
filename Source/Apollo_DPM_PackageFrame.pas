@@ -33,7 +33,8 @@ type
     FActionProc: TActionProc;
     FAllowAction: TAllowActionFunc;
     FFilledVersions: TArray<TVersion>;
-    FGetVersionsFunc: TGetVersionsFunc;
+    FIsRepoVersionsLoaded: Boolean;
+    FLoadRepoVersionsProc: TLoadRepoVersionsProc;
     FPackage: TPackage;
     function GetIndexByVersion(aVersion: TVersion): Integer;
     function GetVersionByIndex(const aIndex: Integer): TVersion;
@@ -45,7 +46,7 @@ type
     function IsShowThisPackage(aPackage: TPackage): Boolean;
     procedure InitState;
     constructor Create(AOwner: TComponent; aPackage: TPackage;
-      aActionProc: TActionProc; aGetVersionsFunc: TGetVersionsFunc;
+      aActionProc: TActionProc; aLoadRepoVersionsProc: TLoadRepoVersionsProc;
       aAllowAction: TAllowActionFunc); reintroduce;
     destructor Destroy; override;
   end;
@@ -68,18 +69,21 @@ end;
 procedure TfrmPackage.cbbVersionsDropDown(Sender: TObject);
 var
   AsyncTask: ITask;
-  Versions: TArray<TVersion>;
 begin
+  if FIsRepoVersionsLoaded then
+    Exit;
+
   aiVerListLoad.Animate := True;
 
   AsyncTask := TTask.Create(procedure()
     begin
-      Versions := FGetVersionsFunc(FPackage);
+      FLoadRepoVersionsProc(FPackage);
 
       TThread.Synchronize(nil, procedure()
         begin
           aiVerListLoad.Animate := False;
 
+          FIsRepoVersionsLoaded := True;
           FillVersions;
         end
       );
@@ -89,7 +93,7 @@ begin
 end;
 
 constructor TfrmPackage.Create(AOwner: TComponent; aPackage: TPackage;
-      aActionProc: TActionProc; aGetVersionsFunc: TGetVersionsFunc;
+      aActionProc: TActionProc; aLoadRepoVersionsProc: TLoadRepoVersionsProc;
       aAllowAction: TAllowActionFunc);
 begin
   inherited Create(AOwner);
@@ -97,7 +101,8 @@ begin
   FPackage := TPackage.Create(aPackage);
   FActionProc := aActionProc;
   FAllowAction := aAllowAction;
-  FGetVersionsFunc := aGetVersionsFunc;
+  FLoadRepoVersionsProc := aLoadRepoVersionsProc;
+  FIsRepoVersionsLoaded := False;
 
   lblPackageDescription.Caption := FPackage.Description;
 
@@ -119,17 +124,23 @@ var
 begin
   FFilledVersions := [];
   cbbVersions.Items.Clear;
+
   for i := 0 to Length(FPackage.Versions) - 1 do
     begin
       cbbVersions.Items.Add(FPackage.Versions[i].DisplayName);
       FFilledVersions := FFilledVersions + [FPackage.Versions[i]];
     end;
 
-  cbbVersions.Items.Add(cLatestCommit);
+  if not FIsRepoVersionsLoaded then
+    cbbVersions.Items.Add(cLatestVersionOrCommit)
+  else
+    cbbVersions.Items.Add(cLatestCommit);
 
   VersionIndex := GetIndexByVersion(FPackage.InstalledVersion);
   if VersionIndex >= 0 then
-    cbbVersions.ItemIndex := VersionIndex;
+    cbbVersions.ItemIndex := VersionIndex
+  else
+    cbbVersions.ItemIndex := cbbVersions.Items.Count - 1;
 end;
 
 function TfrmPackage.GetIndexByVersion(aVersion: TVersion): Integer;
@@ -149,7 +160,7 @@ var
 begin
   Result.Init;
 
-  for i := 0 to Length(FFilledVersions) do
+  for i := 0 to Length(FFilledVersions) - 1 do
     if i = aIndex then
       Exit(FFilledVersions[i]);
 end;

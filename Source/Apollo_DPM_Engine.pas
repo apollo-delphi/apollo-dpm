@@ -73,10 +73,10 @@ type
     function AllowAction(aPackage: TPackage; const aActionType: TActionType): Boolean;
     function GetProjectPackageList: TPackageList;
     function GetPublicPackages: TPackageList;
-    function GetPackageVersions(aPackage: TPackage): TArray<TVersion>;
     function IsProjectOpened: Boolean;
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
     procedure AddPackage(const aDispalyVersionName: string; aPackage: TPackage);
+    procedure LoadRepoVersions(aPackage: TPackage);
     procedure RemovePackage(aPackage: TPackage);
     procedure SavePackage(aPackage: TPackage; const aPath: string);  //need for publish package
     procedure SavePackages(aPackageList: TPackageList; const aPath: string);
@@ -96,7 +96,7 @@ const
 
   cEmptyPackagesFileContent = '{"packages": []}';
 
-  cLatestVersion = 'the latest version';
+  cLatestVersionOrCommit = 'the latest version or commit';
   cLatestCommit = 'the latest commit';
 
 implementation
@@ -532,25 +532,22 @@ begin
   end;
 end;
 
-function TDPMEngine.GetPackageVersions(aPackage: TPackage): TArray<TVersion>;
+procedure TDPMEngine.LoadRepoVersions(aPackage: TPackage);
 var
   Tag: TTag;
   Tags: TArray<TTag>;
   Version: TVersion;
 begin
-  Result := [];
-
   Tags := FGHAPI.GetRepoTags(aPackage.Owner, aPackage.Repo);
 
   for Tag in Tags do
     begin
+      Version.Init;
       Version.Name := Tag.Name;
       Version.SHA := Tag.SHA;
 
-      Result := Result + [Version];
+      aPackage.Versions := aPackage.Versions + [Version];
     end;
-
-  aPackage.Versions := Result;
 end;
 
 function TDPMEngine.GetProjectPackagesFilePath: string;
@@ -625,9 +622,9 @@ end;
 function TDPMEngine.GetSelectedVersionSHA(const aDisplayVersionName: string; aPackage: TPackage;
   out aVersionName: string): string;
 begin
-  if aDisplayVersionName = cLatestVersion then
+  if aDisplayVersionName = cLatestVersionOrCommit then
     begin
-      GetPackageVersions(aPackage);
+      LoadRepoVersions(aPackage);
       if Length(aPackage.Versions) > 0 then
         begin
           Result := aPackage.Versions[0].SHA;
@@ -636,7 +633,7 @@ begin
         end
     end;
 
-  if (aDisplayVersionName = cLatestCommit) or (aDisplayVersionName = cLatestVersion) then
+  if (aDisplayVersionName = cLatestCommit) or (aDisplayVersionName = cLatestVersionOrCommit) then
     begin
       Result := FGHAPI.GetMasterBranchSHA(aPackage.Owner, aPackage.Repo);
       aVersionName := '';

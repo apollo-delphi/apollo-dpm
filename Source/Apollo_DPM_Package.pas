@@ -45,13 +45,13 @@ type
     function CheckBlackList(const aPath: string): Boolean;
     function CheckWhiteList(const aPath: string): Boolean;
     function GetVersion(const aName: string): TVersion;
-    function GetVersions: TArray<TVersion>;
     procedure Init;
   public
     function AllowPath(const aPath: string): Boolean;
     function ApplyMoves(const aNodePath: string): string;
     function CreateJSON: TJSONObject;
     procedure Assign(aPackage: TPackage);
+    procedure SetInstalledVersion(aVersion: TVersion);
     constructor Create(aJSONPackage: TJSONObject); overload;
     constructor Create(aPackage: TPackage); overload;
     property Description: string read FDescription write FDescription;
@@ -65,7 +65,7 @@ type
     property PackageType: TPackageType read FPackageType write FPackageType;
     property Repo: string read FRepo write FRepo;
     property Version[const aName: string]: TVersion read GetVersion;
-    property Versions: TArray<TVersion> read GetVersions write FVersions;
+    property Versions: TArray<TVersion> read FVersions write FVersions;
   end;
 
   TPackageList = class(TObjectList<TPackage>)
@@ -104,6 +104,10 @@ begin
   PackageType := aPackage.PackageType;
 
   InstalledVersion := aPackage.InstalledVersion;
+
+  FilterType := aPackage.FilterType;
+  Filters := aPackage.Filters;
+  Moves := aPackage.Moves;
 end;
 
 constructor TPackage.Create(aJSONPackage: TJSONObject);
@@ -248,14 +252,6 @@ begin
       Exit(Version);
 end;
 
-function TPackage.GetVersions: TArray<TVersion>;
-begin
-  Result := [];
-
-  if not InstalledVersion.IsEmpty then
-    Result := Result + [InstalledVersion];
-end;
-
 procedure TPackage.Init;
 begin
   FVersions := [];
@@ -271,6 +267,15 @@ begin
   FRepo := '';
 
   FInstalledVersion.Init;
+end;
+
+procedure TPackage.SetInstalledVersion(aVersion: TVersion);
+begin
+  if not aVersion.IsEmpty then
+    begin
+      FInstalledVersion := aVersion;
+      FVersions := FVersions + [InstalledVersion];
+    end;
 end;
 
 function TPackage.AllowPath(const aPath: string): Boolean;

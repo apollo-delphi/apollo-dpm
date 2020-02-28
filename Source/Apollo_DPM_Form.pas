@@ -10,7 +10,7 @@ uses
   Apollo_DPM_Package;
 
 type
-  TGetVersionsFunc = function(aPackage: TPackage): TArray<TVersion> of object;
+  TLoadRepoVersionsProc = procedure(aPackage: TPackage) of object;
   TActionProc = procedure(const aActionType: TActionType;
     const aDisplayVersionName: string; aPackage: TPackage) of object;
   TAllowActionFunc = function(aPackage: TPackage; const aActionType: TActionType): Boolean of object;
@@ -35,13 +35,13 @@ type
     { Private declarations }
     FDPMEngine: TDPMEngine;
     FPackageFrames: TArray<TFrame>;
-    function AllowActionFunc(aPackage: TPackage; const aActionType: TActionType): Boolean;
+    function AllowAction(aPackage: TPackage; const aActionType: TActionType): Boolean;
     function GetFrameByPackage(aPackage: TPackage): TFrame;
-    function GetVersionsFunc(aPackage: TPackage): TArray<TVersion>;
     procedure ActionProc(const aActionType: TActionType;
       const aDisplayVersionName: string; aPackage: TPackage);
     procedure AsyncLoadPublicPackages;
     procedure ClearPackageFrames;
+    procedure LoadRepoVersions(aPackage: TPackage);
     procedure RenderPackageList(aPackageList: TPackageList);
     procedure RenderPackages;
     procedure RenderStructureTree;
@@ -84,7 +84,7 @@ begin
   end;
 end;
 
-function TDPMForm.AllowActionFunc(aPackage: TPackage;
+function TDPMForm.AllowAction(aPackage: TPackage;
   const aActionType: TActionType): Boolean;
 begin
   Result := FDPMEngine.AllowAction(aPackage, aActionType);
@@ -159,9 +159,9 @@ begin
     end;
 end;
 
-function TDPMForm.GetVersionsFunc(aPackage: TPackage): TArray<TVersion>;
+procedure TDPMForm.LoadRepoVersions(aPackage: TPackage);
 begin
-  Result := FDPMEngine.GetPackageVersions(aPackage);
+  FDPMEngine.LoadRepoVersions(aPackage);
 end;
 
 procedure TDPMForm.NotifyListener(const aMsg: string);
@@ -182,7 +182,7 @@ begin
   for Package in aPackageList do
     begin
       PackageFrame := TfrmPackage.Create(sbPackages, Package, ActionProc,
-        GetVersionsFunc, AllowActionFunc
+        LoadRepoVersions, AllowAction
       );
       PackageFrame.Name := Format('PackageFrame%d', [i]);
       PackageFrame.Parent := sbPackages;
@@ -280,10 +280,10 @@ begin
 end;
 
 procedure TDPMForm.UpdateListener(aPackage: TPackage; aActionType: TActionType);
-var
-  PackageFrame: TfrmPackage;
+//var
+//  PackageFrame: TfrmPackage;
 begin
-  PackageFrame := GetFrameByPackage(aPackage) as TfrmPackage;
+//  PackageFrame := GetFrameByPackage(aPackage) as TfrmPackage;
 
   case aActionType of
     atRemove:
