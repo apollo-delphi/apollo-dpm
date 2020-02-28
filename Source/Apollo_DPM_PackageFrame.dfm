@@ -13,12 +13,9 @@ object frmPackage: TfrmPackage
     Width = 103
     Height = 13
     Caption = 'lblPackageDescription'
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -11
-    Font.Name = 'Tahoma'
-    Font.Style = []
     ParentFont = False
+    Font.Name = 'Tahoma'
+    Font.Charset = DEFAULT_CHARSET
   end
   object lblVersion: TLabel
     Left = 12
@@ -33,20 +30,18 @@ object frmPackage: TfrmPackage
     Width = 41
     Height = 13
     Caption = 'Installed'
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clGreen
-    Font.Height = -11
-    Font.Name = 'Tahoma'
-    Font.Style = []
     ParentFont = False
     Visible = False
+    Font.Name = 'Tahoma'
+    Font.Color = clGreen
+    Font.Charset = DEFAULT_CHARSET
   end
-  object lblInstallDescribe: TLabel
+  object lblVersionlDescribe: TLabel
     Left = 53
     Top = 54
-    Width = 80
+    Width = 88
     Height = 13
-    Caption = 'lblInstallDescribe'
+    Caption = 'lblVersionlDescribe'
   end
   object btnInstall: TButton
     Left = 282
@@ -64,15 +59,12 @@ object frmPackage: TfrmPackage
     Width = 194
     Height = 22
     Style = csOwnerDrawFixed
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -11
-    Font.Name = 'Tahoma'
-    Font.Style = []
     ParentFont = False
     TabOrder = 1
     OnChange = cbbVersionsChange
     OnDropDown = cbbVersionsDropDown
+    Font.Name = 'Tahoma'
+    Font.Charset = DEFAULT_CHARSET
   end
   object aiVerListLoad: TActivityIndicator
     Left = 252

@@ -10,8 +10,10 @@ uses
   Vcl.Menus;
 
 type
+  TActionType = (atAdd, atRemove, atUpgrade, atPackageSettings);
+
   TUINotifyProc = procedure(const aMsg: string) of object;
-  TUIUpdateProc = procedure(aPackage: TPackage) of object;
+  TUIUpdateProc = procedure(aPackage: TPackage; aActionType: TActionType) of object;
   TUIGetFolderFunc = function: string of object;
 
   TDPMEngine = class;
@@ -25,8 +27,6 @@ type
     procedure ProjectGroupCompileStarted(Mode: TOTACompileMode);
     procedure ProjectGroupCompileFinished(Result: TOTACompileResult);
   end;
-
-  TActionType = (atAdd, atRemove, atUpgrade, atPackageSettings);
 
   TDPMEngine = class
   private
@@ -280,7 +280,7 @@ begin
   GetActiveProject.Save(False, True);
 
   FUINotifyProc('Success');
-  FUIUpdateProc(aPackage);
+  FUIUpdateProc(aPackage, atRemove);
 end;
 
 procedure TDPMEngine.RemovePackageFromActiveProject(aPackage: TPackage);
@@ -734,7 +734,7 @@ begin
   GetActiveProject.Save(False, True);
 
   FUINotifyProc('Success');
-  FUIUpdateProc(AddedPackage);
+  FUIUpdateProc(AddedPackage, atAdd);
 end;
 
 procedure TDPMEngine.AddTemplate(const aDisplayVersionName: string; aPackage: TPackage);

@@ -150,6 +150,7 @@ begin
         begin
           FInstalledVersion.Name :=  jsnInstalled.GetValue('name').Value;
           FInstalledVersion.SHA :=  jsnInstalled.GetValue('sha').Value;
+          FInstalledVersion.InstallTime := (jsnInstalled.GetValue('time') as TJSONNumber).AsDouble;
         end;
     end;
 end;
@@ -225,7 +226,7 @@ begin
       Result.AddPair('moves', jsnMoves);
     end;
 
-  if not InstalledVersion.Name.IsEmpty then
+  if not InstalledVersion.IsEmpty then
     begin
       jsnInstalledVersion := TJSONObject.Create;
       jsnInstalledVersion.AddPair('name', InstalledVersion.Name);

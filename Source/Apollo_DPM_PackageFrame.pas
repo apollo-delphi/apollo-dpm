@@ -22,7 +22,7 @@ type
     mniRemove: TMenuItem;
     mniUpgrade: TMenuItem;
     lblInstalled: TLabel;
-    lblInstallDescribe: TLabel;
+    lblVersionlDescribe: TLabel;
     procedure cbbVersionsDropDown(Sender: TObject);
     procedure mniAddClick(Sender: TObject);
     procedure mniPackageSettingsClick(Sender: TObject);
@@ -32,11 +32,14 @@ type
     { Private declarations }
     FActionProc: TActionProc;
     FAllowAction: TAllowActionFunc;
+    FFilledVersions: TArray<TVersion>;
     FGetVersionsFunc: TGetVersionsFunc;
     FPackage: TPackage;
+    function GetIndexByVersion(aVersion: TVersion): Integer;
+    function GetVersionByIndex(const aIndex: Integer): TVersion;
     procedure FillVersions;
     procedure InitActions;
-    procedure SetInstallDescribe;
+    procedure SetVersionDescribe;
   public
     { Public declarations }
     function IsShowThisPackage(aPackage: TPackage): Boolean;
@@ -59,7 +62,7 @@ uses
 
 procedure TfrmPackage.cbbVersionsChange(Sender: TObject);
 begin
-  lblInstallDescribe.Caption := 'fdsfs';
+  InitState;
 end;
 
 procedure TfrmPackage.cbbVersionsDropDown(Sender: TObject);
@@ -98,6 +101,7 @@ begin
 
   lblPackageDescription.Caption := FPackage.Description;
 
+  FillVersions;
   InitState;
 end;
 
@@ -111,27 +115,43 @@ end;
 procedure TfrmPackage.FillVersions;
 var
   i: Integer;
-  VersionItem: string;
+  VersionIndex: Integer;
 begin
+  FFilledVersions := [];
   cbbVersions.Items.Clear;
   for i := 0 to Length(FPackage.Versions) - 1 do
-    cbbVersions.Items.Add(FPackage.Versions[i].DisplayName);
+    begin
+      cbbVersions.Items.Add(FPackage.Versions[i].DisplayName);
+      FFilledVersions := FFilledVersions + [FPackage.Versions[i]];
+    end;
 
   cbbVersions.Items.Add(cLatestCommit);
 
-  {if not FPackage.InstalledVersion.Name.IsEmpty then
-    VersionItem := Format('%s%s...', [FPackage.InstalledVersion.Name, FPackage.InstalledVersion.SHA.Substring(1,5)])
-  else
-    VersionItem := cLatestVersion;
+  VersionIndex := GetIndexByVersion(FPackage.InstalledVersion);
+  if VersionIndex >= 0 then
+    cbbVersions.ItemIndex := VersionIndex;
+end;
 
-  cbbVersions.Items.Add(VersionItem);
-  cbbVersions.ItemIndex := 0;
+function TfrmPackage.GetIndexByVersion(aVersion: TVersion): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
 
-  cbbVersions.Items.Clear;
-  for i := 0 to Length(FPackage.Versions) - 1 do
-    cbbVersions.Items.Add(FPackage.Versions[i].Name);
+  for i := 0 to Length(FFilledVersions) - 1 do
+    if FFilledVersions[i].SHA = aVersion.SHA then
+      Exit(i);
+end;
 
-  cbbVersions.Items.Add(cLatestRevision);}
+function TfrmPackage.GetVersionByIndex(const aIndex: Integer): TVersion;
+var
+  i: Integer;
+begin
+  Result.Init;
+
+  for i := 0 to Length(FFilledVersions) do
+    if i = aIndex then
+      Exit(FFilledVersions[i]);
 end;
 
 procedure TfrmPackage.InitActions;
@@ -144,8 +164,8 @@ end;
 
 procedure TfrmPackage.InitState;
 begin
-  FillVersions;
   InitActions;
+  SetVersionDescribe;
 end;
 
 function TfrmPackage.IsShowThisPackage(aPackage: TPackage): Boolean;
@@ -168,9 +188,22 @@ begin
   FActionProc(atRemove, cbbVersions.Text, FPackage);
 end;
 
-procedure TfrmPackage.SetInstallDescribe;
+procedure TfrmPackage.SetVersionDescribe;
+var
+  Version: TVersion;
 begin
+  lblVersionlDescribe.Caption := '';
+  lblVersionlDescribe.Font.Color := clWindowText;
+  Version := GetVersionByIndex(cbbVersions.ItemIndex);
 
+  if (not FPackage.InstalledVersion.IsEmpty) and
+     (FPackage.InstalledVersion.SHA = Version.SHA)
+  then
+    begin
+      lblVersionlDescribe.Caption := Format('was installed at %s',
+        [FormatDateTime('hh:mm:ss ddddd', Version.InstallTime)]);
+      lblVersionlDescribe.Font.Color := clGreen;
+    end;
 end;
 
 end.

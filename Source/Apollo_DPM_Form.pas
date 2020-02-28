@@ -36,19 +36,22 @@ type
     FDPMEngine: TDPMEngine;
     FPackageFrames: TArray<TFrame>;
     function AllowActionFunc(aPackage: TPackage; const aActionType: TActionType): Boolean;
+    function GetFrameByPackage(aPackage: TPackage): TFrame;
     function GetVersionsFunc(aPackage: TPackage): TArray<TVersion>;
     procedure ActionProc(const aActionType: TActionType;
       const aDisplayVersionName: string; aPackage: TPackage);
     procedure AsyncLoadPublicPackages;
     procedure ClearPackageFrames;
     procedure RenderPackageList(aPackageList: TPackageList);
+    procedure RenderPackages;
     procedure RenderStructureTree;
     procedure SetPackageSettings(aPackage: TPackage);
   public
     { Public declarations }
     function GetFolder: string;
+    function SelectedStructure: string;
     procedure NotifyListener(const aMsg: string);
-    procedure UpdateListener(aPackage: TPackage);
+    procedure UpdateListener(aPackage: TPackage; aActionType: TActionType);
     constructor Create(aDPMEngine: TDPMEngine); reintroduce;
   end;
 
@@ -140,6 +143,22 @@ begin
     Result := fodSelectProjectFolder.FileName;
 end;
 
+function TDPMForm.GetFrameByPackage(aPackage: TPackage): TFrame;
+var
+  i: Integer;
+  PackageFrame: TfrmPackage;
+begin
+  Result := nil;
+
+  for i := 0 to Length(FPackageFrames) - 1 do
+    begin
+      PackageFrame := FPackageFrames[i] as TfrmPackage;
+
+      if PackageFrame.IsShowThisPackage(aPackage) then
+        Exit(PackageFrame);
+    end;
+end;
+
 function TDPMForm.GetVersionsFunc(aPackage: TPackage): TArray<TVersion>;
 begin
   Result := FDPMEngine.GetPackageVersions(aPackage);
@@ -178,11 +197,35 @@ begin
     end;
 end;
 
+procedure TDPMForm.RenderPackages;
+begin
+  ClearPackageFrames;
+
+  if SelectedStructure = cPublicPackages then
+    begin
+      aiPabPkgLoad.Animate := True;
+      AsyncLoadPublicPackages;
+    end
+  else
+  if FDPMEngine.IsProjectOpened and (SelectedStructure = cProjectDependencies) then
+    RenderPackageList(FDPMEngine.GetProjectPackageList);
+
+  btnRegisterPackage.Visible := SelectedStructure = cPublicPackages;
+end;
+
 procedure TDPMForm.RenderStructureTree;
 begin
   tvStructure.Items.Add(nil, cProjectDependencies);
   tvStructure.Items.Add(nil, cIDEDependencies);
   tvStructure.Items.Add(nil, cPublicPackages);
+end;
+
+function TDPMForm.SelectedStructure: string;
+begin
+  Result := '';
+
+  if tvStructure.Selected <> nil then
+    Result := tvStructure.Selected.Text;
 end;
 
 procedure TDPMForm.SetPackageSettings(aPackage: TPackage);
@@ -208,18 +251,7 @@ end;
 
 procedure TDPMForm.tvStructureChange(Sender: TObject; Node: TTreeNode);
 begin
-  ClearPackageFrames;
-
-  if Node.Text = cPublicPackages then
-    begin
-      aiPabPkgLoad.Animate := True;
-      AsyncLoadPublicPackages;
-    end
-  else
-  if FDPMEngine.IsProjectOpened and (Node.Text = cProjectDependencies) then
-    RenderPackageList(FDPMEngine.GetProjectPackageList);
-
-  btnRegisterPackage.Visible := Node.Text = cPublicPackages;
+  RenderPackages;
 end;
 
 procedure TDPMForm.tvStructureCustomDrawItem(Sender: TCustomTreeView;
@@ -247,18 +279,19 @@ begin
   Sender.Canvas.TextOut(Rect.Left, Rect.Top, Node.Text);
 end;
 
-procedure TDPMForm.UpdateListener(aPackage: TPackage);
+procedure TDPMForm.UpdateListener(aPackage: TPackage; aActionType: TActionType);
 var
-  i: Integer;
   PackageFrame: TfrmPackage;
 begin
-  for i := 0 to Length(FPackageFrames) - 1 do
-    begin
-      PackageFrame := FPackageFrames[i] as TfrmPackage;
+  PackageFrame := GetFrameByPackage(aPackage) as TfrmPackage;
 
-      if PackageFrame.IsShowThisPackage(aPackage) then
-        PackageFrame.InitState;
-    end;
+  case aActionType of
+    atRemove:
+      begin
+        if SelectedStructure = cProjectDependencies then
+          RenderPackages;
+      end;
+  end;
 
 end;
 
