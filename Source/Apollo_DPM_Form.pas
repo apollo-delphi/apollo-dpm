@@ -98,6 +98,7 @@ begin
   AsyncTask := TTask.Create(procedure()
     begin
       PublicPackages := FDPMEngine.GetPublicPackages;
+      PublicPackages.SyncCommonPackages(FDPMEngine.GetProjectPackageList);
 
       TThread.Synchronize(nil, procedure()
         begin

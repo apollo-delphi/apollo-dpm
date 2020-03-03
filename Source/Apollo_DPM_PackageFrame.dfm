@@ -24,18 +24,6 @@ object frmPackage: TfrmPackage
     Height = 13
     Caption = 'Version'
   end
-  object lblInstalled: TLabel
-    Left = 322
-    Top = 3
-    Width = 41
-    Height = 13
-    Caption = 'Installed'
-    ParentFont = False
-    Visible = False
-    Font.Name = 'Tahoma'
-    Font.Color = clGreen
-    Font.Charset = DEFAULT_CHARSET
-  end
   object lblVersionlDescribe: TLabel
     Left = 53
     Top = 54

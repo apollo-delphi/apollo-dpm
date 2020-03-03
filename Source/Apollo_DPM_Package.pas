@@ -46,19 +46,19 @@ type
     function CheckWhiteList(const aPath: string): Boolean;
     function GetVersion(const aName: string): TVersion;
     procedure Init;
+    procedure SetInstalledVersion(aVersion: TVersion);
   public
     function AllowPath(const aPath: string): Boolean;
     function ApplyMoves(const aNodePath: string): string;
     function CreateJSON: TJSONObject;
     procedure Assign(aPackage: TPackage);
-    procedure SetInstalledVersion(aVersion: TVersion);
     constructor Create(aJSONPackage: TJSONObject); overload;
     constructor Create(aPackage: TPackage); overload;
     property Description: string read FDescription write FDescription;
     property Filters: TArray<string> read FFilters write FFilters;
     property FilterType: TFilterType read FFilterType write FFilterType;
     property InstallHistory: TArray<TVersion> read FInstallHistory;
-    property InstalledVersion: TVersion read FInstalledVersion write FInstalledVersion;
+    property InstalledVersion: TVersion read FInstalledVersion write SetInstalledVersion;
     property Moves: TArray<TMove> read FMoves write FMoves;
     property Name: string read FName write FName;
     property Owner: string read FOwner write FOwner;
@@ -74,6 +74,7 @@ type
   public
     function ContainsWithName(const aPackageName: string): Boolean;
     procedure RemoveWithName(const aPackageName: string);
+    procedure SyncCommonPackages(aSourceList: TPackageList);
   end;
 
 implementation
@@ -341,6 +342,19 @@ begin
   Package := GetByName(aPackageName);
   if Assigned(Package) then
     Remove(Package);
+end;
+
+procedure TPackageList.SyncCommonPackages(aSourceList: TPackageList);
+var
+  aPackage: TPackage;
+  aSourcePackage: TPackage;
+begin
+  for aPackage in Self do
+    for aSourcePackage in aSourceList do
+      if aPackage.Name = aSourcePackage.Name then
+        begin
+          aPackage.InstalledVersion := aSourcePackage.InstalledVersion;
+        end;
 end;
 
 end.

@@ -1,1 +1,52 @@
-{"packages":[{"description":"Apollo Lib HTTP Module","name":"Apollo_HTTP","owner":"apollo-delphi","repo":"apollo-http","packageType":0,"filterType":2,"filters":[".gitignore","Source\/tst_Apollo_HTTP.pas","Source\/Apollo_HTTP_Test.dpr","Source\/Apollo_HTTP_Test.dproj","Source\/Apollo_HTTP_Group.groupproj"]},{"description":"Apollo Lib MVC Core Module","name":"Apollo_MVC_Core","owner":"apollo-delphi","repo":"apollo-mvc-core","packageType":0,"filterType":1,"filters":["Source\/Apollo_MVC_Core.pas"],"moves":[{"source":"Source","destination":""}]},{"description":"Apollo Lib VCL MVC ORM Project Template","name":"Apollo_VCL_MVC_ORM_Template","owner":"apollo-delphi","repo":"apollo-vcl-mvc-orm-template","packageType":1},{"description":"Apollo Lib VCL MVC Project Template","name":"Apollo_VCL_MVC_Template","owner":"apollo-delphi","repo":"apollo-vcl-mvc-template","packageType":1,"filterType":1,"filters":[]},{"description":"Apollo Lib MVC Core Module","name":"Apollo_MVC_Core","owner":"apollo-delphi","repo":"apollo-mvc-core","packageType":0,"filterType":1,"filters":["Source\/Apollo_MVC_Core.pas"],"moves":[{"source":"Source","destination":"\\"}]}]}
+{
+  "packages": [
+    {
+      "description": "Apollo Lib HTTP Module",
+      "name": "Apollo_HTTP",
+      "owner": "apollo-delphi",
+      "repo": "apollo-http",
+      "packageType": 0,
+      "filterType": 2,
+      "filters": [
+        ".gitignore",
+        "Source/tst_Apollo_HTTP.pas",
+        "Source/Apollo_HTTP_Test.dpr",
+        "Source/Apollo_HTTP_Test.dproj",
+        "Source/Apollo_HTTP_Group.groupproj"
+      ]
+    },
+    {
+      "description": "Apollo Lib MVC Core Module",
+      "name": "Apollo_MVC_Core",
+      "owner": "apollo-delphi",
+      "repo": "apollo-mvc-core",
+      "packageType": 0,
+      "filterType": 1,
+      "filters": [
+        "Source/Apollo_MVC_Core.pas"
+      ],
+      "moves": [
+        {
+          "source": "Source",
+          "destination": ""
+        }
+      ]
+    },
+    {
+      "description": "Apollo Lib VCL MVC ORM Project Template",
+      "name": "Apollo_VCL_MVC_ORM_Template",
+      "owner": "apollo-delphi",
+      "repo": "apollo-vcl-mvc-orm-template",
+      "packageType": 1
+    },
+    {
+      "description": "Apollo Lib VCL MVC Project Template",
+      "name": "Apollo_VCL_MVC_Template",
+      "owner": "apollo-delphi",
+      "repo": "apollo-vcl-mvc-template",
+      "packageType": 1,
+      "filterType": 1,
+      "filters": []
+    }
+  ]
+}

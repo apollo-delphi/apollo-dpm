@@ -21,7 +21,6 @@ type
     mniPackageSettings: TMenuItem;
     mniRemove: TMenuItem;
     mniUpgrade: TMenuItem;
-    lblInstalled: TLabel;
     lblVersionlDescribe: TLabel;
     procedure cbbVersionsDropDown(Sender: TObject);
     procedure mniAddClick(Sender: TObject);
