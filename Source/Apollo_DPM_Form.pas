@@ -180,7 +180,7 @@ var
 begin
   i := 0;
   Top := 0;
-  ProjectPackages := FDPMEngine.GetProjectPackages;
+  ProjectPackages := FDPMEngine.GetProjectPackages(True);
 
   for Package in aPackageList do
     begin
@@ -189,7 +189,7 @@ begin
       if PackageCopy.InstalledVersion.IsEmpty and
          Assigned(ProjectPackages)
       then
-        ProjectPackages.SyncPackageIfContains(PackageCopy);
+        ProjectPackages.SyncToSidePackage(PackageCopy);
 
       PackageFrame := TfrmPackage.Create(sbPackages, PackageCopy, ActionProc,
         LoadRepoVersions, AllowAction
@@ -218,7 +218,7 @@ begin
     end
   else
   if FDPMEngine.IsProjectOpened and (SelectedStructure = cProjectDependencies) then
-    RenderPackageList(FDPMEngine.GetProjectPackages);
+    RenderPackageList(FDPMEngine.GetProjectPackages(True));
 
   btnRegisterPackage.Visible := SelectedStructure = cPublicPackages;
 end;

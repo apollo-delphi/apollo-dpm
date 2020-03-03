@@ -13,6 +13,7 @@ type
   public
     InstallTime: TDateTime;
     Name: string;
+    RemoveTime: TDateTime;
     SHA: string;
     function IsEmpty: Boolean;
     procedure Init;
@@ -51,6 +52,7 @@ type
     function AllowPath(const aPath: string): Boolean;
     function ApplyMoves(const aNodePath: string): string;
     function CreateJSON: TJSONObject;
+    procedure AddInstallHistory(const aVersion: TVersion);
     procedure Assign(aPackage: TPackage);
     constructor Create(aJSONPackage: TJSONObject); overload;
     constructor Create(aPackage: TPackage); overload;
@@ -73,8 +75,9 @@ type
     function GetByName(const aPackageName: string): TPackage;
   public
     function ContainsWithName(const aPackageName: string): Boolean;
-    procedure RemoveWithName(const aPackageName: string);
-    procedure SyncPackageIfContains(aSidePackage: TPackage);
+    //procedure RemoveWithName(const aPackageName: string);
+    procedure SyncToSidePackage(aSidePackage: TPackage);
+    procedure SyncFromSidePackage(aSidePackage: TPackage);
   end;
 
 implementation
@@ -279,6 +282,11 @@ begin
     end;
 end;
 
+procedure TPackage.AddInstallHistory(const aVersion: TVersion);
+begin
+  FInstallHistory := FInstallHistory + [aVersion];
+end;
+
 function TPackage.AllowPath(const aPath: string): Boolean;
 begin
   Result := True;
@@ -307,6 +315,7 @@ begin
   Name := '';
   SHA := '';
   InstallTime := 0;
+  RemoveTime := 0;
 end;
 
 function TVersion.IsEmpty: Boolean;
@@ -335,16 +344,31 @@ begin
       Exit(Package);
 end;
 
-procedure TPackageList.RemoveWithName(const aPackageName: string);
+procedure TPackageList.SyncFromSidePackage(aSidePackage: TPackage);
+var
+  aPackage: TPackage;
+begin
+  aPackage := GetByName(aSidePackage.Name);
+  if not Assigned(aPackage) then
+    begin
+      aPackage := TPackage.Create(aSidePackage);
+      Add(aPackage);
+    end;
+
+  aPackage.FInstalledVersion := aSidePackage.FInstalledVersion;
+  aPackage.FInstallHistory := aSidePackage.FInstallHistory;
+end;
+
+{procedure TPackageList.RemoveWithName(const aPackageName: string);
 var
   Package: TPackage;
 begin
   Package := GetByName(aPackageName);
   if Assigned(Package) then
     Remove(Package);
-end;
+end; }
 
-procedure TPackageList.SyncPackageIfContains(aSidePackage: TPackage);
+procedure TPackageList.SyncToSidePackage(aSidePackage: TPackage);
 var
   aPackage: TPackage;
 begin

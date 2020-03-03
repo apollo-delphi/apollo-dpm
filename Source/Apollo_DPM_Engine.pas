@@ -71,7 +71,7 @@ type
     procedure WriteFile(const aFilePath: string; aBytes: TBytes);
   public
     function AllowAction(aPackage: TPackage; const aActionType: TActionType): Boolean;
-    function GetProjectPackages: TPackageList;
+    function GetProjectPackages(const aOnlyInstalled: Boolean): TPackageList;
     function GetPublicPackages: TPackageList;
     function IsProjectOpened: Boolean;
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
@@ -141,7 +141,7 @@ begin
 
   if IsProjectOpened then
     begin
-      ProjectPackages := GetProjectPackages;
+      ProjectPackages := GetProjectPackages(True);
 
       case aActionType of
         atAdd: Result := not ProjectPackages.ContainsWithName(aPackage.Name);
@@ -166,7 +166,7 @@ var
   sTargetFile: string;
 begin
   ForceDirectories(aTargetPath);
-  ProjectPackages := GetProjectPackages;
+  ProjectPackages := GetProjectPackages(True);
 
   for Package in ProjectPackages do
     begin
@@ -262,6 +262,7 @@ end;
 procedure TDPMEngine.RemovePackage(aPackage: TPackage);
 var
   ProjectPackages: TPackageList;
+  RemoveVersion: TVersion;
 begin
   FUINotifyProc(Format(#13#10 + 'Removing %s...', [aPackage.Name]));
 
@@ -269,9 +270,14 @@ begin
   RemovePackageFromBIN(aPackage);
   DeletePackagePath(aPackage);
 
-  ProjectPackages := GetProjectPackages;
-  ProjectPackages.RemoveWithName(aPackage.Name);
+  RemoveVersion := aPackage.InstalledVersion;
+  RemoveVersion.InstallTime := 0;
+  RemoveVersion.RemoveTime := Now;
+  aPackage.AddInstallHistory(RemoveVersion);
+  aPackage.InstalledVersion.Init;
 
+  ProjectPackages := GetProjectPackages(False);
+  ProjectPackages.SyncFromSidePackage(aPackage);
   if ProjectPackages.Count > 0 then
     SavePackages(ProjectPackages, GetProjectPackagesFilePath)
   else
@@ -279,10 +285,8 @@ begin
 
   GetActiveProject.Save(False, True);
 
-  aPackage.InstalledVersion.Init;
-  FUIUpdateProc(aPackage, atRemove);
-
   FUINotifyProc('Success');
+  FUIUpdateProc(aPackage, atRemove);
 end;
 
 procedure TDPMEngine.RemovePackageFromActiveProject(aPackage: TPackage);
@@ -582,8 +586,9 @@ begin
     Result := [sResult];
 end;
 
-function TDPMEngine.GetProjectPackages: TPackageList;
+function TDPMEngine.GetProjectPackages(const aOnlyInstalled: Boolean): TPackageList;
 var
+  i: Integer;
   sPackagesJSON: string;
 begin
   if Assigned(FProjectPackages) then
@@ -599,6 +604,11 @@ begin
 
   Result := CreatePackageList(sPackagesJSON);
   FProjectPackages := Result;
+
+  if aOnlyInstalled then
+    for i := Result.Count - 1 downto 0 do
+      if Result.Items[i].InstalledVersion.IsEmpty then
+        Result.Delete(i);
 end;
 
 function TDPMEngine.GetPublicPackages: TPackageList;
@@ -695,6 +705,7 @@ begin
         end;
     end;
 
+  aVersion.Init;
   aVersion.SHA := VersionSHA;
   aVersion.Name := VersionName;
 end;
@@ -702,7 +713,6 @@ end;
 procedure TDPMEngine.AddSourceLib(const aDisplayVersionName: string;
   aPackage: TPackage);
 var
-  AddedPackage: TPackage;
   AddedVersion: TVersion;
   Extension: string;
   PackageFile: string;
@@ -722,19 +732,17 @@ begin
         GetActiveProject.AddFile(PackageFile, True);
     end;
 
-  AddedPackage := TPackage.Create(aPackage);
   AddedVersion.InstallTime := Now;
-  AddedPackage.InstalledVersion := AddedVersion;
   aPackage.InstalledVersion := AddedVersion;
 
-  ProjectPackages := GetProjectPackages;
-  ProjectPackages.Add(AddedPackage);
+  ProjectPackages := GetProjectPackages(False);
+  ProjectPackages.SyncFromSidePackage(aPackage);
   SavePackages(ProjectPackages, GetProjectPackagesFilePath);
 
   GetActiveProject.Save(False, True);
 
   FUINotifyProc('Success');
-  FUIUpdateProc(AddedPackage, atAdd);
+  FUIUpdateProc(aPackage, atAdd);
 end;
 
 procedure TDPMEngine.AddTemplate(const aDisplayVersionName: string; aPackage: TPackage);
