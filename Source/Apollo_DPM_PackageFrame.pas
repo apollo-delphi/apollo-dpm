@@ -39,11 +39,12 @@ type
     function GetVersionByIndex(const aIndex: Integer): TVersion;
     procedure FillVersions;
     procedure InitActions;
+    procedure InitState;
     procedure SetVersionDescribe;
   public
     { Public declarations }
     function IsShowThisPackage(aPackage: TPackage): Boolean;
-    procedure InitState;
+    procedure Refresh;
     constructor Create(AOwner: TComponent; aPackage: TPackage;
       aActionProc: TActionProc; aLoadRepoVersionsProc: TLoadRepoVersionsProc;
       aAllowAction: TAllowActionFunc); reintroduce;
@@ -97,7 +98,7 @@ constructor TfrmPackage.Create(AOwner: TComponent; aPackage: TPackage;
 begin
   inherited Create(AOwner);
 
-  FPackage := TPackage.Create(aPackage);
+  FPackage := aPackage;
   FActionProc := aActionProc;
   FAllowAction := aAllowAction;
   FLoadRepoVersionsProc := aLoadRepoVersionsProc;
@@ -105,8 +106,7 @@ begin
 
   lblPackageDescription.Caption := FPackage.Description;
 
-  FillVersions;
-  InitState;
+  Refresh;
 end;
 
 destructor TfrmPackage.Destroy;
@@ -196,6 +196,12 @@ end;
 procedure TfrmPackage.mniRemoveClick(Sender: TObject);
 begin
   FActionProc(atRemove, cbbVersions.Text, FPackage);
+end;
+
+procedure TfrmPackage.Refresh;
+begin
+  FillVersions;
+  InitState;
 end;
 
 procedure TfrmPackage.SetVersionDescribe;

@@ -97,6 +97,9 @@ begin
   FIdHTTP.Request.AcceptLanguage := 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7,be;q=0.6,pl;q=0.5';
   FIdHTTP.Request.AcceptEncoding := 'gzip, deflate, br';
 
+  // to do - make headers control
+  FIdHTTP.Request.CacheControl := 'no-cache';
+
   FIdSSLIOHandlerSocketOpenSSL := TIdSSLIOHandlerSocketOpenSSL.Create;
   FIdSSLIOHandlerSocketOpenSSL.SSLOptions.SSLVersions := [sslvSSLv23];
   FIdHTTP.IOHandler := FIdSSLIOHandlerSocketOpenSSL;

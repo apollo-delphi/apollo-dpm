@@ -98,7 +98,6 @@ begin
   AsyncTask := TTask.Create(procedure()
     begin
       PublicPackages := FDPMEngine.GetPublicPackages;
-      PublicPackages.SyncCommonPackages(FDPMEngine.GetProjectPackageList);
 
       TThread.Synchronize(nil, procedure()
         begin
@@ -174,15 +173,25 @@ procedure TDPMForm.RenderPackageList(aPackageList: TPackageList);
 var
   i: Integer;
   Package: TPackage;
+  PackageCopy: TPackage;
   PackageFrame: TfrmPackage;
+  ProjectPackages: TPackageList;
   Top: Integer;
 begin
   i := 0;
   Top := 0;
+  ProjectPackages := FDPMEngine.GetProjectPackages;
 
   for Package in aPackageList do
     begin
-      PackageFrame := TfrmPackage.Create(sbPackages, Package, ActionProc,
+      PackageCopy := TPackage.Create(Package);
+
+      if PackageCopy.InstalledVersion.IsEmpty and
+         Assigned(ProjectPackages)
+      then
+        ProjectPackages.SyncPackageIfContains(PackageCopy);
+
+      PackageFrame := TfrmPackage.Create(sbPackages, PackageCopy, ActionProc,
         LoadRepoVersions, AllowAction
       );
       PackageFrame.Name := Format('PackageFrame%d', [i]);
@@ -209,7 +218,7 @@ begin
     end
   else
   if FDPMEngine.IsProjectOpened and (SelectedStructure = cProjectDependencies) then
-    RenderPackageList(FDPMEngine.GetProjectPackageList);
+    RenderPackageList(FDPMEngine.GetProjectPackages);
 
   btnRegisterPackage.Visible := SelectedStructure = cPublicPackages;
 end;
@@ -281,19 +290,22 @@ begin
 end;
 
 procedure TDPMForm.UpdateListener(aPackage: TPackage; aActionType: TActionType);
-//var
-//  PackageFrame: TfrmPackage;
+var
+  PackageFrame: TfrmPackage;
 begin
-//  PackageFrame := GetFrameByPackage(aPackage) as TfrmPackage;
-
   case aActionType of
     atRemove:
       begin
         if SelectedStructure = cProjectDependencies then
-          RenderPackages;
+          begin
+            RenderPackages;
+            Exit;
+          end;
       end;
   end;
 
+  PackageFrame := GetFrameByPackage(aPackage) as TfrmPackage;
+  PackageFrame.Refresh;
 end;
 
 end.

@@ -74,7 +74,7 @@ type
   public
     function ContainsWithName(const aPackageName: string): Boolean;
     procedure RemoveWithName(const aPackageName: string);
-    procedure SyncCommonPackages(aSourceList: TPackageList);
+    procedure SyncPackageIfContains(aSidePackage: TPackage);
   end;
 
 implementation
@@ -344,17 +344,15 @@ begin
     Remove(Package);
 end;
 
-procedure TPackageList.SyncCommonPackages(aSourceList: TPackageList);
+procedure TPackageList.SyncPackageIfContains(aSidePackage: TPackage);
 var
   aPackage: TPackage;
-  aSourcePackage: TPackage;
 begin
   for aPackage in Self do
-    for aSourcePackage in aSourceList do
-      if aPackage.Name = aSourcePackage.Name then
-        begin
-          aPackage.InstalledVersion := aSourcePackage.InstalledVersion;
-        end;
+    if aPackage.Name = aSidePackage.Name then
+      begin
+        aSidePackage.InstalledVersion := aPackage.InstalledVersion;
+      end;
 end;
 
 end.

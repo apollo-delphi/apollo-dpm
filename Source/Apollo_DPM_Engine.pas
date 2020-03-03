@@ -71,7 +71,7 @@ type
     procedure WriteFile(const aFilePath: string; aBytes: TBytes);
   public
     function AllowAction(aPackage: TPackage; const aActionType: TActionType): Boolean;
-    function GetProjectPackageList: TPackageList;
+    function GetProjectPackages: TPackageList;
     function GetPublicPackages: TPackageList;
     function IsProjectOpened: Boolean;
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
@@ -135,17 +135,17 @@ end;
 function TDPMEngine.AllowAction(aPackage: TPackage;
   const aActionType: TActionType): Boolean;
 var
-  ProjectPackageList: TPackageList;
+  ProjectPackages: TPackageList;
 begin
   Result := False;
 
   if IsProjectOpened then
     begin
-      ProjectPackageList := GetProjectPackageList;
+      ProjectPackages := GetProjectPackages;
 
       case aActionType of
-        atAdd: Result := not ProjectPackageList.ContainsWithName(aPackage.Name);
-        atRemove: Result := ProjectPackageList.ContainsWithName(aPackage.Name);
+        atAdd: Result := not ProjectPackages.ContainsWithName(aPackage.Name);
+        atRemove: Result := ProjectPackages.ContainsWithName(aPackage.Name);
       end;
     end
   else
@@ -166,7 +166,7 @@ var
   sTargetFile: string;
 begin
   ForceDirectories(aTargetPath);
-  ProjectPackages := GetProjectPackageList;
+  ProjectPackages := GetProjectPackages;
 
   for Package in ProjectPackages do
     begin
@@ -261,7 +261,7 @@ end;
 
 procedure TDPMEngine.RemovePackage(aPackage: TPackage);
 var
-  ProjectPackageList: TPackageList;
+  ProjectPackages: TPackageList;
 begin
   FUINotifyProc(Format(#13#10 + 'Removing %s...', [aPackage.Name]));
 
@@ -269,18 +269,20 @@ begin
   RemovePackageFromBIN(aPackage);
   DeletePackagePath(aPackage);
 
-  ProjectPackageList := GetProjectPackageList;
-  ProjectPackageList.RemoveWithName(aPackage.Name);
+  ProjectPackages := GetProjectPackages;
+  ProjectPackages.RemoveWithName(aPackage.Name);
 
-  if ProjectPackageList.Count > 0 then
-    SavePackages(ProjectPackageList, GetProjectPackagesFilePath)
+  if ProjectPackages.Count > 0 then
+    SavePackages(ProjectPackages, GetProjectPackagesFilePath)
   else
     TFile.Delete(GetProjectPackagesFilePath);
 
   GetActiveProject.Save(False, True);
 
-  FUINotifyProc('Success');
+  aPackage.InstalledVersion.Init;
   FUIUpdateProc(aPackage, atRemove);
+
+  FUINotifyProc('Success');
 end;
 
 procedure TDPMEngine.RemovePackageFromActiveProject(aPackage: TPackage);
@@ -580,7 +582,7 @@ begin
     Result := [sResult];
 end;
 
-function TDPMEngine.GetProjectPackageList: TPackageList;
+function TDPMEngine.GetProjectPackages: TPackageList;
 var
   sPackagesJSON: string;
 begin
@@ -706,7 +708,7 @@ var
   PackageFile: string;
   PackageFiles: TArray<string>;
   PackagePath: string;
-  ProjectPackageList: TPackageList;
+  ProjectPackages: TPackageList;
 begin
   FUINotifyProc(Format(#13#10 + 'Adding %s...', [aPackage.Name]));
 
@@ -723,10 +725,11 @@ begin
   AddedPackage := TPackage.Create(aPackage);
   AddedVersion.InstallTime := Now;
   AddedPackage.InstalledVersion := AddedVersion;
+  aPackage.InstalledVersion := AddedVersion;
 
-  ProjectPackageList := GetProjectPackageList;
-  ProjectPackageList.Add(AddedPackage);
-  SavePackages(ProjectPackageList, GetProjectPackagesFilePath);
+  ProjectPackages := GetProjectPackages;
+  ProjectPackages.Add(AddedPackage);
+  SavePackages(ProjectPackages, GetProjectPackagesFilePath);
 
   GetActiveProject.Save(False, True);
 
