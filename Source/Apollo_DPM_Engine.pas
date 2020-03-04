@@ -34,7 +34,6 @@ type
     FGHAPI: TGHAPI;
     FNotifierIndex: Integer;
     FNTAServices: INTAServices;
-    FProjectPackages: TPackageList;
     FPublicPackages: TPackageList;
     FUIGetFolder: TUIGetFolderFunc;
     FUINotifyProc: TUINotifyProc;
@@ -71,7 +70,7 @@ type
     procedure WriteFile(const aFilePath: string; aBytes: TBytes);
   public
     function AllowAction(aPackage: TPackage; const aActionType: TActionType): Boolean;
-    function GetProjectPackages(const aOnlyInstalled: Boolean): TPackageList;
+    function CreateProjectPackages(const aOnlyInstalled: Boolean): TPackageList;
     function GetPublicPackages: TPackageList;
     function IsProjectOpened: Boolean;
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
@@ -141,11 +140,14 @@ begin
 
   if IsProjectOpened then
     begin
-      ProjectPackages := GetProjectPackages(True);
-
-      case aActionType of
-        atAdd: Result := not ProjectPackages.ContainsWithName(aPackage.Name);
-        atRemove: Result := ProjectPackages.ContainsWithName(aPackage.Name);
+      ProjectPackages := CreateProjectPackages(True);
+      try
+        case aActionType of
+          atAdd: Result := not ProjectPackages.ContainsWithName(aPackage.Name);
+          atRemove: Result := ProjectPackages.ContainsWithName(aPackage.Name);
+        end;
+      finally
+        ProjectPackages.Free;
       end;
     end
   else
@@ -166,21 +168,24 @@ var
   sTargetFile: string;
 begin
   ForceDirectories(aTargetPath);
-  ProjectPackages := GetProjectPackages(True);
+  ProjectPackages := CreateProjectPackages(True);
+  try
+    for Package in ProjectPackages do
+      begin
+        Files := GetPackageFiles(Package, 'BIN', '*');
 
-  for Package in ProjectPackages do
-    begin
-      Files := GetPackageFiles(Package, 'BIN', '*');
-
-      for sFile in Files do
-        begin
-          sTargetFile := aTargetPath + '\' + TPath.GetFileName(sFile);
-          if (not TFile.Exists(sTargetFile)) or
-             (TFile.Exists(sTargetFile) and (GetFileSize(sTargetFile) <> GetFileSize(sFile)))
-          then
-            TFile.Copy(sFile, sTargetFile, True);
-        end;
-    end;
+        for sFile in Files do
+          begin
+            sTargetFile := aTargetPath + '\' + TPath.GetFileName(sFile);
+            if (not TFile.Exists(sTargetFile)) or
+               (TFile.Exists(sTargetFile) and (GetFileSize(sTargetFile) <> GetFileSize(sFile)))
+            then
+              TFile.Copy(sFile, sTargetFile, True);
+          end;
+      end;
+  finally
+    ProjectPackages.Free;
+  end;
 end;
 
 procedure TDPMEngine.BuildMenu;
@@ -204,7 +209,6 @@ begin
 
   FGHAPI := TGHAPI.Create;
   FPublicPackages := nil;
-  FProjectPackages := nil;
 
   if FNTAServices = nil then
     Exit;
@@ -273,15 +277,19 @@ begin
   RemoveVersion := aPackage.InstalledVersion;
   RemoveVersion.InstallTime := 0;
   RemoveVersion.RemoveTime := Now;
-  aPackage.AddInstallHistory(RemoveVersion);
+  aPackage.AddToHistory(RemoveVersion);
   aPackage.InstalledVersion.Init;
 
-  ProjectPackages := GetProjectPackages(False);
-  ProjectPackages.SyncFromSidePackage(aPackage);
-  if ProjectPackages.Count > 0 then
-    SavePackages(ProjectPackages, GetProjectPackagesFilePath)
-  else
-    TFile.Delete(GetProjectPackagesFilePath);
+  ProjectPackages := CreateProjectPackages(False);
+  try
+    ProjectPackages.SyncFromSidePackage(aPackage);
+    if ProjectPackages.Count > 0 then
+      SavePackages(ProjectPackages, GetProjectPackagesFilePath)
+    else
+      TFile.Delete(GetProjectPackagesFilePath);
+  finally
+    ProjectPackages.Free;
+  end;
 
   GetActiveProject.Save(False, True);
 
@@ -362,9 +370,6 @@ begin
 
   if Assigned(FPublicPackages) then
     FreeAndNil(FPublicPackages);
-
-  if Assigned(FProjectPackages) then
-    FreeAndNil(FProjectPackages);
 
   inherited;
 end;
@@ -558,7 +563,10 @@ end;
 
 function TDPMEngine.GetProjectPackagesFilePath: string;
 begin
-  Result := GetActiveProjectPath + '\' + cApolloDPMProjectPackagesPath;
+  if IsProjectOpened then
+    Result := GetActiveProjectPath + '\' + cApolloDPMProjectPackagesPath
+  else
+    Result := '';
 end;
 
 function TDPMEngine.GetProjectConfigTargetPaths(aProjectConfig :IOTABuildConfiguration): TArray<string>;
@@ -586,24 +594,17 @@ begin
     Result := [sResult];
 end;
 
-function TDPMEngine.GetProjectPackages(const aOnlyInstalled: Boolean): TPackageList;
+function TDPMEngine.CreateProjectPackages(const aOnlyInstalled: Boolean): TPackageList;
 var
   i: Integer;
   sPackagesJSON: string;
 begin
-  if Assigned(FProjectPackages) then
-    FreeAndNil(FProjectPackages);
-
-  if not IsProjectOpened then
-    Exit(nil);
-
   if not TFile.Exists(GetProjectPackagesFilePath) then
     sPackagesJSON := cEmptyPackagesFileContent
   else
     sPackagesJSON := TFile.ReadAllText(GetProjectPackagesFilePath, TEncoding.ANSI);
 
   Result := CreatePackageList(sPackagesJSON);
-  FProjectPackages := Result;
 
   if aOnlyInstalled then
     for i := Result.Count - 1 downto 0 do
@@ -734,10 +735,15 @@ begin
 
   AddedVersion.InstallTime := Now;
   aPackage.InstalledVersion := AddedVersion;
+  aPackage.DeleteFromHistory(AddedVersion);
 
-  ProjectPackages := GetProjectPackages(False);
-  ProjectPackages.SyncFromSidePackage(aPackage);
-  SavePackages(ProjectPackages, GetProjectPackagesFilePath);
+  ProjectPackages := CreateProjectPackages(False);
+  try
+    ProjectPackages.SyncFromSidePackage(aPackage);
+    SavePackages(ProjectPackages, GetProjectPackagesFilePath);
+  finally
+    ProjectPackages.Free;
+  end;
 
   GetActiveProject.Save(False, True);
 
@@ -811,7 +817,7 @@ begin
 
   Bytes := TNetEncoding.Base64.DecodeStringToBytes(aContent);
 
-  FUINotifyProc('write ' + Result);
+  FUINotifyProc('writing ' + Result);
 
   WriteFile(Result, Bytes);
 end;

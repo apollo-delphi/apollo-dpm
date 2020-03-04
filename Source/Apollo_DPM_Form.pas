@@ -180,34 +180,39 @@ var
 begin
   i := 0;
   Top := 0;
-  ProjectPackages := FDPMEngine.GetProjectPackages(True);
+  ProjectPackages := FDPMEngine.CreateProjectPackages(False);
+  try
+    for Package in aPackageList do
+      begin
+        PackageCopy := TPackage.Create(Package);
 
-  for Package in aPackageList do
-    begin
-      PackageCopy := TPackage.Create(Package);
+        if PackageCopy.InstalledVersion.IsEmpty and
+           Assigned(ProjectPackages)
+        then
+          ProjectPackages.SyncToSidePackage(PackageCopy);
 
-      if PackageCopy.InstalledVersion.IsEmpty and
-         Assigned(ProjectPackages)
-      then
-        ProjectPackages.SyncToSidePackage(PackageCopy);
+        PackageFrame := TfrmPackage.Create(sbPackages, PackageCopy, ActionProc,
+          LoadRepoVersions, AllowAction
+        );
+        PackageFrame.Name := Format('PackageFrame%d', [i]);
+        PackageFrame.Parent := sbPackages;
+        PackageFrame.Top := Top;
+        PackageFrame.Left := 0;
+        if not Odd(i) then
+          PackageFrame.Color := clBtnFace;
 
-      PackageFrame := TfrmPackage.Create(sbPackages, PackageCopy, ActionProc,
-        LoadRepoVersions, AllowAction
-      );
-      PackageFrame.Name := Format('PackageFrame%d', [i]);
-      PackageFrame.Parent := sbPackages;
-      PackageFrame.Top := Top;
-      PackageFrame.Left := 0;
-      if not Odd(i) then
-        PackageFrame.Color := clBtnFace;
-
-      Inc(i);
-      Top := Top + PackageFrame.Height + 1;
-      FPackageFrames := FPackageFrames + [PackageFrame];
-    end;
+        Inc(i);
+        Top := Top + PackageFrame.Height + 1;
+        FPackageFrames := FPackageFrames + [PackageFrame];
+      end;
+  finally
+    ProjectPackages.Free;
+  end;
 end;
 
 procedure TDPMForm.RenderPackages;
+var
+  ProjectPackages: TPackageList;
 begin
   ClearPackageFrames;
 
@@ -218,7 +223,14 @@ begin
     end
   else
   if FDPMEngine.IsProjectOpened and (SelectedStructure = cProjectDependencies) then
-    RenderPackageList(FDPMEngine.GetProjectPackages(True));
+    begin
+      ProjectPackages := FDPMEngine.CreateProjectPackages(True);
+      try
+        RenderPackageList(ProjectPackages);
+      finally
+        ProjectPackages.Free;
+      end;
+    end;
 
   btnRegisterPackage.Visible := SelectedStructure = cPublicPackages;
 end;

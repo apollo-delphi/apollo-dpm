@@ -15,6 +15,7 @@ type
     Name: string;
     RemoveTime: TDateTime;
     SHA: string;
+    function CreateJSON(const aIsRemoved: Boolean): TJSONObject;
     function IsEmpty: Boolean;
     procedure Init;
     property DisplayName: string read GetDispalayName;
@@ -35,7 +36,7 @@ type
     FDescription: string;
     FFilters: TArray<string>;
     FFilterType: TFilterType;
-    FInstallHistory: TArray<TVersion>;
+    FHistory: TArray<TVersion>;
     FInstalledVersion: TVersion;
     FMoves: TArray<TMove>;
     FName: string;
@@ -52,14 +53,15 @@ type
     function AllowPath(const aPath: string): Boolean;
     function ApplyMoves(const aNodePath: string): string;
     function CreateJSON: TJSONObject;
-    procedure AddInstallHistory(const aVersion: TVersion);
+    procedure AddToHistory(const aVersion: TVersion);
     procedure Assign(aPackage: TPackage);
+    procedure DeleteFromHistory(const aVersion: TVersion);
     constructor Create(aJSONPackage: TJSONObject); overload;
     constructor Create(aPackage: TPackage); overload;
     property Description: string read FDescription write FDescription;
     property Filters: TArray<string> read FFilters write FFilters;
     property FilterType: TFilterType read FFilterType write FFilterType;
-    property InstallHistory: TArray<TVersion> read FInstallHistory;
+    property History: TArray<TVersion> read FHistory;
     property InstalledVersion: TVersion read FInstalledVersion write SetInstalledVersion;
     property Moves: TArray<TMove> read FMoves write FMoves;
     property Name: string read FName write FName;
@@ -107,8 +109,6 @@ begin
   Repo := aPackage.Repo;
   PackageType := aPackage.PackageType;
 
-  InstalledVersion := aPackage.InstalledVersion;
-
   FilterType := aPackage.FilterType;
   Filters := aPackage.Filters;
   Moves := aPackage.Moves;
@@ -120,10 +120,14 @@ var
   iPackageType: Integer;
   jsnFilter: TJSONValue;
   jsnFilters: TJSONArray;
+  jsnHistory: TJSONArray;
+  jsnHistoryItem: TJSONValue;
+  jsnHistoryVersion: TJSONObject;
   jsnInstalled: TJSONObject;
   jsnMove: TJSONValue;
   jsnMoves: TJSONArray;
   Move: TMove;
+  Version: TVersion;
 begin
   Init;
 
@@ -160,6 +164,21 @@ begin
           FInstalledVersion.SHA :=  jsnInstalled.GetValue('sha').Value;
           FInstalledVersion.InstallTime := (jsnInstalled.GetValue('time') as TJSONNumber).AsDouble;
         end;
+
+      if aJSONPackage.TryGetValue('history', jsnHistory) then
+        begin
+          for jsnHistoryItem in jsnHistory do
+            begin
+              jsnHistoryVersion := jsnHistoryItem as TJSONObject;
+
+              Version.Init;
+              Version.Name := jsnHistoryVersion.GetValue('name').Value;
+              Version.SHA := jsnHistoryVersion.GetValue('sha').Value;
+              Version.RemoveTime := (jsnHistoryVersion.GetValue('time') as TJSONNumber).AsDouble;
+
+              AddToHistory(Version);
+            end;
+        end;
     end;
 end;
 
@@ -195,11 +214,13 @@ end;
 function TPackage.CreateJSON: TJSONObject;
 var
   jsnFilters: TJSONArray;
-  jsnInstalledVersion: TJSONObject;
+  jsnInstallHistory: TJSONArray;
   jsnMove: TJSONObject;
   jsnMoves: TJSONArray;
+  jsnVersion: TJSONObject;
   Move: TMove;
   sFilter: string;
+  Version: TVersion;
 begin
   Result := TJSONObject.Create;
 
@@ -236,13 +257,33 @@ begin
 
   if not InstalledVersion.IsEmpty then
     begin
-      jsnInstalledVersion := TJSONObject.Create;
-      jsnInstalledVersion.AddPair('name', InstalledVersion.Name);
-      jsnInstalledVersion.AddPair('sha', InstalledVersion.SHA);
-      jsnInstalledVersion.AddPair('time', TJSONNumber.Create(InstalledVersion.InstallTime));
+      jsnVersion := InstalledVersion.CreateJSON(False);
 
-      Result.AddPair('installed', jsnInstalledVersion);
+      Result.AddPair('installed', jsnVersion);
     end;
+
+  if Length(History) > 0 then
+    begin
+      jsnInstallHistory := TJSONArray.Create;
+      for Version in History do
+        begin
+          jsnVersion := Version.CreateJSON(True);
+          jsnInstallHistory.AddElement(jsnVersion);
+        end;
+      Result.AddPair('history', jsnInstallHistory);
+    end;
+end;
+
+procedure TPackage.DeleteFromHistory(const aVersion: TVersion);
+var
+  i: Integer;
+begin
+  for i := 0 to Length(FHistory) - 1 do
+    if FHistory[i].SHA = aVersion.SHA then
+      begin
+        Delete(FHistory, i, 1);
+        Exit;
+      end;
 end;
 
 function TPackage.GetVersion(const aName: string): TVersion;
@@ -259,7 +300,7 @@ end;
 procedure TPackage.Init;
 begin
   FVersions := [];
-  FInstallHistory := [];
+  FHistory := [];
   FMoves := [];
   FFilters := [];
   FFilterType := ftNone;
@@ -282,9 +323,10 @@ begin
     end;
 end;
 
-procedure TPackage.AddInstallHistory(const aVersion: TVersion);
+procedure TPackage.AddToHistory(const aVersion: TVersion);
 begin
-  FInstallHistory := FInstallHistory + [aVersion];
+  FHistory := FHistory + [aVersion];
+  FVersions := FVersions + [aVersion];
 end;
 
 function TPackage.AllowPath(const aPath: string): Boolean;
@@ -298,6 +340,19 @@ begin
 end;
 
 { TVersion }
+
+function TVersion.CreateJSON(const aIsRemoved: Boolean): TJSONObject;
+begin
+  Result := TJSONObject.Create;
+
+  Result.AddPair('name', Name);
+  Result.AddPair('sha', SHA);
+
+  if aIsRemoved then
+    Result.AddPair('time', TJSONNumber.Create(RemoveTime))
+  else
+    Result.AddPair('time', TJSONNumber.Create(InstallTime));
+end;
 
 function TVersion.GetDispalayName: string;
 begin
@@ -356,7 +411,7 @@ begin
     end;
 
   aPackage.FInstalledVersion := aSidePackage.FInstalledVersion;
-  aPackage.FInstallHistory := aSidePackage.FInstallHistory;
+  aPackage.FHistory := aSidePackage.FHistory;
 end;
 
 {procedure TPackageList.RemoveWithName(const aPackageName: string);
@@ -371,10 +426,14 @@ end; }
 procedure TPackageList.SyncToSidePackage(aSidePackage: TPackage);
 var
   aPackage: TPackage;
+  aVersion: TVersion;
 begin
   for aPackage in Self do
     if aPackage.Name = aSidePackage.Name then
       begin
+        for aVersion in aPackage.History do
+          aSidePackage.AddToHistory(aVersion);
+
         aSidePackage.InstalledVersion := aPackage.InstalledVersion;
       end;
 end;
