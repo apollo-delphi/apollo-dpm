@@ -46,13 +46,13 @@ type
     FVersions: TArray<TVersion>;
     function CheckBlackList(const aPath: string): Boolean;
     function CheckWhiteList(const aPath: string): Boolean;
-    function GetVersion(const aName: string): TVersion;
     procedure Init;
     procedure SetInstalledVersion(aVersion: TVersion);
   public
     function AllowPath(const aPath: string): Boolean;
     function ApplyMoves(const aNodePath: string): string;
     function CreateJSON: TJSONObject;
+    function VersionsContain(const aVersion: TVersion): Boolean;
     procedure AddToHistory(const aVersion: TVersion);
     procedure Assign(aPackage: TPackage);
     procedure DeleteFromHistory(const aVersion: TVersion);
@@ -68,7 +68,6 @@ type
     property Owner: string read FOwner write FOwner;
     property PackageType: TPackageType read FPackageType write FPackageType;
     property Repo: string read FRepo write FRepo;
-    property Version[const aName: string]: TVersion read GetVersion;
     property Versions: TArray<TVersion> read FVersions write FVersions;
   end;
 
@@ -76,8 +75,6 @@ type
   private
     function GetByName(const aPackageName: string): TPackage;
   public
-    function ContainsWithName(const aPackageName: string): Boolean;
-    //procedure RemoveWithName(const aPackageName: string);
     procedure SyncToSidePackage(aSidePackage: TPackage);
     procedure SyncFromSidePackage(aSidePackage: TPackage);
   end;
@@ -282,19 +279,14 @@ begin
     if FHistory[i].SHA = aVersion.SHA then
       begin
         Delete(FHistory, i, 1);
-        Exit;
+        Break;
       end;
-end;
-
-function TPackage.GetVersion(const aName: string): TVersion;
-var
-  Version: TVersion;
-begin
-  Result.Init;
-
-  for Version in Versions do
-    if Version.Name = aName then
-      Exit(Version);
+  for i := 0 to Length(FVersions) - 1 do
+    if FVersions[i].SHA = aVersion.SHA then
+      begin
+        Delete(FVersions, i, 1);
+        Break;
+      end;
 end;
 
 procedure TPackage.Init;
@@ -321,6 +313,17 @@ begin
       FInstalledVersion := aVersion;
       FVersions := FVersions + [InstalledVersion];
     end;
+end;
+
+function TPackage.VersionsContain(const aVersion: TVersion): Boolean;
+var
+  Version: TVersion;
+begin
+  Result := False;
+
+  for Version in Versions do
+    if Version.SHA = aVersion.SHA then
+      Exit(True);
 end;
 
 procedure TPackage.AddToHistory(const aVersion: TVersion);
@@ -380,14 +383,6 @@ end;
 
 { TPackageList }
 
-function TPackageList.ContainsWithName(const aPackageName: string): Boolean;
-begin
-  if GetByName(aPackageName) <> nil then
-    Result := True
-  else
-    Result := False;
-end;
-
 function TPackageList.GetByName(const aPackageName: string): TPackage;
 var
   Package: TPackage;
@@ -413,15 +408,6 @@ begin
   aPackage.FInstalledVersion := aSidePackage.FInstalledVersion;
   aPackage.FHistory := aSidePackage.FHistory;
 end;
-
-{procedure TPackageList.RemoveWithName(const aPackageName: string);
-var
-  Package: TPackage;
-begin
-  Package := GetByName(aPackageName);
-  if Assigned(Package) then
-    Remove(Package);
-end; }
 
 procedure TPackageList.SyncToSidePackage(aSidePackage: TPackage);
 var

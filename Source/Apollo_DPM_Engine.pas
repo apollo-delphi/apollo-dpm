@@ -10,7 +10,7 @@ uses
   Vcl.Menus;
 
 type
-  TActionType = (atAdd, atRemove, atUpgrade, atPackageSettings);
+  TActionType = (atAdd, atRemove, atUpdateTo, atPackageSettings);
 
   TUINotifyProc = procedure(const aMsg: string) of object;
   TUIUpdateProc = procedure(aPackage: TPackage; aActionType: TActionType) of object;
@@ -38,8 +38,8 @@ type
     FUIGetFolder: TUIGetFolderFunc;
     FUINotifyProc: TUINotifyProc;
     FUIUpdateProc: TUIUpdateProc;
-    function AddPackageFiles(const aDispalyVersionName, aPackagePath: string;
-      aPackage: TPackage; out aVersion: TVersion): TArray<string>;
+    function AddPackageFiles(var aVersion: TVersion; aPackagePath: string;
+      aPackage: TPackage): TArray<string>;
     function CreatePackageList(const aJSONString: string): TPackageList;
     function GetActiveProject: IOTAProject;
     function GetActiveProjectPath: string;
@@ -52,33 +52,36 @@ type
     function GetPackagesJSONString(aPackageList: TPackageList): string;
     function GetProjectConfigTargetPaths(aProjectConfig :IOTABuildConfiguration): TArray<string>;
     function GetProjectPackagesFilePath: string;
-    function GetSelectedVersionSHA(const aDisplayVersionName: string; aPackage: TPackage;
-      out aVersionName: string): string;
     function GetVendorsPath: string;
     function SaveContent(const aVendorPath, aRepoPath, aContent: string): string;
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
-    procedure AddSourceLib(const aDisplayVersionName: string; aPackage: TPackage);
-    procedure AddTemplate(const aDisplayVersionName: string; aPackage: TPackage);
+    procedure AddSourceLib(var aVersion: TVersion; aPackage: TPackage);
+    procedure AddTemplate(var aVersion: TVersion; aPackage: TPackage);
     procedure BuildBIN(const aTargetPath: string);
     procedure BuildMenu;
     procedure DeletePackagePath(aPackage: TPackage);
+    procedure DoRemovePackage(aPackage: TPackage);
+    procedure DoAddPackage(var aVersion: TVersion; aPackage: TPackage);
     procedure DPMMenuItemClick(Sender: TObject);
     procedure OpenProject(const aProjectPath: string);
     procedure RemovePackageFromActiveProject(aPackage: TPackage);
     procedure RemovePackageFromBIN(aPackage: TPackage);
+    procedure SetVersionParams(var aVersion: TVersion; aPackage: TPackage);
     procedure WriteFile(const aFilePath: string; aBytes: TBytes);
   public
-    function AllowAction(aPackage: TPackage; const aActionType: TActionType): Boolean;
+    function AllowAction(aPackage: TPackage; const aVersion: TVersion;
+      const aActionType: TActionType): Boolean;
     function CreateProjectPackages(const aOnlyInstalled: Boolean): TPackageList;
     function GetPublicPackages: TPackageList;
     function IsProjectOpened: Boolean;
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
-    procedure AddPackage(const aDispalyVersionName: string; aPackage: TPackage);
+    procedure AddPackage(var aVersion: TVersion; aPackage: TPackage);
     procedure LoadRepoVersions(aPackage: TPackage);
     procedure RemovePackage(aPackage: TPackage);
     procedure SavePackage(aPackage: TPackage; const aPath: string);  //need for publish package
     procedure SavePackages(aPackageList: TPackageList; const aPath: string);
+    procedure UpdatePackage(var aVersion: TVersion; aPackage: TPackage);
     constructor Create(aBorlandIDEServices: IBorlandIDEServices);
     destructor Destroy; override;
   end;
@@ -131,16 +134,26 @@ begin
   GetApolloMenuItem.Add(DPMMenuItem);
 end;
 
-function TDPMEngine.AllowAction(aPackage: TPackage;
+function TDPMEngine.AllowAction(aPackage: TPackage; const aVersion: TVersion;
   const aActionType: TActionType): Boolean;
-var
-  ProjectPackages: TPackageList;
 begin
   Result := False;
 
-  if IsProjectOpened then
+  case aActionType of
+    atAdd: Result := IsProjectOpened and
+                     aPackage.InstalledVersion.IsEmpty;
+    atRemove: Result := aPackage.InstalledVersion.SHA = aVersion.SHA;
+    atUpdateTo: Result := (not aPackage.InstalledVersion.IsEmpty) and
+                          (aPackage.InstalledVersion.SHA <> aVersion.SHA);
+    //atPackageSettings: ;
+  end;
+
+  {if IsProjectOpened then
     begin
-      ProjectPackages := CreateProjectPackages(True);
+
+
+
+      {ProjectPackages := CreateProjectPackages(True);
       try
         case aActionType of
           atAdd: Result := not ProjectPackages.ContainsWithName(aPackage.Name);
@@ -149,14 +162,14 @@ begin
       finally
         ProjectPackages.Free;
       end;
-    end
-  else
-    if (aActionType = atAdd) and (aPackage.PackageType = ptTemplate) then
-      Result := True;
+    end;
+
+  if (aActionType = atAdd) and (aPackage.PackageType = ptTemplate) then
+    Result := True;
 
   case aActionType of
     atPackageSettings: Result := True;
-  end;
+  end;}
 end;
 
 procedure TDPMEngine.BuildBIN(const aTargetPath: string);
@@ -264,34 +277,10 @@ begin
 end;
 
 procedure TDPMEngine.RemovePackage(aPackage: TPackage);
-var
-  ProjectPackages: TPackageList;
-  RemoveVersion: TVersion;
 begin
   FUINotifyProc(Format(#13#10 + 'Removing %s...', [aPackage.Name]));
 
-  RemovePackageFromActiveProject(aPackage);
-  RemovePackageFromBIN(aPackage);
-  DeletePackagePath(aPackage);
-
-  RemoveVersion := aPackage.InstalledVersion;
-  RemoveVersion.InstallTime := 0;
-  RemoveVersion.RemoveTime := Now;
-  aPackage.AddToHistory(RemoveVersion);
-  aPackage.InstalledVersion.Init;
-
-  ProjectPackages := CreateProjectPackages(False);
-  try
-    ProjectPackages.SyncFromSidePackage(aPackage);
-    if ProjectPackages.Count > 0 then
-      SavePackages(ProjectPackages, GetProjectPackagesFilePath)
-    else
-      TFile.Delete(GetProjectPackagesFilePath);
-  finally
-    ProjectPackages.Free;
-  end;
-
-  GetActiveProject.Save(False, True);
+  DoRemovePackage(aPackage);
 
   FUINotifyProc('Success');
   FUIUpdateProc(aPackage, atRemove);
@@ -372,6 +361,43 @@ begin
     FreeAndNil(FPublicPackages);
 
   inherited;
+end;
+
+procedure TDPMEngine.DoAddPackage(var aVersion: TVersion; aPackage: TPackage);
+begin
+  case aPackage.PackageType of
+    ptSource: AddSourceLib(aVersion, aPackage);
+    ptTemplate: AddTemplate(aVersion, aPackage);
+  end;
+end;
+
+procedure TDPMEngine.DoRemovePackage(aPackage: TPackage);
+var
+  ProjectPackages: TPackageList;
+  RemoveVersion: TVersion;
+begin
+  RemovePackageFromActiveProject(aPackage);
+  RemovePackageFromBIN(aPackage);
+  DeletePackagePath(aPackage);
+
+  RemoveVersion := aPackage.InstalledVersion;
+  RemoveVersion.InstallTime := 0;
+  RemoveVersion.RemoveTime := Now;
+  aPackage.AddToHistory(RemoveVersion);
+  aPackage.InstalledVersion.Init;
+
+  ProjectPackages := CreateProjectPackages(False);
+  try
+    ProjectPackages.SyncFromSidePackage(aPackage);
+    if ProjectPackages.Count > 0 then
+      SavePackages(ProjectPackages, GetProjectPackagesFilePath)
+    else
+      TFile.Delete(GetProjectPackagesFilePath);
+  finally
+    ProjectPackages.Free;
+  end;
+
+  GetActiveProject.Save(False, True);
 end;
 
 procedure TDPMEngine.DPMMenuItemClick(Sender: TObject);
@@ -557,7 +583,8 @@ begin
       Version.Name := Tag.Name;
       Version.SHA := Tag.SHA;
 
-      aPackage.Versions := aPackage.Versions + [Version];
+      if not aPackage.VersionsContain(Version) then
+        aPackage.Versions := aPackage.Versions + [Version];
     end;
 end;
 
@@ -632,30 +659,43 @@ begin
     Result := FPublicPackages;
 end;
 
-function TDPMEngine.GetSelectedVersionSHA(const aDisplayVersionName: string; aPackage: TPackage;
-  out aVersionName: string): string;
+procedure TDPMEngine.SetVersionParams(var aVersion: TVersion; aPackage: TPackage);
 begin
-  if aDisplayVersionName = cLatestVersionOrCommit then
+  if not aVersion.SHA.IsEmpty then
+    Exit;
+
+  if aVersion.Name = cLatestVersionOrCommit then
     begin
       LoadRepoVersions(aPackage);
       if Length(aPackage.Versions) > 0 then
         begin
-          Result := aPackage.Versions[0].SHA;
-          aVersionName := aPackage.Versions[0].Name;
+          aVersion.SHA := aPackage.Versions[0].SHA;
+          aVersion.Name := aPackage.Versions[0].Name;
           Exit;
         end
     end;
 
-  if (aDisplayVersionName = cLatestCommit) or (aDisplayVersionName = cLatestVersionOrCommit) then
+  if (aVersion.Name = cLatestCommit) or (aVersion.Name = cLatestVersionOrCommit) then
     begin
-      Result := FGHAPI.GetMasterBranchSHA(aPackage.Owner, aPackage.Repo);
-      aVersionName := '';
-    end
-  else
-    begin
-      Result := aPackage.Version[aDisplayVersionName].SHA;
-      aVersionName := aPackage.Version[aDisplayVersionName].Name;
+      aVersion.SHA := FGHAPI.GetMasterBranchSHA(aPackage.Owner, aPackage.Repo);
+      aVersion.Name := '';
     end;
+end;
+
+procedure TDPMEngine.UpdatePackage(var aVersion: TVersion; aPackage: TPackage);
+begin
+  FUINotifyProc(Format(#13#10 + '%s removing version %s...', [aPackage.Name, aPackage.InstalledVersion.DisplayName]));
+
+  DoRemovePackage(aPackage);
+
+  FUINotifyProc('Updating...');
+
+  DoAddPackage(aVersion, aPackage);
+
+  FUINotifyProc('Success');
+  FUIUpdateProc(aPackage, atUpdateTo);
+
+  AddPackage(aVersion, aPackage);
 end;
 
 function TDPMEngine.GetVendorsPath: string;
@@ -666,29 +706,35 @@ begin
     ForceDirectories(Result);
 end;
 
-procedure TDPMEngine.AddPackage(const aDispalyVersionName: string; aPackage: TPackage);
+procedure TDPMEngine.AddPackage(var aVersion: TVersion; aPackage: TPackage);
 begin
-  case aPackage.PackageType of
-    ptSource: AddSourceLib(aDispalyVersionName, aPackage);
-    ptTemplate: AddTemplate(aDispalyVersionName, aPackage);
-  end;
+  FUINotifyProc(Format(#13#10 + 'Adding %s...', [aPackage.Name]));
+
+  DoAddPackage(aVersion, aPackage);
+
+  FUINotifyProc('Success');
+  FUIUpdateProc(aPackage, atAdd);
 end;
 
-function TDPMEngine.AddPackageFiles(const aDispalyVersionName, aPackagePath: string;
-  aPackage: TPackage; out aVersion: TVersion): TArray<string>;
+function TDPMEngine.AddPackageFiles(var aVersion: TVersion; aPackagePath: string;
+  aPackage: TPackage): TArray<string>;
 var
   Blob: TBlob;
   FilePath: string;
   NodePath: string;
   RepoTree: TTree;
   TreeNode: TTreeNode;
-  VersionName: string;
-  VersionSHA: string;
 begin
   Result := [];
-  VersionSHA := GetSelectedVersionSHA(aDispalyVersionName, aPackage, VersionName);
+  SetVersionParams(aVersion, aPackage);
+  if aPackage.InstalledVersion.SHA = aVersion.SHA then
+    begin
+      FUINotifyProc('Your version already up to date.');
+    end
+  else
+    FUINotifyProc(Format('Version: %s', [aVersion.DisplayName]));
 
-  RepoTree := FGHAPI.GetRepoTree(aPackage.Owner, aPackage.Repo, VersionSHA);
+  RepoTree := FGHAPI.GetRepoTree(aPackage.Owner, aPackage.Repo, aVersion.SHA);
 
   for TreeNode in RepoTree do
     begin
@@ -705,26 +751,18 @@ begin
           Result := Result + [FilePath];
         end;
     end;
-
-  aVersion.Init;
-  aVersion.SHA := VersionSHA;
-  aVersion.Name := VersionName;
 end;
 
-procedure TDPMEngine.AddSourceLib(const aDisplayVersionName: string;
-  aPackage: TPackage);
+procedure TDPMEngine.AddSourceLib(var aVersion: TVersion; aPackage: TPackage);
 var
-  AddedVersion: TVersion;
   Extension: string;
   PackageFile: string;
   PackageFiles: TArray<string>;
   PackagePath: string;
   ProjectPackages: TPackageList;
 begin
-  FUINotifyProc(Format(#13#10 + 'Adding %s...', [aPackage.Name]));
-
   PackagePath := GetPackagePath(aPackage);
-  PackageFiles := AddPackageFiles(aDisplayVersionName, PackagePath, aPackage, AddedVersion);
+  PackageFiles := AddPackageFiles(aVersion, PackagePath, aPackage);
 
   for PackageFile in PackageFiles do
     begin
@@ -733,9 +771,9 @@ begin
         GetActiveProject.AddFile(PackageFile, True);
     end;
 
-  AddedVersion.InstallTime := Now;
-  aPackage.InstalledVersion := AddedVersion;
-  aPackage.DeleteFromHistory(AddedVersion);
+  aVersion.InstallTime := Now;
+  aPackage.DeleteFromHistory(aVersion);
+  aPackage.InstalledVersion := aVersion;
 
   ProjectPackages := CreateProjectPackages(False);
   try
@@ -746,15 +784,11 @@ begin
   end;
 
   GetActiveProject.Save(False, True);
-
-  FUINotifyProc('Success');
-  FUIUpdateProc(aPackage, atAdd);
 end;
 
-procedure TDPMEngine.AddTemplate(const aDisplayVersionName: string; aPackage: TPackage);
+procedure TDPMEngine.AddTemplate(var aVersion: TVersion; aPackage: TPackage);
 var
   ActiveProject: IOTAProject;
-  AddedVersion: TVersion;
   Extension: string;
   i: Integer;
   PackageFile: string;
@@ -768,7 +802,7 @@ begin
 
   FUINotifyProc(Format(#13#10 + 'Adding %s...', [aPackage.Name]));
 
-  PackageFiles := AddPackageFiles(aDisplayVersionName, PackagePath, aPackage, AddedVersion);
+  PackageFiles := AddPackageFiles(aVersion, PackagePath, aPackage);
 
   for PackageFile in PackageFiles do
     begin
@@ -817,7 +851,7 @@ begin
 
   Bytes := TNetEncoding.Base64.DecodeStringToBytes(aContent);
 
-  FUINotifyProc('writing ' + Result);
+  FUINotifyProc('Writing ' + Result);
 
   WriteFile(Result, Bytes);
 end;

@@ -71,8 +71,9 @@ object frmPackage: TfrmPackage
       Caption = 'Remove'
       OnClick = mniRemoveClick
     end
-    object mniUpgrade: TMenuItem
-      Caption = 'Upgrade'
+    object mniUpdateTo: TMenuItem
+      Caption = 'Update to'
+      OnClick = mniUpdateToClick
     end
     object mniPackageSettings: TMenuItem
       Caption = 'Package settings...'

@@ -100,6 +100,9 @@ begin
   // to do - make headers control
   FIdHTTP.Request.CacheControl := 'no-cache';
 
+  //temp
+  FIdHTTP.Request.Username := 'a504f978ff703ac1c6d16f1d0703791c700d2291';
+
   FIdSSLIOHandlerSocketOpenSSL := TIdSSLIOHandlerSocketOpenSSL.Create;
   FIdSSLIOHandlerSocketOpenSSL.SSLOptions.SSLVersions := [sslvSSLv23];
   FIdHTTP.IOHandler := FIdSSLIOHandlerSocketOpenSSL;

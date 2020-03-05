@@ -20,13 +20,14 @@ type
     mniAdd: TMenuItem;
     mniPackageSettings: TMenuItem;
     mniRemove: TMenuItem;
-    mniUpgrade: TMenuItem;
+    mniUpdateTo: TMenuItem;
     lblVersionlDescribe: TLabel;
     procedure cbbVersionsDropDown(Sender: TObject);
     procedure mniAddClick(Sender: TObject);
     procedure mniPackageSettingsClick(Sender: TObject);
     procedure mniRemoveClick(Sender: TObject);
     procedure cbbVersionsChange(Sender: TObject);
+    procedure mniUpdateToClick(Sender: TObject);
   private
     { Private declarations }
     FActionProc: TActionProc;
@@ -36,6 +37,7 @@ type
     FLoadRepoVersionsProc: TLoadRepoVersionsProc;
     FPackage: TPackage;
     function GetIndexByVersion(aVersion: TVersion): Integer;
+    function GetSelectedVersion: TVersion;
     function GetVersionByIndex(const aIndex: Integer): TVersion;
     procedure FillVersions;
     procedure InitActions;
@@ -119,6 +121,7 @@ end;
 procedure TfrmPackage.FillVersions;
 var
   i: Integer;
+  Version: TVersion;
   VersionIndex: Integer;
 begin
   FFilledVersions := [];
@@ -130,10 +133,14 @@ begin
       FFilledVersions := FFilledVersions + [FPackage.Versions[i]];
     end;
 
+  Version.Init;
   if not FIsRepoVersionsLoaded then
-    cbbVersions.Items.Add(cLatestVersionOrCommit)
+    Version.Name := cLatestVersionOrCommit
   else
-    cbbVersions.Items.Add(cLatestCommit);
+    Version.Name := cLatestCommit;
+
+  cbbVersions.Items.Add(Version.DisplayName);
+  FFilledVersions := FFilledVersions + [Version];
 
   VersionIndex := GetIndexByVersion(FPackage.InstalledVersion);
   if VersionIndex >= 0 then
@@ -153,6 +160,11 @@ begin
       Exit(i);
 end;
 
+function TfrmPackage.GetSelectedVersion: TVersion;
+begin
+  Result := GetVersionByIndex(cbbVersions.ItemIndex);
+end;
+
 function TfrmPackage.GetVersionByIndex(const aIndex: Integer): TVersion;
 var
   i: Integer;
@@ -166,10 +178,10 @@ end;
 
 procedure TfrmPackage.InitActions;
 begin
-  mniAdd.Visible := FAllowAction(FPackage, atAdd);
-  mniRemove.Visible := FAllowAction(FPackage, atRemove);
-  mniUpgrade.Visible := FAllowAction(FPackage, atUpgrade);
-  mniPackageSettings.Visible := FAllowAction(FPackage, atPackageSettings);
+  mniAdd.Visible := FAllowAction(FPackage, GetSelectedVersion, atAdd);
+  mniRemove.Visible := FAllowAction(FPackage, GetSelectedVersion, atRemove);
+  mniUpdateTo.Visible := FAllowAction(FPackage, GetSelectedVersion, atUpdateTo);
+  mniPackageSettings.Visible := FAllowAction(FPackage, GetSelectedVersion, atPackageSettings);
 end;
 
 procedure TfrmPackage.InitState;
@@ -184,18 +196,35 @@ begin
 end;
 
 procedure TfrmPackage.mniAddClick(Sender: TObject);
+var
+  Version: TVersion;
 begin
-  FActionProc(atAdd, cbbVersions.Text, FPackage);
+  Version := GetSelectedVersion;
+  FActionProc(atAdd, Version, FPackage);
 end;
 
 procedure TfrmPackage.mniPackageSettingsClick(Sender: TObject);
+var
+  Version: TVersion;
 begin
-  FActionProc(atPackageSettings, cbbVersions.Text, FPackage);
+  Version := GetSelectedVersion;
+  FActionProc(atPackageSettings, Version, FPackage);
 end;
 
 procedure TfrmPackage.mniRemoveClick(Sender: TObject);
+var
+  Version: TVersion;
 begin
-  FActionProc(atRemove, cbbVersions.Text, FPackage);
+  Version := GetSelectedVersion;
+  FActionProc(atRemove, Version, FPackage);
+end;
+
+procedure TfrmPackage.mniUpdateToClick(Sender: TObject);
+var
+  Version: TVersion;
+begin
+  Version := GetSelectedVersion;
+  FActionProc(atUpdateTo, Version, FPackage);
 end;
 
 procedure TfrmPackage.Refresh;
@@ -210,15 +239,20 @@ var
 begin
   lblVersionlDescribe.Caption := '';
   lblVersionlDescribe.Font.Color := clWindowText;
-  Version := GetVersionByIndex(cbbVersions.ItemIndex);
+  Version := GetSelectedVersion;
 
-  if (not FPackage.InstalledVersion.IsEmpty) and
-     (FPackage.InstalledVersion.SHA = Version.SHA)
-  then
+  if not Version.SHA.IsEmpty and (Version.SHA = FPackage.InstalledVersion.SHA) then
     begin
       lblVersionlDescribe.Caption := Format('was installed at %s',
         [FormatDateTime('hh:mm:ss ddddd', Version.InstallTime)]);
       lblVersionlDescribe.Font.Color := clGreen;
+    end
+  else
+  if Version.RemoveTime > 0 then
+    begin
+      lblVersionlDescribe.Caption := Format('was removed at %s',
+        [FormatDateTime('hh:mm:ss ddddd', Version.RemoveTime)]);
+      lblVersionlDescribe.Font.Color := clRed;
     end;
 end;
 

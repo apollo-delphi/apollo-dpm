@@ -12,8 +12,9 @@ uses
 type
   TLoadRepoVersionsProc = procedure(aPackage: TPackage) of object;
   TActionProc = procedure(const aActionType: TActionType;
-    const aDisplayVersionName: string; aPackage: TPackage) of object;
-  TAllowActionFunc = function(aPackage: TPackage; const aActionType: TActionType): Boolean of object;
+    var aVersion: TVersion; aPackage: TPackage) of object;
+  TAllowActionFunc = function(aPackage: TPackage; const aVersion: TVersion;
+    const aActionType: TActionType): Boolean of object;
 
   TDPMForm = class(TForm)
     pnlMain: TPanel;
@@ -35,10 +36,11 @@ type
     { Private declarations }
     FDPMEngine: TDPMEngine;
     FPackageFrames: TArray<TFrame>;
-    function AllowAction(aPackage: TPackage; const aActionType: TActionType): Boolean;
+    function AllowAction(aPackage: TPackage;  const aVersion: TVersion;
+      const aActionType: TActionType): Boolean;
     function GetFrameByPackage(aPackage: TPackage): TFrame;
     procedure ActionProc(const aActionType: TActionType;
-      const aDisplayVersionName: string; aPackage: TPackage);
+      var aVersion: TVersion; aPackage: TPackage);
     procedure AsyncLoadPublicPackages;
     procedure ClearPackageFrames;
     procedure LoadRepoVersions(aPackage: TPackage);
@@ -75,19 +77,20 @@ uses
 { TDPMForm }
 
 procedure TDPMForm.ActionProc(const aActionType: TActionType;
-  const aDisplayVersionName: string; aPackage: TPackage);
+  var aVersion: TVersion; aPackage: TPackage);
 begin
   case aActionType of
-    atAdd:  FDPMEngine.AddPackage(aDisplayVersionName, aPackage);
+    atAdd:  FDPMEngine.AddPackage(aVersion, aPackage);
     atRemove: FDPMEngine.RemovePackage(aPackage);
+    atUpdateTo: FDPMEngine.UpdatePackage(aVersion, aPackage);
     atPackageSettings: SetPackageSettings(aPackage);
   end;
 end;
 
-function TDPMForm.AllowAction(aPackage: TPackage;
+function TDPMForm.AllowAction(aPackage: TPackage; const aVersion: TVersion;
   const aActionType: TActionType): Boolean;
 begin
-  Result := FDPMEngine.AllowAction(aPackage, aActionType);
+  Result := FDPMEngine.AllowAction(aPackage, aVersion, aActionType);
 end;
 
 procedure TDPMForm.AsyncLoadPublicPackages;
