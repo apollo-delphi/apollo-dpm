@@ -165,11 +165,11 @@ begin
     end;
 
   if (aActionType = atAdd) and (aPackage.PackageType = ptTemplate) then
-    Result := True;
+    Result := True;}
 
   case aActionType of
     atPackageSettings: Result := True;
-  end;}
+  end;
 end;
 
 procedure TDPMEngine.BuildBIN(const aTargetPath: string);
