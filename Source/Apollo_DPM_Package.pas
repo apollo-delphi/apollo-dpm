@@ -12,6 +12,7 @@ type
     function GetDispalayName: string;
   public
     InstallTime: TDateTime;
+    IsInstalled: Boolean;
     Name: string;
     RemoveTime: TDateTime;
     SHA: string;
@@ -19,6 +20,10 @@ type
     function IsEmpty: Boolean;
     procedure Init;
     property DisplayName: string read GetDispalayName;
+  end;
+
+  TVersionsHelper = record helper for TArray<TVersion>
+    function Contains(const aVersion: TVersion): Boolean;
   end;
 
   TMove = record
@@ -47,13 +52,13 @@ type
     function CheckBlackList(const aPath: string): Boolean;
     function CheckWhiteList(const aPath: string): Boolean;
     procedure Init;
-    procedure SetInstalledVersion(aVersion: TVersion);
+    procedure SetInstalledVersion(const aVersion: TVersion);
   public
     function AllowPath(const aPath: string): Boolean;
     function ApplyMoves(const aNodePath: string): string;
     function CreateJSON: TJSONObject;
-    function VersionsContain(const aVersion: TVersion): Boolean;
-    procedure AddToHistory(const aVersion: TVersion);
+    procedure AddToHistory(aVersion: TVersion);
+    procedure AddToVersions(const aVersion: TVersion);
     procedure Assign(aPackage: TPackage);
     procedure DeleteFromHistory(const aVersion: TVersion);
     constructor Create(aJSONPackage: TJSONObject); overload;
@@ -68,7 +73,7 @@ type
     property Owner: string read FOwner write FOwner;
     property PackageType: TPackageType read FPackageType write FPackageType;
     property Repo: string read FRepo write FRepo;
-    property Versions: TArray<TVersion> read FVersions write FVersions;
+    property Versions: TArray<TVersion> read FVersions;
   end;
 
   TPackageList = class(TObjectList<TPackage>)
@@ -306,30 +311,41 @@ begin
   FInstalledVersion.Init;
 end;
 
-procedure TPackage.SetInstalledVersion(aVersion: TVersion);
+procedure TPackage.SetInstalledVersion(const aVersion: TVersion);
 begin
   if not aVersion.IsEmpty then
     begin
       FInstalledVersion := aVersion;
-      FVersions := FVersions + [InstalledVersion];
+      FInstalledVersion.IsInstalled := True;
+      AddToVersions(InstalledVersion);
     end;
 end;
 
-function TPackage.VersionsContain(const aVersion: TVersion): Boolean;
-var
-  Version: TVersion;
+procedure TPackage.AddToHistory(aVersion: TVersion);
 begin
-  Result := False;
-
-  for Version in Versions do
-    if Version.SHA = aVersion.SHA then
-      Exit(True);
+  aVersion.IsInstalled := False;
+  FHistory := FHistory + [aVersion];
+  AddToVersions(aVersion);
 end;
 
-procedure TPackage.AddToHistory(const aVersion: TVersion);
+procedure TPackage.AddToVersions(const aVersion: TVersion);
+var
+  i: Integer;
+  Index: Integer;
 begin
-  FHistory := FHistory + [aVersion];
-  FVersions := FVersions + [aVersion];
+  Index := -1;
+
+  for i := 0 to Length(FVersions) - 1 do
+    if FVersions[i].SHA = aVersion.SHA then
+      begin
+        Index := i;
+        Break;
+      end;
+
+  if Index = -1 then
+    FVersions := FVersions + [aVersion]
+  else
+    FVersions[Index] := aVersion;
 end;
 
 function TPackage.AllowPath(const aPath: string): Boolean;
@@ -366,6 +382,9 @@ begin
   else
   if not SHA.IsEmpty then
     Result := Format('commit %s', [SHA.Substring(0, 7)]);
+
+  if IsInstalled then
+    Result := Result + ' (installed)';
 end;
 
 procedure TVersion.Init;
@@ -374,6 +393,7 @@ begin
   SHA := '';
   InstallTime := 0;
   RemoveTime := 0;
+  IsInstalled := False;
 end;
 
 function TVersion.IsEmpty: Boolean;
@@ -422,6 +442,19 @@ begin
 
         aSidePackage.InstalledVersion := aPackage.InstalledVersion;
       end;
+end;
+
+{TVersionsHelper}
+
+function TVersionsHelper.Contains(const aVersion: TVersion): Boolean;
+var
+  Version: TVersion;
+begin
+  Result := False;
+
+  for Version in Self do
+    if Version.SHA = aVersion.SHA then
+      Exit(True);
 end;
 
 end.

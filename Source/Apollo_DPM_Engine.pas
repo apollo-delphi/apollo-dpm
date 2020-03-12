@@ -278,7 +278,7 @@ end;
 
 procedure TDPMEngine.RemovePackage(aPackage: TPackage);
 begin
-  FUINotifyProc(Format(#13#10 + 'Removing %s...', [aPackage.Name]));
+  FUINotifyProc(Format(#13#10 + 'Removing package %s...', [aPackage.Name]));
 
   DoRemovePackage(aPackage);
 
@@ -323,11 +323,10 @@ begin
     begin
       ProjectConfigTargetPaths := GetProjectConfigTargetPaths(ProjectOptionsConfigurations.Configurations[i]);
 
-      ProjectBINFiles := [];
       for ProjectTargetPath in ProjectConfigTargetPaths do
         if TDirectory.Exists(ProjectTargetPath) then
           begin
-            ProjectBINFiles := ProjectBINFiles + TDirectory.GetFiles(ProjectTargetPath, '*', TSearchOption.soAllDirectories);
+            ProjectBINFiles := TDirectory.GetFiles(ProjectTargetPath, '*', TSearchOption.soAllDirectories);
 
             for PackageBINFile in PackageBINFiles do
               for ProjectBINFile in ProjectBINFiles do
@@ -529,8 +528,8 @@ var
   Directory: string;
   RootDir: string;
 begin
+  Result := [];
   RootDir := GetPackagePath(aPackage);
-  Result := TDirectory.GetFiles(RootDir, aFilePattren, TSearchOption.soAllDirectories);
 
   Directories := TDirectory.GetDirectories(RootDir, aDirectoryPattren, TSearchOption.soAllDirectories);
   for Directory in Directories do
@@ -583,8 +582,8 @@ begin
       Version.Name := Tag.Name;
       Version.SHA := Tag.SHA;
 
-      if not aPackage.VersionsContain(Version) then
-        aPackage.Versions := aPackage.Versions + [Version];
+      if not aPackage.Versions.Contains(Version) then
+        aPackage.AddToVersions(Version);
     end;
 end;
 
@@ -684,18 +683,25 @@ end;
 
 procedure TDPMEngine.UpdatePackage(var aVersion: TVersion; aPackage: TPackage);
 begin
-  FUINotifyProc(Format(#13#10 + '%s removing version %s...', [aPackage.Name, aPackage.InstalledVersion.DisplayName]));
+  FUINotifyProc(Format(#13#10 + '%s updating to version %s...', [aPackage.Name, aVersion.DisplayName]));
+
+  SetVersionParams(aVersion, aPackage);
+  if aPackage.InstalledVersion.SHA = aVersion.SHA then
+    begin
+      FUINotifyProc('Your version already up to date.');
+      Exit;
+    end;
+
+  FUINotifyProc(Format('Removing version %s...', [aPackage.InstalledVersion.DisplayName]));
 
   DoRemovePackage(aPackage);
 
-  FUINotifyProc('Updating...');
+  FUINotifyProc(Format('Done. Adding version %s...', [aVersion.DisplayName]));
 
   DoAddPackage(aVersion, aPackage);
 
   FUINotifyProc('Success');
   FUIUpdateProc(aPackage, atUpdateTo);
-
-  AddPackage(aVersion, aPackage);
 end;
 
 function TDPMEngine.GetVendorsPath: string;
@@ -708,8 +714,10 @@ end;
 
 procedure TDPMEngine.AddPackage(var aVersion: TVersion; aPackage: TPackage);
 begin
-  FUINotifyProc(Format(#13#10 + 'Adding %s...', [aPackage.Name]));
+  FUINotifyProc(Format(#13#10 + 'Adding package %s...', [aPackage.Name]));
 
+  SetVersionParams(aVersion, aPackage);
+  FUINotifyProc(Format('Adding version %s...', [aVersion.DisplayName]));
   DoAddPackage(aVersion, aPackage);
 
   FUINotifyProc('Success');
@@ -726,13 +734,6 @@ var
   TreeNode: TTreeNode;
 begin
   Result := [];
-  SetVersionParams(aVersion, aPackage);
-  if aPackage.InstalledVersion.SHA = aVersion.SHA then
-    begin
-      FUINotifyProc('Your version already up to date.');
-    end
-  else
-    FUINotifyProc(Format('Version: %s', [aVersion.DisplayName]));
 
   RepoTree := FGHAPI.GetRepoTree(aPackage.Owner, aPackage.Repo, aVersion.SHA);
 
@@ -772,6 +773,7 @@ begin
     end;
 
   aVersion.InstallTime := Now;
+  aVersion.RemoveTime := 0;
   aPackage.DeleteFromHistory(aVersion);
   aPackage.InstalledVersion := aVersion;
 
