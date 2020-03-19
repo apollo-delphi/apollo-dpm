@@ -38,8 +38,9 @@ type
     FUIGetFolder: TUIGetFolderFunc;
     FUINotifyProc: TUINotifyProc;
     FUIUpdateProc: TUIUpdateProc;
-    function AddPackageFiles(var aVersion: TVersion; aPackagePath: string;
+    function AddPackageFiles(const aVersion: TVersion; aPackagePath: string;
       aPackage: TPackage): TArray<string>;
+    function CreateDependencies(const aRepoTree: TTree): TPackageList;
     function CreatePackageList(const aJSONString: string): TPackageList;
     function GetActiveProject: IOTAProject;
     function GetActiveProjectPath: string;
@@ -64,6 +65,7 @@ type
     procedure DoRemovePackage(aPackage: TPackage);
     procedure DoAddPackage(var aVersion: TVersion; aPackage: TPackage);
     procedure DPMMenuItemClick(Sender: TObject);
+    procedure LoadRepoTree(const aVersion: TVersion; aPackage: TPackage);
     procedure OpenProject(const aProjectPath: string);
     procedure RemovePackageFromActiveProject(aPackage: TPackage);
     procedure RemovePackageFromBIN(aPackage: TPackage);
@@ -229,6 +231,27 @@ begin
   BuildMenu;
 end;
 
+function TDPMEngine.CreateDependencies(const aRepoTree: TTree): TPackageList;
+var
+  Blob: TBlob;
+  sJSON: string;
+  TreeNode: TTreeNode;
+begin
+  for TreeNode in aRepoTree do
+  begin
+    if TPath.GetFileName(TreeNode.Path) = cApolloDPMProjectPackagesPath then
+    begin
+      Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
+      sJSON := StringOf(TNetEncoding.Base64.DecodeStringToBytes(Blob.Content));
+
+      Result := CreatePackageList(sJSON);
+      Exit;
+    end;
+  end;
+
+  Result := TPackageList.Create;
+end;
+
 function TDPMEngine.LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
 var
   RepoURL: string;
@@ -266,6 +289,11 @@ begin
   Result := True;
   aOwner := URLWords[1];
   aRepo := URLWords[2];
+end;
+
+procedure TDPMEngine.LoadRepoTree(const aVersion: TVersion; aPackage: TPackage);
+begin
+  aPackage.RepoTree := FGHAPI.GetRepoTree(aPackage.Owner, aPackage.Repo, aVersion.SHA);
 end;
 
 procedure TDPMEngine.OpenProject(const aProjectPath: string);
@@ -713,18 +741,60 @@ begin
 end;
 
 procedure TDPMEngine.AddPackage(var aVersion: TVersion; aPackage: TPackage);
+var
+  AddingPackages: TArray<TPackage>;
+  Dependencies: TPackageList;
+  DependPackage: TPackage;
+  DependPackageVersion: TVersion;
+  ProjectPackage: TPackage;
+  ProjectPackages: TPackageList;
 begin
   FUINotifyProc(Format(#13#10 + 'Adding package %s...', [aPackage.Name]));
+  AddingPackages := [aPackage];
 
-  SetVersionParams(aVersion, aPackage);
+  ProjectPackages := CreateProjectPackages(True);
+  Dependencies := CreateDependencies(aPackage.RepoTree);
+  try
+    SetVersionParams(aVersion, aPackage);
+    LoadRepoTree(aVersion, aPackage);
+
+    for DependPackage in Dependencies do
+    begin
+      ProjectPackage := ProjectPackages.GetByName(DependPackage.Name);
+      if ProjectPackage = nil then
+        AddingPackages := AddingPackages + [DependPackage];
+    end;
+
+  finally
+    ProjectPackages.Free;
+    Dependencies.Free;
+  end;
+
+
+{  Dependencies := CreateDependencies(aPackage.RepoTree);
+  try
+    for DependPackage in Dependencies do
+
+
+    for DependPackage in Dependencies do
+    begin
+      DependPackageVersion := DependPackage.InstalledVersion;
+      LoadRepoTree(DependPackageVersion, DependPackage);
+      DoAddPackage(DependPackageVersion, DependPackage);
+    end;
+  finally
+    Dependencies.Free;
+  end;   }
+
   FUINotifyProc(Format('Adding version %s...', [aVersion.DisplayName]));
+
   DoAddPackage(aVersion, aPackage);
 
   FUINotifyProc('Success');
   FUIUpdateProc(aPackage, atAdd);
 end;
 
-function TDPMEngine.AddPackageFiles(var aVersion: TVersion; aPackagePath: string;
+function TDPMEngine.AddPackageFiles(const aVersion: TVersion; aPackagePath: string;
   aPackage: TPackage): TArray<string>;
 var
   Blob: TBlob;
@@ -735,7 +805,7 @@ var
 begin
   Result := [];
 
-  RepoTree := FGHAPI.GetRepoTree(aPackage.Owner, aPackage.Repo, aVersion.SHA);
+  RepoTree := aPackage.RepoTree;
 
   for TreeNode in RepoTree do
     begin

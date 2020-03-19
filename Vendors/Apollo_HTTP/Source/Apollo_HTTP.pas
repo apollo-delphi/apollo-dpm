@@ -101,7 +101,7 @@ begin
   FIdHTTP.Request.CacheControl := 'no-cache';
 
   //temp
-  FIdHTTP.Request.Username := 'a504f978ff703ac1c6d16f1d0703791c700d2291';
+  FIdHTTP.Request.Username := 'b621e23caa224cfab7a69945be2c81480ae5b6dd';
 
   FIdSSLIOHandlerSocketOpenSSL := TIdSSLIOHandlerSocketOpenSSL.Create;
   FIdSSLIOHandlerSocketOpenSSL.SSLOptions.SSLVersions := [sslvSSLv23];

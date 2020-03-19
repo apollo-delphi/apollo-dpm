@@ -3,6 +3,7 @@ unit Apollo_DPM_Package;
 interface
 
 uses
+  Apollo_DPM_GitHubAPI,
   System.Generics.Collections,
   System.JSON;
 
@@ -42,15 +43,18 @@ type
     FFilters: TArray<string>;
     FFilterType: TFilterType;
     FHistory: TArray<TVersion>;
+    FID: string;
     FInstalledVersion: TVersion;
     FMoves: TArray<TMove>;
     FName: string;
     FOwner: string;
     FPackageType: TPackageType;
     FRepo: string;
+    FRepoTree: TTree;
     FVersions: TArray<TVersion>;
     function CheckBlackList(const aPath: string): Boolean;
     function CheckWhiteList(const aPath: string): Boolean;
+    function GetID: string;
     procedure Init;
     procedure SetInstalledVersion(const aVersion: TVersion);
   public
@@ -67,19 +71,20 @@ type
     property Filters: TArray<string> read FFilters write FFilters;
     property FilterType: TFilterType read FFilterType write FFilterType;
     property History: TArray<TVersion> read FHistory;
+    property ID: string read GetID write FID;
     property InstalledVersion: TVersion read FInstalledVersion write SetInstalledVersion;
     property Moves: TArray<TMove> read FMoves write FMoves;
     property Name: string read FName write FName;
     property Owner: string read FOwner write FOwner;
     property PackageType: TPackageType read FPackageType write FPackageType;
     property Repo: string read FRepo write FRepo;
+    property RepoTree: TTree read FRepoTree write FRepoTree;
     property Versions: TArray<TVersion> read FVersions;
   end;
 
   TPackageList = class(TObjectList<TPackage>)
-  private
-    function GetByName(const aPackageName: string): TPackage;
   public
+    function GetByName(const aPackageName: string): TPackage;
     procedure SyncToSidePackage(aSidePackage: TPackage);
     procedure SyncFromSidePackage(aSidePackage: TPackage);
   end;
@@ -90,6 +95,19 @@ uses
   System.SysUtils;
 
 { TPackage }
+
+function TPackage.GetID: string;
+var
+  GUID: TGUID;
+begin
+  if FID.IsEmpty then
+  begin
+    CreateGUID(GUID);
+    FID := GUID.ToString;
+  end;
+
+  Result := FID;
+end;
 
 function TPackage.ApplyMoves(const aNodePath: string): string;
 var
@@ -105,6 +123,7 @@ end;
 
 procedure TPackage.Assign(aPackage: TPackage);
 begin
+  ID := aPackage.ID;
   Description := aPackage.Description;
   Name := aPackage.Name;
   Owner := aPackage.Owner;
@@ -135,6 +154,7 @@ begin
 
   if aJSONPackage <> nil then
     begin
+      ID := aJSONPackage.GetValue('id').Value;
       Description := aJSONPackage.GetValue('description').Value;
       Name := aJSONPackage.GetValue('name').Value;
       Owner := aJSONPackage.GetValue('owner').Value;
@@ -226,6 +246,7 @@ var
 begin
   Result := TJSONObject.Create;
 
+  Result.AddPair('id', ID);
   Result.AddPair('description', Description);
   Result.AddPair('name', Name);
   Result.AddPair('owner', Owner);
@@ -300,9 +321,11 @@ begin
   FHistory := [];
   FMoves := [];
   FFilters := [];
+  FRepoTree := [];
   FFilterType := ftNone;
   FPackageType := ptSource;
 
+  FID := '';
   FDescription := '';
   FName := '';
   FOwner := '';
