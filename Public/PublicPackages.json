@@ -1,1 +1,75 @@
-{"packages":[{"id":"{90C737F9-96E3-4DCD-A5C1-3BA7C8C58869}","description":"Apollo Lib HTTP Module","name":"Apollo_HTTP","owner":"apollo-delphi","repo":"apollo-http","packageType":0,"filterType":2,"filters":[".gitignore","Source\/tst_Apollo_HTTP.pas","Source\/Apollo_HTTP_Test.dpr","Source\/Apollo_HTTP_Test.dproj","Source\/Apollo_HTTP_Group.groupproj"]},{"id":"{4159F98A-B185-43EF-81A0-A714506CB413}","description":"Apollo Lib MVC Core Module","name":"Apollo_MVC_Core","owner":"apollo-delphi","repo":"apollo-mvc-core","packageType":0,"filterType":1,"filters":["Source\/Apollo_MVC_Core.pas"],"moves":[{"source":"Source","destination":""}]},{"id":"{DC6D2C44-F49E-44CB-A6E9-A074E3E0283D}","description":"Apollo Lib VCL MVC ORM Project Template","name":"Apollo_VCL_MVC_ORM_Template","owner":"apollo-delphi","repo":"apollo-vcl-mvc-orm-template","packageType":1},{"id":"{F68FED84-C81A-45A2-B9D8-D8CCC55E6333}","description":"Apollo Lib VCL MVC Project Template","name":"Apollo_VCL_MVC_Template","owner":"apollo-delphi","repo":"apollo-vcl-mvc-template","packageType":1,"filterType":1,"filters":[]},{"id":"{57B63F11-80B3-41C3-9942-3ECBCE5FA9F5}","description":"Apollo Lib MVC VCL Module","name":"Apollo_MVC_VCL","owner":"apollo-delphi","repo":"apollo-mvc-vcl","packageType":0,"filterType":1,"filters":["Source\/Apollo_MVC_VCL.dfm","Source\/Apollo_MVC_VCL.pas"],"moves":[{"source":"Source","destination":""}]},{"id":"{90C737F9-96E3-4DCD-A5C1-3BA7C8C58869}","description":"Apollo Lib HTTP Module","name":"Apollo_HTTP","owner":"apollo-delphi","repo":"apollo-http","packageType":0,"filterType":2,"filters":[".gitignore","Source\/tst_Apollo_HTTP.pas","Source\/Apollo_HTTP_Test.dpr","Source\/Apollo_HTTP_Test.dproj","Source\/Apollo_HTTP_Group.groupproj"]}]}
+{
+  "packages": [
+    {
+      "id": "{90C737F9-96E3-4DCD-A5C1-3BA7C8C58869}",
+      "description": "Apollo Lib HTTP Module",
+      "name": "Apollo_HTTP",
+      "owner": "apollo-delphi",
+      "repo": "apollo-http",
+      "packageType": 0,
+      "filterType": 2,
+      "filters": [
+        ".gitignore",
+        "Source/tst_Apollo_HTTP.pas",
+        "Source/Apollo_HTTP_Test.dpr",
+        "Source/Apollo_HTTP_Test.dproj",
+        "Source/Apollo_HTTP_Group.groupproj"
+      ]
+    },
+    {
+      "id": "{4159F98A-B185-43EF-81A0-A714506CB413}",
+      "description": "Apollo Lib MVC Core Module",
+      "name": "Apollo_MVC_Core",
+      "owner": "apollo-delphi",
+      "repo": "apollo-mvc-core",
+      "packageType": 0,
+      "filterType": 1,
+      "filters": [
+        "Source/Apollo_MVC_Core.pas"
+      ],
+      "moves": [
+        {
+          "source": "Source",
+          "destination": ""
+        }
+      ]
+    },
+    {
+      "id": "{DC6D2C44-F49E-44CB-A6E9-A074E3E0283D}",
+      "description": "Apollo Lib VCL MVC ORM Project Template",
+      "name": "Apollo_VCL_MVC_ORM_Template",
+      "owner": "apollo-delphi",
+      "repo": "apollo-vcl-mvc-orm-template",
+      "packageType": 1
+    },
+    {
+      "id": "{F68FED84-C81A-45A2-B9D8-D8CCC55E6333}",
+      "description": "Apollo Lib VCL MVC Project Template",
+      "name": "Apollo_VCL_MVC_Template",
+      "owner": "apollo-delphi",
+      "repo": "apollo-vcl-mvc-template",
+      "packageType": 1,
+      "filterType": 1,
+      "filters": []
+    },
+    {
+      "id": "{57B63F11-80B3-41C3-9942-3ECBCE5FA9F5}",
+      "description": "Apollo Lib MVC VCL Module",
+      "name": "Apollo_MVC_VCL",
+      "owner": "apollo-delphi",
+      "repo": "apollo-mvc-vcl",
+      "packageType": 0,
+      "filterType": 1,
+      "filters": [
+        "Source/Apollo_MVC_VCL.dfm",
+        "Source/Apollo_MVC_VCL.pas"
+      ],
+      "moves": [
+        {
+          "source": "Source",
+          "destination": ""
+        }
+      ]
+    }
+  ]
+}

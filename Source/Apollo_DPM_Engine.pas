@@ -10,7 +10,7 @@ uses
   Vcl.Menus;
 
 type
-  TActionType = (atAdd, atRemove, atUpdateTo, atPackageSettings);
+  TActionType = (atAdd, atRemove, atUpdateTo, atDependencies, atPackageSettings);
 
   TUINotifyProc = procedure(const aMsg: string) of object;
   TUIUpdateProc = procedure(aPackage: TPackage; aActionType: TActionType) of object;
@@ -170,6 +170,7 @@ begin
     Result := True;}
 
   case aActionType of
+    atDependencies: Result := True;
     atPackageSettings: Result := True;
   end;
 end;
@@ -428,8 +429,6 @@ begin
 end;
 
 procedure TDPMEngine.DPMMenuItemClick(Sender: TObject);
-var
-  DPMForm: TDPMForm;
 begin
   DPMForm := TDPMForm.Create(Self);
   try
@@ -610,7 +609,7 @@ begin
       Version.Name := Tag.Name;
       Version.SHA := Tag.SHA;
 
-      if not aPackage.Versions.Contains(Version) then
+      if not aPackage.Versions.Contain(Version) then
         aPackage.AddToVersions(Version);
     end;
 end;

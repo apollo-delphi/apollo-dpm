@@ -24,7 +24,7 @@ type
   end;
 
   TVersionsHelper = record helper for TArray<TVersion>
-    function Contains(const aVersion: TVersion): Boolean;
+    function Contain(const aVersion: TVersion): Boolean;
   end;
 
   TMove = record
@@ -33,12 +33,25 @@ type
     Source: string;
   end;
 
+  TPackageAction = (paNone, paAdd, paUpdate, paRemove);
+
+  TPackageDependence = record
+  public
+    Action: TPackageAction;
+    PackageID: string;
+    PackageName: string;
+    VersionName: string;
+    VersionSHA: string;
+    procedure Init;
+  end;
+
   TFilterType = (ftNone, ftWhiteList, ftBlackList);
 
   TPackageType = (ptSource, ptTemplate);
 
   TPackage = class
   private
+    FDependencies: TArray<TPackageDependence>;
     FDescription: string;
     FFilters: TArray<string>;
     FFilterType: TFilterType;
@@ -67,6 +80,7 @@ type
     procedure DeleteFromHistory(const aVersion: TVersion);
     constructor Create(aJSONPackage: TJSONObject); overload;
     constructor Create(aPackage: TPackage); overload;
+    property Dependencies: TArray<TPackageDependence> read FDependencies;
     property Description: string read FDescription write FDescription;
     property Filters: TArray<string> read FFilters write FFilters;
     property FilterType: TFilterType read FFilterType write FFilterType;
@@ -93,6 +107,17 @@ implementation
 
 uses
   System.SysUtils;
+
+{ TPackageDependence }
+
+procedure TPackageDependence.Init;
+begin
+  Action := paNone;
+  PackageID := '';
+  PackageName := '';
+  VersionName := '';
+  VersionSHA := '';
+end;
 
 { TPackage }
 
@@ -469,7 +494,7 @@ end;
 
 {TVersionsHelper}
 
-function TVersionsHelper.Contains(const aVersion: TVersion): Boolean;
+function TVersionsHelper.Contain(const aVersion: TVersion): Boolean;
 var
   Version: TVersion;
 begin

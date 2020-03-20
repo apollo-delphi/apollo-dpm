@@ -52,6 +52,7 @@ implementation
 {$R *.dfm}
 
 uses
+  Apollo_DPM_Form,
   System.Math;
 
 const
@@ -90,7 +91,7 @@ end;
 
 constructor TPackageForm.Create(aDPMEngine: TDPMEngine; aPackage: TPackage);
 begin
-  inherited Create(nil);
+  inherited Create(DPMForm);
 
   FDPMEngine := aDPMEngine;
   FPackage := aPackage;

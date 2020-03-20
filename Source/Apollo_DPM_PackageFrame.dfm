@@ -75,6 +75,10 @@ object frmPackage: TfrmPackage
       Caption = 'Update to'
       OnClick = mniUpdateToClick
     end
+    object mniDependencies: TMenuItem
+      Caption = 'Dependencies...'
+      OnClick = mniDependenciesClick
+    end
     object mniPackageSettings: TMenuItem
       Caption = 'Package settings...'
       OnClick = mniPackageSettingsClick

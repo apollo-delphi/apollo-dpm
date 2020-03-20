@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.WinXCtrls,
-  Vcl.Menus,
+  Vcl.Menus, Vcl.ExtCtrls,
   Apollo_DPM_Form,
   Apollo_DPM_Package;
 
@@ -22,12 +22,14 @@ type
     mniRemove: TMenuItem;
     mniUpdateTo: TMenuItem;
     lblVersionlDescribe: TLabel;
+    mniDependencies: TMenuItem;
     procedure cbbVersionsDropDown(Sender: TObject);
     procedure mniAddClick(Sender: TObject);
     procedure mniPackageSettingsClick(Sender: TObject);
     procedure mniRemoveClick(Sender: TObject);
     procedure cbbVersionsChange(Sender: TObject);
     procedure mniUpdateToClick(Sender: TObject);
+    procedure mniDependenciesClick(Sender: TObject);
   private
     { Private declarations }
     FActionProc: TActionProc;
@@ -181,6 +183,7 @@ begin
   mniAdd.Visible := FAllowAction(FPackage, GetSelectedVersion, atAdd);
   mniRemove.Visible := FAllowAction(FPackage, GetSelectedVersion, atRemove);
   mniUpdateTo.Visible := FAllowAction(FPackage, GetSelectedVersion, atUpdateTo);
+  mniDependencies.Visible := FAllowAction(FPackage, GetSelectedVersion, atDependencies);
   mniPackageSettings.Visible := FAllowAction(FPackage, GetSelectedVersion, atPackageSettings);
 end;
 
@@ -201,6 +204,14 @@ var
 begin
   Version := GetSelectedVersion;
   FActionProc(atAdd, Version, FPackage);
+end;
+
+procedure TfrmPackage.mniDependenciesClick(Sender: TObject);
+var
+  Version: TVersion;
+begin
+  Version := GetSelectedVersion;
+  FActionProc(atDependencies, Version, FPackage);
 end;
 
 procedure TfrmPackage.mniPackageSettingsClick(Sender: TObject);

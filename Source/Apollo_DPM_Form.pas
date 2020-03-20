@@ -33,7 +33,6 @@ type
     procedure tvStructureChange(Sender: TObject; Node: TTreeNode);
     procedure btnRegisterPackageClick(Sender: TObject);
   private
-    { Private declarations }
     FDPMEngine: TDPMEngine;
     FPackageFrames: TArray<TFrame>;
     function AllowAction(aPackage: TPackage;  const aVersion: TVersion;
@@ -48,8 +47,8 @@ type
     procedure RenderPackages;
     procedure RenderStructureTree;
     procedure SetPackageSettings(aPackage: TPackage);
+    procedure ShowPackageDependencies(aPackage: TPackage);
   public
-    { Public declarations }
     function GetFolder: string;
     function SelectedStructure: string;
     procedure NotifyListener(const aMsg: string);
@@ -70,6 +69,7 @@ implementation
 {$R *.dfm}
 
 uses
+  Apollo_DPM_DependenciesForm,
   Apollo_DPM_PackageForm,
   Apollo_DPM_PackageFrame,
   System.Threading;
@@ -83,6 +83,7 @@ begin
     atAdd:  FDPMEngine.AddPackage(aVersion, aPackage);
     atRemove: FDPMEngine.RemovePackage(aPackage);
     atUpdateTo: FDPMEngine.UpdatePackage(aVersion, aPackage);
+    atDependencies: ShowPackageDependencies(aPackage);
     atPackageSettings: SetPackageSettings(aPackage);
   end;
 end;
@@ -272,6 +273,21 @@ begin
 
   if aPackage = nil then
     Package.Free;
+end;
+
+procedure TDPMForm.ShowPackageDependencies(aPackage: TPackage);
+var
+  Dependencies: TArray<TPackageDependence>;
+  DependenciesForm: TDependenciesForm;
+begin
+  Dependencies := aPackage.Dependencies;
+
+  DependenciesForm := TDependenciesForm.Create(Dependencies);
+  try
+    DependenciesForm.ShowModal;
+  finally
+    DependenciesForm.Release;
+  end;
 end;
 
 procedure TDPMForm.tvStructureChange(Sender: TObject; Node: TTreeNode);
