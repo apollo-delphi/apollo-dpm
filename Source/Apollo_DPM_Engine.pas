@@ -79,6 +79,7 @@ type
     function IsProjectOpened: Boolean;
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
     procedure AddPackage(var aVersion: TVersion; aPackage: TPackage);
+    procedure LoadPackageDependencies(const aVersion: TVersion; aPackage: TPackage);
     procedure LoadRepoVersions(aPackage: TPackage);
     procedure RemovePackage(aPackage: TPackage);
     procedure SavePackage(aPackage: TPackage; const aPath: string);  //need for publish package
@@ -251,6 +252,37 @@ begin
   end;
 
   Result := TPackageList.Create;
+end;
+
+procedure TDPMEngine.LoadPackageDependencies(const aVersion: TVersion; aPackage: TPackage);
+var
+  Dependence: TPackageDependence;
+  DependencePackage: TPackage;
+  Dependencies: TPackageList;
+  Version: TVersion;
+begin
+  aPackage.Dependencies := [];
+  Version := aVersion;
+
+  SetVersionParams(Version, aPackage);
+  if Length(aPackage.RepoTree) = 0 then
+    LoadRepoTree(Version, aPackage);
+
+  Dependencies := CreateDependencies(aPackage.RepoTree);
+  try
+    for DependencePackage in Dependencies do
+    begin
+      Dependence.Init;
+      Dependence.PackageID := DependencePackage.ID;
+      Dependence.PackageName := DependencePackage.Name;
+      Dependence.VersionName := DependencePackage.InstalledVersion.Name;
+      Dependence.VersionSHA := DependencePackage.InstalledVersion.SHA;
+
+      aPackage.Dependencies := aPackage.Dependencies + [Dependence];
+    end;
+  finally
+    Dependencies.Free;
+  end;
 end;
 
 function TDPMEngine.LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;

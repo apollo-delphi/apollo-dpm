@@ -11,6 +11,8 @@ uses
 
 type
   TLoadRepoVersionsProc = procedure(aPackage: TPackage) of object;
+  TLoadPackageDependenciesProc = procedure(const aVersion: TVersion;
+    aPackage: TPackage) of object;
   TActionProc = procedure(const aActionType: TActionType;
     var aVersion: TVersion; aPackage: TPackage) of object;
   TAllowActionFunc = function(aPackage: TPackage; const aVersion: TVersion;
@@ -47,7 +49,7 @@ type
     procedure RenderPackages;
     procedure RenderStructureTree;
     procedure SetPackageSettings(aPackage: TPackage);
-    procedure ShowPackageDependencies(aPackage: TPackage);
+    procedure ShowPackageDependencies(const aVersion: TVersion; aPackage: TPackage);
   public
     function GetFolder: string;
     function SelectedStructure: string;
@@ -83,7 +85,7 @@ begin
     atAdd:  FDPMEngine.AddPackage(aVersion, aPackage);
     atRemove: FDPMEngine.RemovePackage(aPackage);
     atUpdateTo: FDPMEngine.UpdatePackage(aVersion, aPackage);
-    atDependencies: ShowPackageDependencies(aPackage);
+    atDependencies: ShowPackageDependencies(aVersion, aPackage);
     atPackageSettings: SetPackageSettings(aPackage);
   end;
 end;
@@ -275,14 +277,15 @@ begin
     Package.Free;
 end;
 
-procedure TDPMForm.ShowPackageDependencies(aPackage: TPackage);
+procedure TDPMForm.ShowPackageDependencies(const aVersion: TVersion; aPackage: TPackage);
 var
-  Dependencies: TArray<TPackageDependence>;
   DependenciesForm: TDependenciesForm;
 begin
-  Dependencies := aPackage.Dependencies;
-
-  DependenciesForm := TDependenciesForm.Create(Dependencies);
+  DependenciesForm := TDependenciesForm.Create(
+    aVersion,
+    aPackage,
+    FDPMEngine.LoadPackageDependencies
+  );
   try
     DependenciesForm.ShowModal;
   finally

@@ -8,6 +8,7 @@ object DependenciesForm: TDependenciesForm
   Color = clBtnFace
   OldCreateOrder = False
   Position = poOwnerFormCenter
+  OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
   object lvDependencies: TListView

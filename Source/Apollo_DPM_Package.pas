@@ -80,7 +80,7 @@ type
     procedure DeleteFromHistory(const aVersion: TVersion);
     constructor Create(aJSONPackage: TJSONObject); overload;
     constructor Create(aPackage: TPackage); overload;
-    property Dependencies: TArray<TPackageDependence> read FDependencies;
+    property Dependencies: TArray<TPackageDependence> read FDependencies write FDependencies;
     property Description: string read FDescription write FDescription;
     property Filters: TArray<string> read FFilters write FFilters;
     property FilterType: TFilterType read FFilterType write FFilterType;
@@ -347,6 +347,7 @@ begin
   FMoves := [];
   FFilters := [];
   FRepoTree := [];
+  FDependencies := [];
   FFilterType := ftNone;
   FPackageType := ptSource;
 
