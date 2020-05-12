@@ -26,7 +26,7 @@ implementation
 {$R *.dfm}
 
 uses
-  System.Threading;
+  Apollo_DPM_UIHelper;
 
 { TDependenciesForm }
 
@@ -41,15 +41,22 @@ begin
 end;
 
 procedure TDependenciesForm.FormShow(Sender: TObject);
-var
-  AsyncTask: ITask;
 begin
-  AsyncTask := TTask.Create(procedure()
+{  AsyncTask := TTask.Create(procedure()
     begin
       FLoadPackageDependenciesProc(FVersion, FPackage);
     end
   );
-  AsyncTask.Start;
+  AsyncTask.Start;}
+
+  AsyncLoad(
+    nil,
+    procedure()
+    begin
+      FLoadPackageDependenciesProc(FVersion, FPackage);
+    end,
+    nil
+  );
 end;
 
 end.

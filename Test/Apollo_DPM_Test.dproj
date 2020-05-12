@@ -78,7 +78,7 @@
         <DCC_DcuOutput>..\DCU\$(Platform)\$(Config)</DCC_DcuOutput>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Manifest_File>(None)</Manifest_File>
-        <DCC_UnitSearchPath>C:\Program Files (x86)\Embarcadero\Studio\20.0\source\ToolsAPI;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>C:\Program Files (x86)\Embarcadero\Studio\20.0\source\ToolsAPI;F:\Dev\apollo-delphi\apollo-dpm\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
@@ -92,19 +92,7 @@
         </DelphiCompile>
         <DCCReference Include="tst_Apollo_DPM.pas"/>
         <DCCReference Include="..\Source\Apollo_DPM_GitHubAPI.pas"/>
-        <DCCReference Include="..\Source\Apollo_DPM_Engine.pas"/>
-        <DCCReference Include="..\Source\Apollo_DPM_Package.pas"/>
-        <DCCReference Include="..\Source\Apollo_DPM_Form.pas">
-            <Form>DPMForm</Form>
-        </DCCReference>
-        <DCCReference Include="DockForm.pas"/>
-        <DCCReference Include="PersonalityConst.pas"/>
         <DCCReference Include="..\..\apollo-http\Source\Apollo_HTTP.pas"/>
-        <DCCReference Include="..\Source\Apollo_DPM_PackageFrame.pas">
-            <Form>frmPackage</Form>
-            <FormType>dfm</FormType>
-            <DesignClass>TFrame</DesignClass>
-        </DCCReference>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

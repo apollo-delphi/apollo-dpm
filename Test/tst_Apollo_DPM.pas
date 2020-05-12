@@ -3,28 +3,10 @@ unit tst_Apollo_DPM;
 interface
 
 uses
-  Apollo_DPM_Engine,
   Apollo_DPM_GitHubAPI,
   DUnitX.TestFramework;
 
 type
-  [TestFixture]
-  TestDPMEngine = class
-  strict private
-    FDPMEngine: TDPMEngine;
-  public
-    [Setup]
-    procedure Setup;
-    [TearDown]
-    procedure TearDown;
-
-    //[TestCase('GetPublishedPackages', '')]
-    procedure TestGetPublishedPackages;
-
-    [TestCase('InstallPackage', 'Apollo_HTTP;1.0', ';')]
-    procedure TestInstallPackage(const aPackageName, aPackageVersionName: string);
-  end;
-
   [TestFixture]
   TestGHAPI = class
   strict private
@@ -38,11 +20,11 @@ type
     //[TestCase('TestGetMasterBranchSHA', 'apollo-delphi;apollo-http', ';')]
     procedure TestGetMasterBranchSHA(const aOwner, aRepo: string);
 
-    //[TestCase('GetTextFileContent', 'apollo-delphi;apollo-dpm;/master/Published/packages.json;packages', ';')]
+    [TestCase('GetTextFileContent', 'apollo-delphi;apollo-dpm;/master/Public/PublicPackages.json;packages', ';')]
     procedure TestGetTextFileContent(const aOwner, aRepo, aPath, _Result: string);
 
-    //[TestCase('TestGetRepoTags', 'apollo-delphi;apollo-http', ';')]
-    procedure TestGetRepoTags(const aOwner, aRepo: string);
+    [TestCase('TestGetRepoTags', 'apollo-delphi;apollo-http;1.0', ';')]
+    procedure TestGetRepoTags(const aOwner, aRepo, _OneOfTagName: string);
 
     //[TestCase('TestGetRepoTree', 'apollo-delphi;apollo-http;88f14a6e2b8071f983c934a37d02688a1912e43e', ';')]
     procedure TestGetRepoTree(const aOwner, aRepo, aSHA: string);
@@ -51,7 +33,8 @@ type
 implementation
 
 uses
-  Apollo_DPM_Package;
+  Apollo_DPM_Package,
+  System.SysUtils;
 
 { TestGHAPI }
 
@@ -72,9 +55,28 @@ begin
   SHA := FGHAPI.GetMasterBranchSHA(aOwner, aRepo);
 end;
 
-procedure TestGHAPI.TestGetRepoTags(const aOwner, aRepo: string);
+procedure TestGHAPI.TestGetRepoTags(const aOwner, aRepo, _OneOfTagName: string);
+var
+  CatchOneOfTagName: Boolean;
+  Tag: TTag;
+  Tags: TArray<TTag>;
 begin
-  FGHAPI.GetRepoTags(aOwner, aRepo);
+  Tags := FGHAPI.GetRepoTags(aOwner, aRepo);
+
+  CatchOneOfTagName := False;
+  for Tag in Tags do
+  begin
+    if Tag.SHA.IsEmpty or Tag.Name.IsEmpty then
+      Assert.Fail('Empty tag name found');
+
+    if Tag.Name = _OneOfTagName then
+      CatchOneOfTagName := True;
+  end;
+
+  if CatchOneOfTagName then
+    Assert.Pass
+  else
+    Assert.Fail('Did not catch tag name ' + _OneOfTagName);
 end;
 
 procedure TestGHAPI.TestGetRepoTree(const aOwner, aRepo, aSHA: string);
@@ -91,64 +93,7 @@ begin
   Assert.IsMatch(_Result, sJSON);
 end;
 
-{ TestDPMEngine }
-
-procedure TestDPMEngine.Setup;
-begin
-  FDPMEngine := TDPMEngine.Create(nil);
-end;
-
-procedure TestDPMEngine.TearDown;
-begin
-  FDPMEngine := nil;
-end;
-
-procedure TestDPMEngine.TestGetInstalledPackages;
-begin
-
-end;
-
-procedure TestDPMEngine.TestGetPublishedPackages;
-var
-  PablishedPackages:  TPackageList;
-begin
-  PablishedPackages := FDPMEngine.GetPublishedPackages;
-  try
-    Assert.IsTrue(PablishedPackages.Count > 0);
-  finally
-    PablishedPackages.Free;
-  end;
-end;
-
-procedure TestDPMEngine.TestInstallPackage(const aPackageName, aPackageVersionName: string);
-var
-  Package: TPackage;
-  PackageList: TPackageList;
-  TestPackage: TPackage;
-begin
-  PackageList := FDPMEngine.GetPublishedPackages;
-  try
-    TestPackage := nil;
-
-    for Package in PackageList do
-      if Package.Name = aPackageName then
-        begin
-          TestPackage := Package;
-          Break;
-        end;
-
-    if Assigned(TestPackage) then
-      begin
-        FDPMEngine.GetPackageVersions(TestPackage);
-        FDPMEngine.InstallPackage(aPackageVersionName, TestPackage);
-      end;
-  finally
-    PackageList.Free;
-  end;
-end;
-
 initialization
   TDUnitX.RegisterTestFixture(TestGHAPI);
-  TDUnitX.RegisterTestFixture(TestDPMEngine);
 
 end.

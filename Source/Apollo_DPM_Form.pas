@@ -10,11 +10,8 @@ uses
   Apollo_DPM_Package;
 
 type
-  TLoadRepoVersionsProc = procedure(aPackage: TPackage) of object;
   TLoadPackageDependenciesProc = procedure(const aVersion: TVersion;
     aPackage: TPackage) of object;
-  TActionProc = procedure(const aActionType: TActionType;
-    var aVersion: TVersion; aPackage: TPackage) of object;
   TAllowActionFunc = function(aPackage: TPackage; const aVersion: TVersion;
     const aActionType: TActionType): Boolean of object;
 
@@ -37,14 +34,10 @@ type
   private
     FDPMEngine: TDPMEngine;
     FPackageFrames: TArray<TFrame>;
-    function AllowAction(aPackage: TPackage;  const aVersion: TVersion;
-      const aActionType: TActionType): Boolean;
     function GetFrameByPackage(aPackage: TPackage): TFrame;
     procedure ActionProc(const aActionType: TActionType;
       var aVersion: TVersion; aPackage: TPackage);
-    procedure AsyncLoadPublicPackages;
     procedure ClearPackageFrames;
-    procedure LoadRepoVersions(aPackage: TPackage);
     procedure RenderPackageList(aPackageList: TPackageList);
     procedure RenderPackages;
     procedure RenderStructureTree;
@@ -72,9 +65,9 @@ implementation
 
 uses
   Apollo_DPM_DependenciesForm,
+  Apollo_DPM_UIHelper,
   Apollo_DPM_PackageForm,
-  Apollo_DPM_PackageFrame,
-  System.Threading;
+  Apollo_DPM_PackageFrame;
 
 { TDPMForm }
 
@@ -88,32 +81,6 @@ begin
     atDependencies: ShowPackageDependencies(aVersion, aPackage);
     atPackageSettings: SetPackageSettings(aPackage);
   end;
-end;
-
-function TDPMForm.AllowAction(aPackage: TPackage; const aVersion: TVersion;
-  const aActionType: TActionType): Boolean;
-begin
-  Result := FDPMEngine.AllowAction(aPackage, aVersion, aActionType);
-end;
-
-procedure TDPMForm.AsyncLoadPublicPackages;
-var
-  AsyncTask: ITask;
-  PublicPackages: TPackageList;
-begin
-  AsyncTask := TTask.Create(procedure()
-    begin
-      PublicPackages := FDPMEngine.GetPublicPackages;
-
-      TThread.Synchronize(nil, procedure()
-        begin
-          aiPabPkgLoad.Animate := False;
-          RenderPackageList(PublicPackages);
-        end
-      );
-    end
-  );
-  AsyncTask.Start;
 end;
 
 procedure TDPMForm.btnRegisterPackageClick(Sender: TObject);
@@ -165,11 +132,6 @@ begin
     end;
 end;
 
-procedure TDPMForm.LoadRepoVersions(aPackage: TPackage);
-begin
-  FDPMEngine.LoadRepoVersions(aPackage);
-end;
-
 procedure TDPMForm.NotifyListener(const aMsg: string);
 begin
   mmoActionLog.Lines.Add(aMsg);
@@ -197,9 +159,7 @@ begin
         then
           ProjectPackages.SyncToSidePackage(PackageCopy);
 
-        PackageFrame := TfrmPackage.Create(sbPackages, PackageCopy, ActionProc,
-          LoadRepoVersions, AllowAction
-        );
+        PackageFrame := TfrmPackage.Create(sbPackages, PackageCopy, FDPMEngine);
         PackageFrame.Name := Format('PackageFrame%d', [i]);
         PackageFrame.Parent := sbPackages;
         PackageFrame.Top := Top;
@@ -219,13 +179,25 @@ end;
 procedure TDPMForm.RenderPackages;
 var
   ProjectPackages: TPackageList;
+  PublicPackages: TPackageList;
 begin
   ClearPackageFrames;
 
   if SelectedStructure = cPublicPackages then
+  AsyncLoad(
+    aiPabPkgLoad,
+    procedure
     begin
-      aiPabPkgLoad.Animate := True;
-      AsyncLoadPublicPackages;
+      PublicPackages := FDPMEngine.GetPublicPackages;
+    end,
+    procedure
+    begin
+      RenderPackageList(PublicPackages);
+    end
+  );
+
+  if SelectedStructure = cPublicPackages then
+    begin
     end
   else
   if FDPMEngine.IsProjectOpened and (SelectedStructure = cProjectDependencies) then

@@ -7,6 +7,8 @@ object DPMForm: TDPMForm
   Color = clBtnFace
   OldCreateOrder = False
   Position = poScreenCenter
+  Font.Name = 'Tahoma'
+  Font.Charset = DEFAULT_CHARSET
   PixelsPerInch = 96
   TextHeight = 13
   object splMain2Log: TSplitter

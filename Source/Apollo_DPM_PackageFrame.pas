@@ -6,6 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.WinXCtrls,
   Vcl.Menus, Vcl.ExtCtrls,
+  Apollo_DPM_Engine,
   Apollo_DPM_Form,
   Apollo_DPM_Package;
 
@@ -32,11 +33,10 @@ type
     procedure mniDependenciesClick(Sender: TObject);
   private
     { Private declarations }
-    FActionProc: TActionProc;
     FAllowAction: TAllowActionFunc;
+    FDPMEngine: TDPMEngine;
     FFilledVersions: TArray<TVersion>;
     FIsRepoVersionsLoaded: Boolean;
-    FLoadRepoVersionsProc: TLoadRepoVersionsProc;
     FPackage: TPackage;
     function GetIndexByVersion(aVersion: TVersion): Integer;
     function GetSelectedVersion: TVersion;
@@ -49,19 +49,16 @@ type
     { Public declarations }
     function IsShowThisPackage(aPackage: TPackage): Boolean;
     procedure Refresh;
-    constructor Create(AOwner: TComponent; aPackage: TPackage;
-      aActionProc: TActionProc; aLoadRepoVersionsProc: TLoadRepoVersionsProc;
-      aAllowAction: TAllowActionFunc); reintroduce;
+    constructor Create(AOwner: TComponent; aPackage: TPackage; aDPMEngine: TDPMEngine); reintroduce;
     destructor Destroy; override;
   end;
 
 implementation
 
-uses
-  Apollo_DPM_Engine,
-  System.Threading;
-
 {$R *.dfm}
+
+uses
+  Apollo_DPM_UIHelper;
 
 { TfrmPackage }
 
@@ -71,43 +68,32 @@ begin
 end;
 
 procedure TfrmPackage.cbbVersionsDropDown(Sender: TObject);
-var
-  AsyncTask: ITask;
 begin
   if FIsRepoVersionsLoaded then
     Exit;
 
-  aiVerListLoad.Animate := True;
-
-  AsyncTask := TTask.Create(procedure()
+  AsyncLoad(
+    aiVerListLoad,
+    procedure
     begin
-      FLoadRepoVersionsProc(FPackage);
-
-      TThread.Synchronize(nil, procedure()
-        begin
-          aiVerListLoad.Animate := False;
-
-          FIsRepoVersionsLoaded := True;
-          FillVersions;
-        end
-      );
+      FDPMEngine.LoadRepoVersions(FPackage);
+    end,
+    procedure
+    begin
+      FIsRepoVersionsLoaded := True;
+      FillVersions;
     end
   );
-  AsyncTask.Start;
 end;
 
-constructor TfrmPackage.Create(AOwner: TComponent; aPackage: TPackage;
-      aActionProc: TActionProc; aLoadRepoVersionsProc: TLoadRepoVersionsProc;
-      aAllowAction: TAllowActionFunc);
+constructor TfrmPackage.Create(AOwner: TComponent; aPackage: TPackage; aDPMEngine: TDPMEngine);
 begin
   inherited Create(AOwner);
 
   FPackage := aPackage;
-  FActionProc := aActionProc;
-  FAllowAction := aAllowAction;
-  FLoadRepoVersionsProc := aLoadRepoVersionsProc;
-  FIsRepoVersionsLoaded := False;
+  FDPMEngine := aDPMEngine;
 
+  FIsRepoVersionsLoaded := False;
   lblPackageDescription.Caption := FPackage.Description;
 
   Refresh;
@@ -189,7 +175,7 @@ end;
 
 procedure TfrmPackage.InitState;
 begin
-  InitActions;
+  //InitActions;
   SetVersionDescribe;
 end;
 
@@ -203,7 +189,7 @@ var
   Version: TVersion;
 begin
   Version := GetSelectedVersion;
-  FActionProc(atAdd, Version, FPackage);
+  //FActionProc(atAdd, Version, FPackage);
 end;
 
 procedure TfrmPackage.mniDependenciesClick(Sender: TObject);
@@ -211,7 +197,7 @@ var
   Version: TVersion;
 begin
   Version := GetSelectedVersion;
-  FActionProc(atDependencies, Version, FPackage);
+  //FActionProc(atDependencies, Version, FPackage);
 end;
 
 procedure TfrmPackage.mniPackageSettingsClick(Sender: TObject);
@@ -219,7 +205,7 @@ var
   Version: TVersion;
 begin
   Version := GetSelectedVersion;
-  FActionProc(atPackageSettings, Version, FPackage);
+  //FActionProc(atPackageSettings, Version, FPackage);
 end;
 
 procedure TfrmPackage.mniRemoveClick(Sender: TObject);
@@ -227,7 +213,7 @@ var
   Version: TVersion;
 begin
   Version := GetSelectedVersion;
-  FActionProc(atRemove, Version, FPackage);
+  //FActionProc(atRemove, Version, FPackage);
 end;
 
 procedure TfrmPackage.mniUpdateToClick(Sender: TObject);
@@ -235,7 +221,7 @@ var
   Version: TVersion;
 begin
   Version := GetSelectedVersion;
-  FActionProc(atUpdateTo, Version, FPackage);
+  //FActionProc(atUpdateTo, Version, FPackage);
 end;
 
 procedure TfrmPackage.Refresh;

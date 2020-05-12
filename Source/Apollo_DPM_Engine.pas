@@ -75,11 +75,19 @@ type
     function AllowAction(aPackage: TPackage; const aVersion: TVersion;
       const aActionType: TActionType): Boolean;
     function CreateProjectPackages(const aOnlyInstalled: Boolean): TPackageList;
+    /// <summary>
+    /// Load public packages from dpm repo first time it was called.
+    /// Next calls return previously loaded stuff. You do not need to free result object.
+    /// </summary>
     function GetPublicPackages: TPackageList;
     function IsProjectOpened: Boolean;
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
-    procedure AddPackage(var aVersion: TVersion; aPackage: TPackage);
+    procedure AddPackage(var aVersion: TVersion; aPackage: TPackage); overload;
+    procedure AddPackage(const aVersionSHA: string; aPackage: TPackage); overload;
     procedure LoadPackageDependencies(const aVersion: TVersion; aPackage: TPackage);
+    /// <summary>
+    /// Load package versions(tags) form repo and fill up aPackage.Versions property
+    /// </summary>
     procedure LoadRepoVersions(aPackage: TPackage);
     procedure RemovePackage(aPackage: TPackage);
     procedure SavePackage(aPackage: TPackage; const aPath: string);  //need for publish package
@@ -772,15 +780,17 @@ begin
 end;
 
 procedure TDPMEngine.AddPackage(var aVersion: TVersion; aPackage: TPackage);
-var
+{var
   AddingPackages: TArray<TPackage>;
   Dependencies: TPackageList;
   DependPackage: TPackage;
   DependPackageVersion: TVersion;
   ProjectPackage: TPackage;
-  ProjectPackages: TPackageList;
+  ProjectPackages: TPackageList;}
 begin
-  FUINotifyProc(Format(#13#10 + 'Adding package %s...', [aPackage.Name]));
+  // #1 Load package dependencies
+
+  {FUINotifyProc(Format(#13#10 + 'Adding package %s...', [aPackage.Name]));
   AddingPackages := [aPackage];
 
   ProjectPackages := CreateProjectPackages(True);
@@ -817,12 +827,17 @@ begin
     Dependencies.Free;
   end;   }
 
-  FUINotifyProc(Format('Adding version %s...', [aVersion.DisplayName]));
+  {FUINotifyProc(Format('Adding version %s...', [aVersion.DisplayName]));
 
   DoAddPackage(aVersion, aPackage);
 
   FUINotifyProc('Success');
-  FUIUpdateProc(aPackage, atAdd);
+  FUIUpdateProc(aPackage, atAdd); }
+end;
+
+procedure TDPMEngine.AddPackage(const aVersionSHA: string; aPackage: TPackage);
+begin
+
 end;
 
 function TDPMEngine.AddPackageFiles(const aVersion: TVersion; aPackagePath: string;
