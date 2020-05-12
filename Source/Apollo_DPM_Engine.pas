@@ -106,11 +106,7 @@ const
   cApolloMenuItemCaption = 'Apollo';
   cApolloMenuItemName = 'miApollo';
   cDPMMenuItemCaption = 'DPM - Delphi Package Manager...';
-
   cEmptyPackagesFileContent = '{"packages": []}';
-
-  cLatestVersionOrCommit = 'the latest version or commit';
-  cLatestCommit = 'the latest commit';
 
 implementation
 
@@ -730,7 +726,7 @@ begin
   if not aVersion.SHA.IsEmpty then
     Exit;
 
-  if aVersion.Name = cLatestVersionOrCommit then
+  {if aVersion.Name = cLatestVersionOrCommit then
     begin
       LoadRepoVersions(aPackage);
       if Length(aPackage.Versions) > 0 then
@@ -745,7 +741,7 @@ begin
     begin
       aVersion.SHA := FGHAPI.GetMasterBranchSHA(aPackage.Owner, aPackage.Repo);
       aVersion.Name := '';
-    end;
+    end; }
 end;
 
 procedure TDPMEngine.UpdatePackage(var aVersion: TVersion; aPackage: TPackage);

@@ -35,13 +35,14 @@ type
     { Private declarations }
     FAllowAction: TAllowActionFunc;
     FDPMEngine: TDPMEngine;
-    FFilledVersions: TArray<TVersion>;
     FIsRepoVersionsLoaded: Boolean;
     FPackage: TPackage;
-    function GetIndexByVersion(aVersion: TVersion): Integer;
-    function GetSelectedVersion: TVersion;
-    function GetVersionByIndex(const aIndex: Integer): TVersion;
-    procedure FillVersions;
+    FSHAs: TArray<string>;
+    function GetIndexBySHA(const aSHA: string): Integer;
+    function GetSelectedVersionSHA: string;
+    function GetSHAByIndex(const aIndex: Integer): string;
+    procedure AddVersionToControl(const aName, aSHA: string);
+    procedure FillVersionsControl;
     procedure InitActions;
     procedure InitState;
     procedure SetVersionDescribe;
@@ -53,6 +54,10 @@ type
     destructor Destroy; override;
   end;
 
+const
+  cLatestVersionOrCommit = 'the latest version or commit';
+  cLatestCommit = 'the latest commit';
+
 implementation
 
 {$R *.dfm}
@@ -61,6 +66,12 @@ uses
   Apollo_DPM_UIHelper;
 
 { TfrmPackage }
+
+procedure TfrmPackage.AddVersionToControl(const aName, aSHA: string);
+begin
+  cbbVersions.Items.Add(aName);
+  FSHAs := FSHAs + [aSHA];
+end;
 
 procedure TfrmPackage.cbbVersionsChange(Sender: TObject);
 begin
@@ -81,7 +92,7 @@ begin
     procedure
     begin
       FIsRepoVersionsLoaded := True;
-      FillVersions;
+      FillVersionsControl;
     end
   );
 end;
@@ -106,71 +117,64 @@ begin
   inherited;
 end;
 
-procedure TfrmPackage.FillVersions;
+procedure TfrmPackage.FillVersionsControl;
 var
   i: Integer;
   Version: TVersion;
   VersionIndex: Integer;
 begin
-  FFilledVersions := [];
+  FSHAs := [];
   cbbVersions.Items.Clear;
 
-  for i := 0 to Length(FPackage.Versions) - 1 do
-    begin
-      cbbVersions.Items.Add(FPackage.Versions[i].DisplayName);
-      FFilledVersions := FFilledVersions + [FPackage.Versions[i]];
-    end;
+  for Version in FPackage.Versions do
+    AddVersionToControl(Version.DisplayName, Version.SHA);
 
-  Version.Init;
   if not FIsRepoVersionsLoaded then
-    Version.Name := cLatestVersionOrCommit
+    AddVersionToControl(cLatestVersionOrCommit, '')
   else
-    Version.Name := cLatestCommit;
+    AddVersionToControl(cLatestCommit, '');
 
-  cbbVersions.Items.Add(Version.DisplayName);
-  FFilledVersions := FFilledVersions + [Version];
-
-  VersionIndex := GetIndexByVersion(FPackage.InstalledVersion);
+  VersionIndex := GetIndexBySHA(FPackage.InstalledVersion.SHA);
   if VersionIndex >= 0 then
     cbbVersions.ItemIndex := VersionIndex
   else
     cbbVersions.ItemIndex := cbbVersions.Items.Count - 1;
 end;
 
-function TfrmPackage.GetIndexByVersion(aVersion: TVersion): Integer;
+function TfrmPackage.GetIndexBySHA(const aSHA: string): Integer;
 var
   i: Integer;
 begin
   Result := -1;
 
-  for i := 0 to Length(FFilledVersions) - 1 do
-    if FFilledVersions[i].SHA = aVersion.SHA then
+  for i := 0 to Length(FSHAs) - 1 do
+    if FSHAs[i] = aSHA then
       Exit(i);
 end;
 
-function TfrmPackage.GetSelectedVersion: TVersion;
+function TfrmPackage.GetSelectedVersionSHA: string;
 begin
-  Result := GetVersionByIndex(cbbVersions.ItemIndex);
+  Result := GetSHAByIndex(cbbVersions.ItemIndex);
 end;
 
-function TfrmPackage.GetVersionByIndex(const aIndex: Integer): TVersion;
+function TfrmPackage.GetSHAByIndex(const aIndex: Integer): string;
 var
   i: Integer;
 begin
-  Result.Init;
+  Result := '';
 
-  for i := 0 to Length(FFilledVersions) - 1 do
+  for i := 0 to Length(FSHAs) - 1 do
     if i = aIndex then
-      Exit(FFilledVersions[i]);
+      Exit(FSHAs[i]);
 end;
 
 procedure TfrmPackage.InitActions;
 begin
-  mniAdd.Visible := FAllowAction(FPackage, GetSelectedVersion, atAdd);
+  {mniAdd.Visible := FAllowAction(FPackage, GetSelectedVersion, atAdd);
   mniRemove.Visible := FAllowAction(FPackage, GetSelectedVersion, atRemove);
   mniUpdateTo.Visible := FAllowAction(FPackage, GetSelectedVersion, atUpdateTo);
   mniDependencies.Visible := FAllowAction(FPackage, GetSelectedVersion, atDependencies);
-  mniPackageSettings.Visible := FAllowAction(FPackage, GetSelectedVersion, atPackageSettings);
+  mniPackageSettings.Visible := FAllowAction(FPackage, GetSelectedVersion, atPackageSettings);}
 end;
 
 procedure TfrmPackage.InitState;
@@ -188,7 +192,7 @@ procedure TfrmPackage.mniAddClick(Sender: TObject);
 var
   Version: TVersion;
 begin
-  Version := GetSelectedVersion;
+  //Version := GetSelectedVersion;
   //FActionProc(atAdd, Version, FPackage);
 end;
 
@@ -196,7 +200,7 @@ procedure TfrmPackage.mniDependenciesClick(Sender: TObject);
 var
   Version: TVersion;
 begin
-  Version := GetSelectedVersion;
+  //Version := GetSelectedVersion;
   //FActionProc(atDependencies, Version, FPackage);
 end;
 
@@ -204,7 +208,7 @@ procedure TfrmPackage.mniPackageSettingsClick(Sender: TObject);
 var
   Version: TVersion;
 begin
-  Version := GetSelectedVersion;
+  //Version := GetSelectedVersion;
   //FActionProc(atPackageSettings, Version, FPackage);
 end;
 
@@ -212,7 +216,7 @@ procedure TfrmPackage.mniRemoveClick(Sender: TObject);
 var
   Version: TVersion;
 begin
-  Version := GetSelectedVersion;
+  //Version := GetSelectedVersion;
   //FActionProc(atRemove, Version, FPackage);
 end;
 
@@ -220,13 +224,13 @@ procedure TfrmPackage.mniUpdateToClick(Sender: TObject);
 var
   Version: TVersion;
 begin
-  Version := GetSelectedVersion;
+  //Version := GetSelectedVersion;
   //FActionProc(atUpdateTo, Version, FPackage);
 end;
 
 procedure TfrmPackage.Refresh;
 begin
-  FillVersions;
+  FillVersionsControl;
   InitState;
 end;
 
@@ -234,9 +238,9 @@ procedure TfrmPackage.SetVersionDescribe;
 var
   Version: TVersion;
 begin
-  lblVersionlDescribe.Caption := '';
+  {lblVersionlDescribe.Caption := '';
   lblVersionlDescribe.Font.Color := clWindowText;
-  Version := GetSelectedVersion;
+  //Version := GetSelectedVersion;
 
   if not Version.SHA.IsEmpty and (Version.SHA = FPackage.InstalledVersion.SHA) then
     begin
@@ -250,7 +254,7 @@ begin
       lblVersionlDescribe.Caption := Format('was removed at %s',
         [FormatDateTime('hh:mm:ss ddddd', Version.RemoveTime)]);
       lblVersionlDescribe.Font.Color := clRed;
-    end;
+    end;}
 end;
 
 end.
