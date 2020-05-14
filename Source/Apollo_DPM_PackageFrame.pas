@@ -38,11 +38,10 @@ type
     FIsRepoVersionsLoaded: Boolean;
     FPackage: TPackage;
     FSHAs: TArray<string>;
-    function GetIndexBySHA(const aSHA: string): Integer;
-    function GetSelectedVersionSHA: string;
-    function GetSHAByIndex(const aIndex: Integer): string;
-    procedure AddVersionToControl(const aName, aSHA: string);
-    procedure FillVersionsControl;
+    function GetIndexByVersion(const aVersion: TVersion): Integer;
+    function GetVersionByIndex(const aIndex: Integer): TVersion;
+    procedure AddVersionToCombo(const aName, aSHA: string);
+    procedure FillVersionsCombo;
     procedure InitActions;
     procedure InitState;
     procedure SetVersionDescribe;
@@ -67,7 +66,7 @@ uses
 
 { TfrmPackage }
 
-procedure TfrmPackage.AddVersionToControl(const aName, aSHA: string);
+procedure TfrmPackage.AddVersionToCombo(const aName, aSHA: string);
 begin
   cbbVersions.Items.Add(aName);
   FSHAs := FSHAs + [aSHA];
@@ -92,7 +91,7 @@ begin
     procedure
     begin
       FIsRepoVersionsLoaded := True;
-      FillVersionsControl;
+      FillVersionsCombo;
     end
   );
 end;
@@ -117,7 +116,7 @@ begin
   inherited;
 end;
 
-procedure TfrmPackage.FillVersionsControl;
+procedure TfrmPackage.FillVersionsCombo;
 var
   i: Integer;
   Version: TVersion;
@@ -127,45 +126,41 @@ begin
   cbbVersions.Items.Clear;
 
   for Version in FPackage.Versions do
-    AddVersionToControl(Version.DisplayName, Version.SHA);
+    AddVersionToCombo(Version.DisplayName, Version.SHA);
 
   if not FIsRepoVersionsLoaded then
-    AddVersionToControl(cLatestVersionOrCommit, '')
+    AddVersionToCombo(cLatestVersionOrCommit, '')
   else
-    AddVersionToControl(cLatestCommit, '');
+    AddVersionToCombo(cLatestCommit, '');
 
-  VersionIndex := GetIndexBySHA(FPackage.InstalledVersion.SHA);
+  VersionIndex := GetIndexByVersion(FPackage.InstalledVersion);
   if VersionIndex >= 0 then
     cbbVersions.ItemIndex := VersionIndex
   else
     cbbVersions.ItemIndex := cbbVersions.Items.Count - 1;
 end;
 
-function TfrmPackage.GetIndexBySHA(const aSHA: string): Integer;
+function TfrmPackage.GetIndexByVersion(const aVersion: TVersion): Integer;
 var
   i: Integer;
 begin
   Result := -1;
 
   for i := 0 to Length(FSHAs) - 1 do
-    if FSHAs[i] = aSHA then
+    if FSHAs[i] = aVersion.SHA then
       Exit(i);
 end;
 
-function TfrmPackage.GetSelectedVersionSHA: string;
-begin
-  Result := GetSHAByIndex(cbbVersions.ItemIndex);
-end;
-
-function TfrmPackage.GetSHAByIndex(const aIndex: Integer): string;
+function TfrmPackage.GetVersionByIndex(const aIndex: Integer): TVersion;
 var
   i: Integer;
+  Version: TVersion;
 begin
-  Result := '';
+  Result.Init;
 
-  for i := 0 to Length(FSHAs) - 1 do
-    if i = aIndex then
-      Exit(FSHAs[i]);
+  for Version in FPackage.Versions do
+    if Version.SHA = FSHAs[aIndex] then
+      Exit(Version);
 end;
 
 procedure TfrmPackage.InitActions;
@@ -192,8 +187,16 @@ procedure TfrmPackage.mniAddClick(Sender: TObject);
 var
   Version: TVersion;
 begin
-  //Version := GetSelectedVersion;
-  //FActionProc(atAdd, Version, FPackage);
+  Version := GetVersionByIndex(cbbVersions.ItemIndex);
+
+  if not Version.IsEmpty then
+    FDPMEngine.AddPackage(Version.SHA, FPackage)
+  else
+  if cbbVersions.Items[cbbVersions.ItemIndex] = cLatestVersionOrCommit then
+    FDPMEngine.AddPackageLatestVersionOrCommit(FPackage)
+  else
+  if cbbVersions.Items[cbbVersions.ItemIndex] = cLatestCommit then
+    FDPMEngine.AddPackageLatestCommit(FPackage);
 end;
 
 procedure TfrmPackage.mniDependenciesClick(Sender: TObject);
@@ -230,7 +233,7 @@ end;
 
 procedure TfrmPackage.Refresh;
 begin
-  FillVersionsControl;
+  FillVersionsCombo;
   InitState;
 end;
 

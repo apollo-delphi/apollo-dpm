@@ -84,6 +84,8 @@ type
     function LoadRepoData(const aRepoURL: string; out aOwner, aRepo, aError: string): Boolean;
     procedure AddPackage(var aVersion: TVersion; aPackage: TPackage); overload;
     procedure AddPackage(const aVersionSHA: string; aPackage: TPackage); overload;
+    procedure AddPackageLatestCommit(aPackage: TPackage);
+    procedure AddPackageLatestVersionOrCommit(aPackage: TPackage);
     procedure LoadPackageDependencies(const aVersion: TVersion; aPackage: TPackage);
     /// <summary>
     /// Load package versions(tags) form repo and fill up aPackage.Versions property
@@ -864,6 +866,16 @@ begin
           Result := Result + [FilePath];
         end;
     end;
+end;
+
+procedure TDPMEngine.AddPackageLatestCommit(aPackage: TPackage);
+begin
+
+end;
+
+procedure TDPMEngine.AddPackageLatestVersionOrCommit(aPackage: TPackage);
+begin
+
 end;
 
 procedure TDPMEngine.AddSourceLib(var aVersion: TVersion; aPackage: TPackage);
