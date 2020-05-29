@@ -1,12 +1,9 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{289BA01E-1EFC-4435-A72D-D7A4912A2E39}</ProjectGuid>
+        <ProjectGuid>{4C362E45-564C-4828-B999-41FCFD42D628}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
         <Projects Include="Apollo_DPM.dproj">
-            <Dependencies/>
-        </Projects>
-        <Projects Include="..\Test\Apollo_DPM_Test.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -26,23 +23,14 @@
     <Target Name="Apollo_DPM:Make">
         <MSBuild Projects="Apollo_DPM.dproj" Targets="Make"/>
     </Target>
-    <Target Name="Apollo_DPM_Test">
-        <MSBuild Projects="..\Test\Apollo_DPM_Test.dproj"/>
-    </Target>
-    <Target Name="Apollo_DPM_Test:Clean">
-        <MSBuild Projects="..\Test\Apollo_DPM_Test.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="Apollo_DPM_Test:Make">
-        <MSBuild Projects="..\Test\Apollo_DPM_Test.dproj" Targets="Make"/>
-    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Apollo_DPM;Apollo_DPM_Test"/>
+        <CallTarget Targets="Apollo_DPM"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Apollo_DPM:Clean;Apollo_DPM_Test:Clean"/>
+        <CallTarget Targets="Apollo_DPM:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Apollo_DPM:Make;Apollo_DPM_Test:Make"/>
+        <CallTarget Targets="Apollo_DPM:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

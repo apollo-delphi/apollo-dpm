@@ -34,7 +34,7 @@ constructor TApolloWizard.Create;
 begin
   inherited Create;
 
-  FDPMEngine := TDPMEngine.Create(BorlandIDEServices);
+  FDPMEngine := TDPMEngine.Create;
 end;
 
 destructor TApolloWizard.Destroy;
