@@ -25,6 +25,8 @@ package Apollo_DPM;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'Apollo Delphi Package Manager'}
+{$DESIGNONLY}
 {$IMPLICITBUILD ON}
 
 requires
