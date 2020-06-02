@@ -14,6 +14,7 @@ type
     procedure BuildMenu;
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
+    procedure DPMMenuItemClick(Sender: TObject);
   public
     constructor Create;
     destructor Destroy; override;
@@ -25,6 +26,9 @@ const
   cDPMMenuItemCaption = 'DPM - Delphi Package Manager...';
 
 implementation
+
+uses
+  Apollo_DPM_Form;
 
 { TDPMEngine }
 
@@ -45,6 +49,7 @@ var
 begin
   DPMMenuItem := TMenuItem.Create(nil);
   DPMMenuItem.Caption := cDPMMenuItemCaption;
+  DPMMenuItem.OnClick := DPMMenuItemClick;
 
   GetApolloMenuItem.Add(DPMMenuItem);
 end;
@@ -68,6 +73,16 @@ begin
     GetIDEMainMenu.Items.Remove(GetApolloMenuItem);
 
   inherited;
+end;
+
+procedure TDPMEngine.DPMMenuItemClick(Sender: TObject);
+begin
+  DPMForm := TDPMForm.Create(nil);
+  try
+    DPMForm.ShowModal;
+  finally
+    DPMForm.Free;
+  end;
 end;
 
 function TDPMEngine.GetApolloMenuItem: TMenuItem;

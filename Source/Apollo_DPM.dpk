@@ -31,10 +31,12 @@ package Apollo_DPM;
 
 requires
   rtl,
-  designide;
+  designide,
+  vclwinx;
 
 contains
   Apollo_DPM_Engine in 'Apollo_DPM_Engine.pas',
-  Apollo_DPM_IDEWizard in 'Apollo_DPM_IDEWizard.pas';
+  Apollo_DPM_IDEWizard in 'Apollo_DPM_IDEWizard.pas',
+  Apollo_DPM_Form in 'Apollo_DPM_Form.pas' {DPMForm};
 
 end.
