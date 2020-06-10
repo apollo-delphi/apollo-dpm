@@ -77,7 +77,7 @@ end;
 
 procedure TDPMEngine.DPMMenuItemClick(Sender: TObject);
 begin
-  DPMForm := TDPMForm.Create(nil);
+  DPMForm := TDPMForm.Create;
   try
     DPMForm.ShowModal;
   finally

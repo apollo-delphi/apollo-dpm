@@ -50,6 +50,8 @@ object DPMForm: TDPMForm
       Align = alClient
       BevelOuter = bvNone
       Caption = 'pnlMain'
+      Color = clWindow
+      ParentBackground = False
       TabOrder = 0
       object splVertical: TSplitter
         Left = 170
@@ -58,16 +60,26 @@ object DPMForm: TDPMForm
         Height = 339
       end
       object tvNavigation: TTreeView
+        AlignWithMargins = True
         Left = 0
-        Top = 0
+        Top = 15
         Width = 170
-        Height = 339
+        Height = 324
+        Margins.Left = 0
+        Margins.Top = 15
+        Margins.Right = 0
+        Margins.Bottom = 0
         Align = alLeft
         BevelInner = bvNone
         BevelOuter = bvNone
         BorderStyle = bsNone
+        HideSelection = False
         Indent = 19
+        ReadOnly = True
+        ShowLines = False
         TabOrder = 0
+        ToolTips = False
+        OnCustomDrawItem = tvNavigationCustomDrawItem
       end
       object pnlPackages: TPanel
         Left = 172

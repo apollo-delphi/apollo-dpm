@@ -29,9 +29,13 @@ type
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure swPackageDetailOpened(Sender: TObject);
     procedure swPackageDetailClosed(Sender: TObject);
+    procedure tvNavigationCustomDrawItem(Sender: TCustomTreeView;
+      Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
   private
     //procedure SaveLayout(const aControls: TArray<TWinControl>);
+    procedure RenderNavigation;
   public
+    constructor Create; reintroduce;
   end;
 
 var
@@ -41,9 +45,18 @@ const
   cSwitchToLeftIconIndex = 0;
   cSwitchToRightIconIndex = 1;
 
+  cSettings = 'Settings';
+
 implementation
 
 {$R *.dfm}
+
+constructor TDPMForm.Create;
+begin
+  inherited Create(nil);
+
+  RenderNavigation;
+end;
 
 procedure TDPMForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
@@ -55,6 +68,12 @@ begin
   swPackageDetail.Opened := swPackageDetail.Opened <> True;
 end;
 
+procedure TDPMForm.RenderNavigation;
+begin
+  tvNavigation.Items.Add(nil, 'Test item');
+  tvNavigation.Items.Add(nil, cSettings);
+end;
+
 procedure TDPMForm.swPackageDetailClosed(Sender: TObject);
 begin
   actSwitchPackageDetail.ImageIndex := cSwitchToLeftIconIndex;
@@ -63,6 +82,31 @@ end;
 procedure TDPMForm.swPackageDetailOpened(Sender: TObject);
 begin
   actSwitchPackageDetail.ImageIndex := cSwitchToRightIconIndex;
+end;
+
+procedure TDPMForm.tvNavigationCustomDrawItem(Sender: TCustomTreeView;
+  Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
+var
+  Rect: TRect;
+begin
+  DefaultDraw := False;
+
+  if cdsSelected in State then
+    begin
+      Sender.Canvas.Brush.Color := clHighlight;
+      Sender.Canvas.Font.Color := clHighlightText;
+    end
+  else
+    begin
+      Sender.Canvas.Brush.Color := clWindow;
+      Sender.Canvas.Font.Color := clWindowText;
+    end;
+
+  Rect := Node.DisplayRect(False);
+  Sender.Canvas.FillRect(Rect);
+
+  Rect := Node.DisplayRect(True);
+  Sender.Canvas.TextOut(Rect.Left, Rect.Top, Node.Text);
 end;
 
 {procedure TDPMForm.SaveLayout(const aControls: TArray<TWinControl>);

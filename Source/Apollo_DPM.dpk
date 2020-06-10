@@ -37,6 +37,7 @@ requires
 contains
   Apollo_DPM_Engine in 'Apollo_DPM_Engine.pas',
   Apollo_DPM_IDEWizard in 'Apollo_DPM_IDEWizard.pas',
-  Apollo_DPM_Form in 'Apollo_DPM_Form.pas' {DPMForm};
+  Apollo_DPM_Form in 'Apollo_DPM_Form.pas' {DPMForm},
+  Apollo_DPM_SettingsFrame in 'Apollo_DPM_SettingsFrame.pas' {Frame1: TFrame};
 
 end.
