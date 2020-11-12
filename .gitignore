@@ -1,0 +1,8 @@
+*.local
+*.identcache
+*.res
+*.stat
+__history
+__recovery
+BIN
+DCU
