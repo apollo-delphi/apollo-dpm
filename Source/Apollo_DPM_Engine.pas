@@ -23,6 +23,7 @@ implementation
 
 uses
   Apollo_DPM_Consts,
+  Apollo_DPM_Form,
   ToolsAPI;
 
 { TDPMEngine }
@@ -72,7 +73,12 @@ end;
 
 procedure TDPMEngine.DPMMenuItemClick(Sender: TObject);
 begin
-
+  DPMForm := TDPMForm.Create;
+  try
+    DPMForm.ShowModal;
+  finally
+    DPMForm.Free;
+  end;
 end;
 
 function TDPMEngine.GetApolloMenuItem: TMenuItem;
