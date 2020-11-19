@@ -79,6 +79,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_DcuOutput>..\DCU\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_Description>Apollo Delphi Package Manager</DCC_Description>
+        <Debugger_HostApplication>C:\Program Files (x86)\Embarcadero\Studio\20.0\bin\bds.exe</Debugger_HostApplication>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
@@ -100,6 +101,12 @@
             <Form>DPMForm</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="Apollo_DPM_Package.pas"/>
+        <DCCReference Include="Apollo_DPM_PackageForm.pas">
+            <Form>PackageForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="Apollo_DPM_UIHelper.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

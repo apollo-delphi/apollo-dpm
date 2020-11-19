@@ -7,6 +7,8 @@ const
   cApolloMenuItemName = 'miApollo';
   cDPMMenuItemCaption = 'DPM - Delphi Package Manager...';
   cNavSettings = 'Settings';
+  cPrivatePackagesPath = 'Apollo\DPM\PrivatePackages';
+  cStrTheFieldCannotBeEmpty = 'The field cannot be empty!';
   cSwitchToLeftIconIndex = 0;
   cSwitchToRightIconIndex = 1;
 

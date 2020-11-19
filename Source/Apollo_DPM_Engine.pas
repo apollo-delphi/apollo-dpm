@@ -3,6 +3,8 @@ unit Apollo_DPM_Engine;
 interface
 
 uses
+  Apollo_DPM_Package,
+  System.SysUtils,
   Vcl.Menus;
 
 type
@@ -10,11 +12,14 @@ type
   private
     function GetApolloMenuItem: TMenuItem;
     function GetIDEMainMenu: TMainMenu;
+    function GetPrivatePackagesPath: string;
     procedure BuildMenu;
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
     procedure DPMMenuItemClick(Sender: TObject);
+    procedure WriteFile(const aPath: string; const aBytes: TBytes);
   public
+    procedure SavePackage(aPackage: TPackage);
     constructor Create;
     destructor Destroy; override;
   end;
@@ -24,6 +29,9 @@ implementation
 uses
   Apollo_DPM_Consts,
   Apollo_DPM_Form,
+  System.Classes,
+  System.JSON,
+  System.IOUtils,
   ToolsAPI;
 
 { TDPMEngine }
@@ -73,7 +81,7 @@ end;
 
 procedure TDPMEngine.DPMMenuItemClick(Sender: TObject);
 begin
-  DPMForm := TDPMForm.Create;
+  DPMForm := TDPMForm.Create(Self);
   try
     DPMForm.ShowModal;
   finally
@@ -95,6 +103,45 @@ end;
 function TDPMEngine.GetIDEMainMenu: TMainMenu;
 begin
   Result := (BorlandIDEServices as INTAServices).MainMenu;
+end;
+
+function TDPMEngine.GetPrivatePackagesPath: string;
+begin
+  Result := TPath.Combine(TPath.GetPublicPath, cPrivatePackagesPath);
+end;
+
+procedure TDPMEngine.SavePackage(aPackage: TPackage);
+var
+  Bytes: TBytes;
+  jsnPackageObj: TJSONObject;
+
+  s: string;
+begin
+  jsnPackageObj := aPackage.CreateJSON;
+  try
+    Bytes := TEncoding.ANSI.GetBytes(jsnPackageObj.ToJSON);
+
+    s := TPath.Combine(GetPrivatePackagesPath, aPackage.Name + '.json');
+
+    WriteFile(s, Bytes);
+  finally
+    jsnPackageObj.Free;
+  end;
+end;
+
+procedure TDPMEngine.WriteFile(const aPath: string; const aBytes: TBytes);
+var
+  FS: TFileStream;
+begin
+  ForceDirectories(TDirectory.GetParent(aPath));
+
+  FS := TFile.Create(aPath);
+  try
+    FS.Position := FS.Size;
+    FS.Write(aBytes[0], Length(aBytes));
+  finally
+    FS.Free;
+  end;
 end;
 
 end.

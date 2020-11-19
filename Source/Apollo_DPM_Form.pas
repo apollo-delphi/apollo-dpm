@@ -6,7 +6,8 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.ComCtrls,
   Vcl.WinXCtrls, Vcl.Buttons, System.Actions, Vcl.ActnList, System.ImageList,
-  Vcl.ImgList;
+  Vcl.ImgList,
+  Apollo_DPM_Engine;
 
 type
   TDPMForm = class(TForm)
@@ -25,18 +26,22 @@ type
     ilIcons: TImageList;
     alActions: TActionList;
     actSwitchPackageDetails: TAction;
+    btnNewPackage: TSpeedButton;
+    actNewPackage: TAction;
     procedure pnlDetailsSwitcherClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure swPackageDetailsOpened(Sender: TObject);
     procedure swPackageDetailsClosed(Sender: TObject);
     procedure tvNavigationCustomDrawItem(Sender: TCustomTreeView;
       Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
+    procedure actNewPackageExecute(Sender: TObject);
   private
+    FDPMEngine: TDPMEngine;
     FFrames: TArray<TFrame>;
   public
     procedure ClearFrames;
     procedure RenderNavigation;
-    constructor Create; reintroduce;
+    constructor Create(aDPMEngine: TDPMEngine); reintroduce;
   end;
 
 var
@@ -47,9 +52,26 @@ implementation
 {$R *.dfm}
 
 uses
-  Apollo_DPM_Consts;
+  Apollo_DPM_Consts,
+  Apollo_DPM_Package,
+  Apollo_DPM_PackageForm;
 
 { TDPMForm }
+
+procedure TDPMForm.actNewPackageExecute(Sender: TObject);
+var
+  Package: TPackage;
+begin
+  Package := TPackage.Create;
+  PackageForm := TPackageForm.Create(Self, Package);
+  try
+    if PackageForm.ShowModal = mrOk then
+      FDPMEngine.SavePackage(Package);
+  finally
+    PackageForm.Free;
+    Package.Free;
+  end;
+end;
 
 procedure TDPMForm.ClearFrames;
 var
@@ -61,9 +83,11 @@ begin
   FFrames := [];
 end;
 
-constructor TDPMForm.Create;
+constructor TDPMForm.Create(aDPMEngine: TDPMEngine);
 begin
   inherited Create(nil);
+
+  FDPMEngine := aDPMEngine;
 
   ClearFrames;
   RenderNavigation;
