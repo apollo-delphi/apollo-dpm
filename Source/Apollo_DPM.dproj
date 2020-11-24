@@ -107,6 +107,12 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="Apollo_DPM_UIHelper.pas"/>
+        <DCCReference Include="Apollo_DPM_PackageFrame.pas">
+            <Form>frmPackage</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
+        <DCCReference Include="Apollo_DPM_Validation.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

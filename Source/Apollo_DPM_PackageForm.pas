@@ -5,7 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
-  Apollo_DPM_Package;
+  Apollo_DPM_Package,
+  Apollo_DPM_Validation;
 
 type
   TPackageForm = class(TForm)
@@ -20,6 +21,7 @@ type
   private
     FPackage: TPackage;
     function AreControlsValid: Boolean;
+    function GetSelectedVisibility: TVisibility;
     procedure ReadFromControls;
     procedure WriteToControls;
   public
@@ -34,15 +36,16 @@ implementation
 {$R *.dfm}
 
 uses
-  Apollo_DPM_Consts,
   Apollo_DPM_UIHelper;
 
 { TPackageForm }
 
 function TPackageForm.AreControlsValid: Boolean;
+var
+  aMsg: string;
 begin
   Result := True;
-  ControlValidation(leName, leName.Text <> '', cStrTheFieldCannotBeEmpty, lblValidationMsg, Result);
+  ControlValidation(leName, Validation.ValidatePackageName(leName.Text, GetSelectedVisibility, aMsg), aMsg, lblValidationMsg, Result);
 end;
 
 procedure TPackageForm.btnOkClick(Sender: TObject);
@@ -61,6 +64,14 @@ begin
   FPackage := aPackage;
 
   WriteToControls;
+end;
+
+function TPackageForm.GetSelectedVisibility: TVisibility;
+begin
+  if rbPrivate.Checked then
+    Result := vPrivate
+  else
+    Result := vPublic;
 end;
 
 procedure TPackageForm.ReadFromControls;

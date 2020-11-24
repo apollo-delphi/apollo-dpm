@@ -7,7 +7,8 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.ComCtrls,
   Vcl.WinXCtrls, Vcl.Buttons, System.Actions, Vcl.ActnList, System.ImageList,
   Vcl.ImgList,
-  Apollo_DPM_Engine;
+  Apollo_DPM_Engine,
+  Apollo_DPM_Package;
 
 type
   TDPMForm = class(TForm)
@@ -35,12 +36,16 @@ type
     procedure tvNavigationCustomDrawItem(Sender: TCustomTreeView;
       Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure actNewPackageExecute(Sender: TObject);
+    procedure tvNavigationChange(Sender: TObject; Node: TTreeNode);
   private
     FDPMEngine: TDPMEngine;
     FFrames: TArray<TFrame>;
-  public
+    function GetSelectedNavigation: string;
     procedure ClearFrames;
     procedure RenderNavigation;
+    procedure RenderPackageList(aPackageList: TPackageList);
+    procedure RenderPackages;
+  public
     constructor Create(aDPMEngine: TDPMEngine); reintroduce;
   end;
 
@@ -53,8 +58,8 @@ implementation
 
 uses
   Apollo_DPM_Consts,
-  Apollo_DPM_Package,
-  Apollo_DPM_PackageForm;
+  Apollo_DPM_PackageForm,
+  Apollo_DPM_PackageFrame;
 
 { TDPMForm }
 
@@ -66,10 +71,14 @@ begin
   PackageForm := TPackageForm.Create(Self, Package);
   try
     if PackageForm.ShowModal = mrOk then
-      FDPMEngine.SavePackage(Package);
+    begin
+      FDPMEngine.AddNewPrivatePackage(Package);
+      RenderPackages;
+    end
+    else
+      Package.Free;
   finally
     PackageForm.Free;
-    Package.Free;
   end;
 end;
 
@@ -89,13 +98,20 @@ begin
 
   FDPMEngine := aDPMEngine;
 
-  ClearFrames;
   RenderNavigation;
 end;
 
 procedure TDPMForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
  //SaveLayout([Self, splHorizontal, splVertical, swPackageDetail]);
+end;
+
+function TDPMForm.GetSelectedNavigation: string;
+begin
+  Result := '';
+
+  if tvNavigation.Selected <> nil then
+    Result := tvNavigation.Selected.Text;
 end;
 
 procedure TDPMForm.pnlDetailsSwitcherClick(Sender: TObject);
@@ -105,8 +121,42 @@ end;
 
 procedure TDPMForm.RenderNavigation;
 begin
-  tvNavigation.Items.Add(nil, 'Test item');
+  tvNavigation.Items.Add(nil, cNavPrivatePackages);
   tvNavigation.Items.Add(nil, cNavSettings);
+end;
+
+procedure TDPMForm.RenderPackageList(aPackageList: TPackageList);
+var
+  i: Integer;
+  Package: TPackage;
+  PackageFrame: TfrmPackage;
+  Top: Integer;
+begin
+  i := 0;
+  Top := 0;
+
+  for Package in aPackageList do
+  begin
+    PackageFrame := TfrmPackage.Create(sbFrames, Package);
+    PackageFrame.Name := Format('PackageFrame%d', [i]);
+    PackageFrame.Parent := sbFrames;
+    PackageFrame.Top := Top;
+    PackageFrame.Left := 0;
+    if not Odd(i) then
+      PackageFrame.Color := clBtnFace;
+
+    Inc(i);
+    Top := Top + PackageFrame.Height + 1;
+    FFrames := FFrames + [PackageFrame];
+  end;
+end;
+
+procedure TDPMForm.RenderPackages;
+begin
+  ClearFrames;
+
+  if GetSelectedNavigation = cNavPrivatePackages then
+    RenderPackageList(FDPMEngine.GetPrivatePackages);
 end;
 
 procedure TDPMForm.swPackageDetailsClosed(Sender: TObject);
@@ -117,6 +167,11 @@ end;
 procedure TDPMForm.swPackageDetailsOpened(Sender: TObject);
 begin
   actSwitchPackageDetails.ImageIndex := cSwitchToRightIconIndex;
+end;
+
+procedure TDPMForm.tvNavigationChange(Sender: TObject; Node: TTreeNode);
+begin
+  RenderPackages;
 end;
 
 procedure TDPMForm.tvNavigationCustomDrawItem(Sender: TCustomTreeView;

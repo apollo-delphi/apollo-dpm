@@ -10,7 +10,7 @@ uses
 type
   TFormHelper = class helper for TForm
     procedure ControlValidation(aControl: TWinControl; const aStatement: Boolean;
-      const aErrorMsg: string; aErrorMsgLabel: TLabel; var aResult: Boolean);
+      var aErrorMsg: string; aErrorMsgLabel: TLabel; var aResult: Boolean);
   end;
 
 implementation
@@ -22,7 +22,7 @@ uses
 { TFormHelper }
 
 procedure TFormHelper.ControlValidation(aControl: TWinControl;
-  const aStatement: Boolean; const aErrorMsg: string; aErrorMsgLabel: TLabel;
+  const aStatement: Boolean; var aErrorMsg: string; aErrorMsgLabel: TLabel;
   var aResult: Boolean);
 begin
   if not aResult then

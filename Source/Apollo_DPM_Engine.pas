@@ -10,6 +10,7 @@ uses
 type
   TDPMEngine = class
   private
+    FPrivatePackages: TPackageList;
     function GetApolloMenuItem: TMenuItem;
     function GetIDEMainMenu: TMainMenu;
     function GetPrivatePackagesPath: string;
@@ -17,9 +18,11 @@ type
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
     procedure DPMMenuItemClick(Sender: TObject);
+    procedure SavePackage(aPackage: TPackage);
     procedure WriteFile(const aPath: string; const aBytes: TBytes);
   public
-    procedure SavePackage(aPackage: TPackage);
+    function GetPrivatePackages: TPackageList;
+    procedure AddNewPrivatePackage(aPackage: TPackage);
     constructor Create;
     destructor Destroy; override;
   end;
@@ -29,8 +32,8 @@ implementation
 uses
   Apollo_DPM_Consts,
   Apollo_DPM_Form,
+  Apollo_DPM_Validation,
   System.Classes,
-  System.JSON,
   System.IOUtils,
   ToolsAPI;
 
@@ -58,6 +61,12 @@ begin
   GetApolloMenuItem.Add(DPMMenuItem);
 end;
 
+procedure TDPMEngine.AddNewPrivatePackage(aPackage: TPackage);
+begin
+  SavePackage(aPackage);
+  GetPrivatePackages.Add(aPackage);
+end;
+
 procedure TDPMEngine.BuildMenu;
 begin
   if GetApolloMenuItem = nil then
@@ -68,11 +77,20 @@ end;
 
 constructor TDPMEngine.Create;
 begin
+  FPrivatePackages := nil;
+
   BuildMenu;
+
+  Validation := TValidation.Create(Self);
 end;
 
 destructor TDPMEngine.Destroy;
 begin
+  Validation.Free;
+
+  if Assigned(FPrivatePackages) then
+    FPrivatePackages.Free;
+
   if GetApolloMenuItem <> nil then
     GetIDEMainMenu.Items.Remove(GetApolloMenuItem);
 
@@ -105,6 +123,31 @@ begin
   Result := (BorlandIDEServices as INTAServices).MainMenu;
 end;
 
+function TDPMEngine.GetPrivatePackages: TPackageList;
+var
+  FileArr: TArray<string>;
+  FileItem: string;
+  JSONStrings: TArray<string>;
+begin
+  if FPrivatePackages = nil then
+  begin
+    if TDirectory.Exists(GetPrivatePackagesPath) then
+    begin
+      FileArr := TDirectory.GetFiles(GetPrivatePackagesPath, '*.json');
+      JSONStrings := [];
+      for FileItem in FileArr do
+        JSONStrings := JSONStrings + [TFile.ReadAllText(FileItem, TEncoding.ANSI)];
+
+      if Length(JSONStrings) > 0 then
+        FPrivatePackages := TPackageList.Create(JSONStrings);
+    end;
+  end;
+
+  if FPrivatePackages = nil then
+    FPrivatePackages := TPackageList.Create(True);
+  Result := FPrivatePackages;
+end;
+
 function TDPMEngine.GetPrivatePackagesPath: string;
 begin
   Result := TPath.Combine(TPath.GetPublicPath, cPrivatePackagesPath);
@@ -113,20 +156,12 @@ end;
 procedure TDPMEngine.SavePackage(aPackage: TPackage);
 var
   Bytes: TBytes;
-  jsnPackageObj: TJSONObject;
-
-  s: string;
+  Path: string;
 begin
-  jsnPackageObj := aPackage.CreateJSON;
-  try
-    Bytes := TEncoding.ANSI.GetBytes(jsnPackageObj.ToJSON);
+  Bytes := TEncoding.ANSI.GetBytes(aPackage.GetJSONString);
+  Path := TPath.Combine(GetPrivatePackagesPath, aPackage.Name + '.json');
 
-    s := TPath.Combine(GetPrivatePackagesPath, aPackage.Name + '.json');
-
-    WriteFile(s, Bytes);
-  finally
-    jsnPackageObj.Free;
-  end;
+  WriteFile(Path, Bytes);
 end;
 
 procedure TDPMEngine.WriteFile(const aPath: string; const aBytes: TBytes);

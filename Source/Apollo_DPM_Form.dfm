@@ -79,6 +79,7 @@ object DPMForm: TDPMForm
         ShowLines = False
         TabOrder = 0
         ToolTips = False
+        OnChange = tvNavigationChange
         OnCustomDrawItem = tvNavigationCustomDrawItem
       end
       object pnlFrames: TPanel
