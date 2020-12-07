@@ -1,17 +1,18 @@
 object PackageForm: TPackageForm
   Left = 0
   Top = 0
-  Caption = 'PackageForm'
-  ClientHeight = 299
-  ClientWidth = 310
-  Color = clBtnFace
+  BorderStyle = bsDialog
+  Caption = 'Package'
+  ClientHeight = 309
+  ClientWidth = 314
+  Color = clWindow
   OldCreateOrder = False
   Position = poOwnerFormCenter
   PixelsPerInch = 96
   TextHeight = 13
   object lblValidationMsg: TLabel
-    Left = 8
-    Top = 248
+    Left = 5
+    Top = 240
     Width = 88
     Height = 13
     Caption = 'lblValidationMsg'
@@ -21,9 +22,9 @@ object PackageForm: TPackageForm
     Font.Style = [fsBold]
   end
   object grpVisibility: TGroupBox
-    Left = 8
-    Top = 3
-    Width = 294
+    Left = 6
+    Top = 107
+    Width = 301
     Height = 54
     Caption = 'Visibility'
     TabOrder = 0
@@ -45,8 +46,8 @@ object PackageForm: TPackageForm
     end
   end
   object leName: TLabeledEdit
-    Left = 80
-    Top = 63
+    Left = 77
+    Top = 179
     Width = 222
     Height = 21
     EditLabel.Width = 29
@@ -72,5 +73,57 @@ object PackageForm: TPackageForm
     Caption = 'Cancel'
     ModalResult = 2
     TabOrder = 3
+  end
+  object grpGitHub: TGroupBox
+    Left = 6
+    Top = 2
+    Width = 301
+    Height = 107
+    Caption = 'GitHub Repository'
+    TabOrder = 4
+    object btnGoToURL: TSpeedButton
+      Left = 274
+      Top = 20
+      Width = 23
+      Height = 22
+      Flat = True
+    end
+    object leURL: TLabeledEdit
+      Left = 45
+      Top = 20
+      Width = 227
+      Height = 21
+      EditLabel.Width = 20
+      EditLabel.Height = 13
+      EditLabel.Caption = 'URL'
+      LabelPosition = lpLeft
+      TabOrder = 0
+    end
+    object leRepoOwner: TLabeledEdit
+      Left = 45
+      Top = 43
+      Width = 227
+      Height = 21
+      Color = clBtnFace
+      EditLabel.Width = 35
+      EditLabel.Height = 13
+      EditLabel.Caption = 'Owner'
+      LabelPosition = lpLeft
+      ReadOnly = True
+      TabOrder = 1
+    end
+    object leRepo: TLabeledEdit
+      Left = 45
+      Top = 66
+      Width = 227
+      Height = 21
+      Color = clBtnFace
+      EditLabel.Width = 27
+      EditLabel.Height = 13
+      EditLabel.Caption = 'Repo'
+      LabelPosition = lpLeft
+      ReadOnly = True
+      TabOrder = 2
+    end
   end
 end

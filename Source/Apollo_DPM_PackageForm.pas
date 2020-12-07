@@ -4,7 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Buttons,
   Apollo_DPM_Package,
   Apollo_DPM_Validation;
 
@@ -17,6 +17,11 @@ type
     btnCancel: TButton;
     rbPublic: TRadioButton;
     lblValidationMsg: TLabel;
+    grpGitHub: TGroupBox;
+    leURL: TLabeledEdit;
+    leRepoOwner: TLabeledEdit;
+    leRepo: TLabeledEdit;
+    btnGoToURL: TSpeedButton;
     procedure btnOkClick(Sender: TObject);
   private
     FPackage: TPackage;
@@ -36,6 +41,7 @@ implementation
 {$R *.dfm}
 
 uses
+  Apollo_DPM_Form,
   Apollo_DPM_UIHelper;
 
 { TPackageForm }
@@ -45,7 +51,8 @@ var
   aMsg: string;
 begin
   Result := True;
-  ControlValidation(leName, Validation.ValidatePackageName(leName.Text, GetSelectedVisibility, aMsg), aMsg, lblValidationMsg, Result);
+  ControlValidation(leName, Validation.ValidatePackageName(leName.Text, GetSelectedVisibility, aMsg),
+    aMsg, lblValidationMsg, Result);
 end;
 
 procedure TPackageForm.btnOkClick(Sender: TObject);
@@ -85,6 +92,8 @@ begin
     vPrivate: rbPrivate.Checked := True;
     vPublic: rbPublic.Checked := True;
   end;
+
+  leName.Text := FPackage.Name;
 end;
 
 end.

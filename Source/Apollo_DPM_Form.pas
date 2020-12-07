@@ -8,7 +8,8 @@ uses
   Vcl.WinXCtrls, Vcl.Buttons, System.Actions, Vcl.ActnList, System.ImageList,
   Vcl.ImgList,
   Apollo_DPM_Engine,
-  Apollo_DPM_Package;
+  Apollo_DPM_Package,
+  Apollo_DPM_Types;
 
 type
   TDPMForm = class(TForm)
@@ -29,6 +30,7 @@ type
     actSwitchPackageDetails: TAction;
     btnNewPackage: TSpeedButton;
     actNewPackage: TAction;
+    actGoToURL: TAction;
     procedure pnlDetailsSwitcherClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure swPackageDetailsOpened(Sender: TObject);
@@ -37,11 +39,14 @@ type
       Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure actNewPackageExecute(Sender: TObject);
     procedure tvNavigationChange(Sender: TObject; Node: TTreeNode);
+    procedure actGoToURLExecute(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
     FFrames: TArray<TFrame>;
     function GetSelectedNavigation: string;
+    function ShowPackageForm(aPackage: TPackage): Boolean;
     procedure ClearFrames;
+    procedure FrameAction(const aFrameActionType: TFrameActionType; aPackage: TPackage);
     procedure RenderNavigation;
     procedure RenderPackageList(aPackageList: TPackageList);
     procedure RenderPackages;
@@ -63,23 +68,23 @@ uses
 
 { TDPMForm }
 
+procedure TDPMForm.actGoToURLExecute(Sender: TObject);
+begin
+  //
+end;
+
 procedure TDPMForm.actNewPackageExecute(Sender: TObject);
 var
   Package: TPackage;
 begin
   Package := TPackage.Create;
-  PackageForm := TPackageForm.Create(Self, Package);
-  try
-    if PackageForm.ShowModal = mrOk then
-    begin
-      FDPMEngine.AddNewPrivatePackage(Package);
-      RenderPackages;
-    end
-    else
-      Package.Free;
-  finally
-    PackageForm.Free;
-  end;
+  if ShowPackageForm(Package) then
+  begin
+    FDPMEngine.AddNewPrivatePackage(Package);
+    RenderPackages;
+  end
+  else
+    Package.Free;
 end;
 
 procedure TDPMForm.ClearFrames;
@@ -104,6 +109,14 @@ end;
 procedure TDPMForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
  //SaveLayout([Self, splHorizontal, splVertical, swPackageDetail]);
+end;
+
+procedure TDPMForm.FrameAction(const aFrameActionType: TFrameActionType;
+  aPackage: TPackage);
+begin
+  case aFrameActionType of
+    fatEditPackage: ShowPackageForm(aPackage);
+  end;
 end;
 
 function TDPMForm.GetSelectedNavigation: string;
@@ -140,6 +153,7 @@ begin
     PackageFrame := TfrmPackage.Create(sbFrames, Package);
     PackageFrame.Name := Format('PackageFrame%d', [i]);
     PackageFrame.Parent := sbFrames;
+    PackageFrame.OnAction := FrameAction;
     PackageFrame.Top := Top;
     PackageFrame.Left := 0;
     if not Odd(i) then
@@ -157,6 +171,19 @@ begin
 
   if GetSelectedNavigation = cNavPrivatePackages then
     RenderPackageList(FDPMEngine.GetPrivatePackages);
+end;
+
+function TDPMForm.ShowPackageForm(aPackage: TPackage): Boolean;
+begin
+  PackageForm := TPackageForm.Create(Self, aPackage);
+  try
+    if PackageForm.ShowModal = mrOk then
+      Result := True
+    else
+      Result := False
+  finally
+    PackageForm.Free;
+  end;
 end;
 
 procedure TDPMForm.swPackageDetailsClosed(Sender: TObject);

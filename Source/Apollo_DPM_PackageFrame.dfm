@@ -14,4 +14,13 @@ object frmPackage: TfrmPackage
     Height = 13
     Caption = 'lblName'
   end
+  object btnEdit: TButton
+    Left = 287
+    Top = 35
+    Width = 75
+    Height = 25
+    Action = DPMForm.actEditPackage
+    TabOrder = 0
+    OnClick = btnEditClick
+  end
 end

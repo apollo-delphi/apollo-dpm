@@ -15,6 +15,8 @@ type
   private
     FName: string;
     FPackageType: TPackageType;
+    FRepo: string;
+    FRepoOwner: string;
     FVisibility: TVisibility;
     procedure Init;
   public
@@ -23,6 +25,8 @@ type
     constructor Create(const aJSONString: string); overload;
     property Name: string read FName write FName;
     property PackageType: TPackageType read FPackageType write FPackageType;
+    property Repo: string read FRepo write FRepo;
+    property RepoOwner: string read FRepoOwner write FRepoOwner;
     property Visibility: TVisibility read FVisibility write FVisibility;
   end;
 
