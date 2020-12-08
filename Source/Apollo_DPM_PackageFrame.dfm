@@ -19,7 +19,7 @@ object frmPackage: TfrmPackage
     Top = 35
     Width = 75
     Height = 25
-    Action = DPMForm.actEditPackage
+    Caption = 'edit'
     TabOrder = 0
     OnClick = btnEditClick
   end

@@ -10,7 +10,10 @@ const
   cNavSettings = 'Settings';
   cPrivatePackagesPath = 'Apollo\DPM\PrivatePackages';
   cStrAPackageWithThisNameAlreadyExists = 'A package with this name already exists!';
+  cStrARepositoryNameIsEmpty = 'A repository name is empty. Please go to repository URL!';
+  cStrCantLoadTheRepositoryURL = 'Can`t load the repository URL!';
   cStrTheFieldCannotBeEmpty = 'The field cannot be empty!';
+  cStrTheGitHubRepositoryUrlIsInvalid = 'The GitHub repository URL is invalid!';
   cSwitchToLeftIconIndex = 0;
   cSwitchToRightIconIndex = 1;
 

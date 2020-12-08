@@ -3,47 +3,53 @@ unit Apollo_DPM_UIHelper;
 interface
 
 uses
-  Vcl.Controls,
+  Apollo_DPM_Types,
   Vcl.Forms,
-  Vcl.StdCtrls;
+  Vcl.WinXCtrls;
 
 type
   TFormHelper = class helper for TForm
-    procedure ControlValidation(aControl: TWinControl; const aStatement: Boolean;
-      var aErrorMsg: string; aErrorMsgLabel: TLabel; var aResult: Boolean);
+    procedure AsyncLoad(aIndicator: TActivityIndicator; aLoadProc: TAsyncLoadProc;
+      aCallBack: TAsyncLoadCallBack);
   end;
 
 implementation
 
 uses
-  Vcl.ExtCtrls,
-  Vcl.Graphics;
+  System.Classes,
+  System.Threading;
+
+procedure AsyncLoadCommon(aIndicator: TActivityIndicator; aLoadProc: TAsyncLoadProc;
+      aCallBack: TAsyncLoadCallBack);
+var
+  AsyncTask: ITask;
+begin
+  AsyncTask := TTask.Create(procedure()
+    begin
+      aLoadProc;
+
+      TThread.Synchronize(nil, procedure()
+        begin
+          if Assigned(aCallBack) then
+            aCallBack;
+          if Assigned(aIndicator) then
+            aIndicator.Animate := False;
+        end
+      );
+    end
+  );
+
+  if Assigned(aIndicator) then
+    aIndicator.Animate := True;
+  AsyncTask.Start;
+end;
 
 { TFormHelper }
 
-procedure TFormHelper.ControlValidation(aControl: TWinControl;
-  const aStatement: Boolean; var aErrorMsg: string; aErrorMsgLabel: TLabel;
-  var aResult: Boolean);
+procedure TFormHelper.AsyncLoad(aIndicator: TActivityIndicator;
+  aLoadProc: TAsyncLoadProc; aCallBack: TAsyncLoadCallBack);
 begin
-  if not aResult then
-    Exit;
-
-  aErrorMsgLabel.Visible := False;
-  aErrorMsgLabel.Caption := '';
-
-  if aControl is TLabeledEdit then
-    TLabeledEdit(aControl).Color := clWindow;
-
-  if not aStatement then
-  begin
-    aErrorMsgLabel.Caption := aErrorMsg;
-    aErrorMsgLabel.Visible := True;
-
-    aResult := False;
-
-    if aControl is TLabeledEdit then
-      TLabeledEdit(aControl).Color := clRed;
-  end;
+  AsyncLoadCommon(aIndicator, aLoadProc, aCallBack);
 end;
 
 end.

@@ -5,6 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Buttons,
+  System.Actions, Vcl.ActnList, Vcl.WinXCtrls, System.ImageList, Vcl.ImgList,
+  Apollo_DPM_Engine,
   Apollo_DPM_Package,
   Apollo_DPM_Validation;
 
@@ -20,17 +22,24 @@ type
     grpGitHub: TGroupBox;
     leURL: TLabeledEdit;
     leRepoOwner: TLabeledEdit;
-    leRepo: TLabeledEdit;
+    leRepoName: TLabeledEdit;
     btnGoToURL: TSpeedButton;
+    alActions: TActionList;
+    actGoToURL: TAction;
+    aiRepoDataLoad: TActivityIndicator;
+    ilIcons: TImageList;
     procedure btnOkClick(Sender: TObject);
+    procedure actGoToURLExecute(Sender: TObject);
   private
+    FDPMEngine: TDPMEngine;
     FPackage: TPackage;
-    function AreControlsValid: Boolean;
+    FRepoDataLoadError: string;
     function GetSelectedVisibility: TVisibility;
+    function IsValid(const aValidationGroupName: string): Boolean;
     procedure ReadFromControls;
     procedure WriteToControls;
   public
-    constructor Create(aOwner: TComponent; aPackage: TPackage); reintroduce;
+    constructor Create(aDPMEngine: TDPMEngine; aPackage: TPackage); reintroduce;
   end;
 
 var
@@ -41,33 +50,58 @@ implementation
 {$R *.dfm}
 
 uses
+  Apollo_DPM_Consts,
   Apollo_DPM_Form,
   Apollo_DPM_UIHelper;
 
+const
+  cLoadRepoDataValidation = 'LoadRepoDataValidation';
+  cOKClickValidation = 'OKClickValidation';
+
 { TPackageForm }
 
-function TPackageForm.AreControlsValid: Boolean;
+procedure TPackageForm.actGoToURLExecute(Sender: TObject);
 var
-  aMsg: string;
+  IsSuccess: Boolean;
+  RepoOwner: string;
+  RepoName: string;
 begin
-  Result := True;
-  ControlValidation(leName, Validation.ValidatePackageName(leName.Text, GetSelectedVisibility, aMsg),
-    aMsg, lblValidationMsg, Result);
+  AsyncLoad(aiRepoDataLoad,
+    procedure()
+    begin
+      actGoToURL.Enabled := False;
+
+      IsSuccess := FDPMEngine.LoadRepoData(leURL.Text, RepoOwner, RepoName, FRepoDataLoadError);
+    end,
+    procedure()
+    begin
+      if IsSuccess then
+      begin
+        leURL.Text := '';
+        leRepoOwner.Text := RepoOwner;
+        leRepoName.Text := RepoName;
+      end;
+
+      actGoToURL.Enabled := True;
+      IsValid(cLoadRepoDataValidation);
+    end
+  );
 end;
 
 procedure TPackageForm.btnOkClick(Sender: TObject);
 begin
-  if AreControlsValid then
+  if IsValid(cOKClickValidation) then
   begin
     ReadFromControls;
     ModalResult := mrOk;
   end;
 end;
 
-constructor TPackageForm.Create(aOwner: TComponent; aPackage: TPackage);
+constructor TPackageForm.Create(aDPMEngine: TDPMEngine; aPackage: TPackage);
 begin
-  inherited Create(aOwner);
+  inherited Create(DPMForm);
 
+  FDPMEngine := aDPMEngine;
   FPackage := aPackage;
 
   WriteToControls;
@@ -81,9 +115,30 @@ begin
     Result := vPublic;
 end;
 
+function TPackageForm.IsValid(const aValidationGroupName: string): Boolean;
+begin
+  Validation.SetOutputLabel(lblValidationMsg);
+  Result := True;
+
+  Validation.Assert(aValidationGroupName = cLoadRepoDataValidation, leURL,
+    FRepoDataLoadError = '', FRepoDataLoadError, Result);
+
+  Validation.Assert(aValidationGroupName = cOKClickValidation, leRepoName,
+    leRepoName.Text <> '', cStrARepositoryNameIsEmpty, Result);
+
+  Validation.Assert(aValidationGroupName = cOKClickValidation, leName,
+    leName.Text <> '', cStrTheFieldCannotBeEmpty, Result);
+
+  Validation.Assert(aValidationGroupName = cOKClickValidation, leName,
+    Validation.ValidatePackageNameUniq(leName.Text, GetSelectedVisibility),
+    cStrAPackageWithThisNameAlreadyExists, Result);
+end;
+
 procedure TPackageForm.ReadFromControls;
 begin
   FPackage.Name := leName.Text;
+  FPackage.RepoOwner := leRepoOwner.Text;
+  FPackage.RepoName := leRepoName.Text;
 end;
 
 procedure TPackageForm.WriteToControls;

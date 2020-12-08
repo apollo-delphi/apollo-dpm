@@ -15,7 +15,7 @@ type
   private
     FName: string;
     FPackageType: TPackageType;
-    FRepo: string;
+    FRepoName: string;
     FRepoOwner: string;
     FVisibility: TVisibility;
     procedure Init;
@@ -25,7 +25,7 @@ type
     constructor Create(const aJSONString: string); overload;
     property Name: string read FName write FName;
     property PackageType: TPackageType read FPackageType write FPackageType;
-    property Repo: string read FRepo write FRepo;
+    property RepoName: string read FRepoName write FRepoName;
     property RepoOwner: string read FRepoOwner write FRepoOwner;
     property Visibility: TVisibility read FVisibility write FVisibility;
   end;
@@ -38,6 +38,9 @@ type
 
 implementation
 
+uses
+  System.SysUtils;
+
 { TPackage }
 
 constructor TPackage.Create(const aJSONString: string);
@@ -46,15 +49,21 @@ var
   jsnPackage: TJSONObject;
 begin
   Create;
-
-  jsnPackage := TJSONObject.ParseJSONValue(aJSONString) as TJSONObject;
   try
-    Name := jsnPackage.GetValue('name').Value;
+    jsnPackage := TJSONObject.ParseJSONValue(aJSONString) as TJSONObject;
+    try
+      Name := jsnPackage.GetValue('name').Value;
+      RepoOwner := jsnPackage.GetValue('repoOwner').Value;
+      RepoName := jsnPackage.GetValue('repoName').Value;
 
-    if jsnPackage.TryGetValue<Integer>('packageType', iPackageType) then
-      PackageType := TPackageType(iPackageType);
-  finally
-    jsnPackage.Free;
+      if jsnPackage.TryGetValue<Integer>('packageType', iPackageType) then
+        PackageType := TPackageType(iPackageType);
+    finally
+      jsnPackage.Free;
+    end;
+  except
+    on E : Exception do
+      raise Exception.CreateFmt('Creation package from JSON error: %s', [E.Message]);
   end;
 end;
 
@@ -71,6 +80,9 @@ begin
   jsnObj := TJSONObject.Create;
   try
     jsnObj.AddPair('name', Name);
+    jsnObj.AddPair('repoOwner', RepoOwner);
+    jsnObj.AddPair('repoName', RepoName);
+
     jsnObj.AddPair('packageType', TJSONNumber.Create(Ord(PackageType)));
 
     Result := jsnObj.ToJSON;

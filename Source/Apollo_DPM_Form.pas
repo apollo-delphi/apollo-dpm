@@ -30,7 +30,6 @@ type
     actSwitchPackageDetails: TAction;
     btnNewPackage: TSpeedButton;
     actNewPackage: TAction;
-    actGoToURL: TAction;
     procedure pnlDetailsSwitcherClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure swPackageDetailsOpened(Sender: TObject);
@@ -39,7 +38,6 @@ type
       Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure actNewPackageExecute(Sender: TObject);
     procedure tvNavigationChange(Sender: TObject; Node: TTreeNode);
-    procedure actGoToURLExecute(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
     FFrames: TArray<TFrame>;
@@ -67,11 +65,6 @@ uses
   Apollo_DPM_PackageFrame;
 
 { TDPMForm }
-
-procedure TDPMForm.actGoToURLExecute(Sender: TObject);
-begin
-  //
-end;
 
 procedure TDPMForm.actNewPackageExecute(Sender: TObject);
 var
@@ -115,7 +108,9 @@ procedure TDPMForm.FrameAction(const aFrameActionType: TFrameActionType;
   aPackage: TPackage);
 begin
   case aFrameActionType of
-    fatEditPackage: ShowPackageForm(aPackage);
+    fatEditPackage:
+      if ShowPackageForm(aPackage) then
+        FDPMEngine.UpdatePrivatePackage(aPackage);
   end;
 end;
 
@@ -175,7 +170,7 @@ end;
 
 function TDPMForm.ShowPackageForm(aPackage: TPackage): Boolean;
 begin
-  PackageForm := TPackageForm.Create(Self, aPackage);
+  PackageForm := TPackageForm.Create(FDPMEngine, aPackage);
   try
     if PackageForm.ShowModal = mrOk then
       Result := True

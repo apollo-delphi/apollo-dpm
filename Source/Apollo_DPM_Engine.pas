@@ -3,6 +3,7 @@ unit Apollo_DPM_Engine;
 interface
 
 uses
+  Apollo_DPM_GitHubAPI,
   Apollo_DPM_Package,
   System.SysUtils,
   Vcl.Menus;
@@ -10,6 +11,7 @@ uses
 type
   TDPMEngine = class
   private
+    FGHAPI: TGHAPI;
     FPrivatePackages: TPackageList;
     function GetApolloMenuItem: TMenuItem;
     function GetIDEMainMenu: TMainMenu;
@@ -22,7 +24,9 @@ type
     procedure WriteFile(const aPath: string; const aBytes: TBytes);
   public
     function GetPrivatePackages: TPackageList;
+    function LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName, aError: string): Boolean;
     procedure AddNewPrivatePackage(aPackage: TPackage);
+    procedure UpdatePrivatePackage(aPackage: TPackage);
     constructor Create;
     destructor Destroy; override;
   end;
@@ -77,6 +81,8 @@ end;
 
 constructor TDPMEngine.Create;
 begin
+  FGHAPI := TGHAPI.Create;
+
   FPrivatePackages := nil;
 
   BuildMenu;
@@ -87,6 +93,7 @@ end;
 destructor TDPMEngine.Destroy;
 begin
   Validation.Free;
+  FGHAPI.Free;
 
   if Assigned(FPrivatePackages) then
     FPrivatePackages.Free;
@@ -153,6 +160,46 @@ begin
   Result := TPath.Combine(TPath.GetPublicPath, cPrivatePackagesPath);
 end;
 
+function TDPMEngine.LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName,
+  aError: string): Boolean;
+var
+  RepoURL: string;
+  SHA: string;
+  URLWords: TArray<string>;
+begin
+  Result := False;
+  RepoURL := aRepoURL;
+  aRepoOwner := '';
+  aRepoName := '';
+  aError := '';
+
+  if RepoURL.Contains('://') then
+    RepoURL := RepoURL.Substring(RepoURL.IndexOf('://') + 3, RepoURL.Length);
+  URLWords := RepoURL.Split(['/']);
+
+  if (not (Length(URLWords) >= 3)) or
+   ((Length(URLWords) > 0) and (URLWords[0].ToLower <> 'github.com'))
+  then
+  begin
+    aError := cStrTheGitHubRepositoryUrlIsInvalid;
+    Exit;
+  end;
+
+  try
+    SHA := FGHAPI.GetMasterBranchSHA(URLWords[1], URLWords[2]);
+  except
+    aError := cStrCantLoadTheRepositoryURL;
+    Exit;
+  end;
+
+  if SHA.IsEmpty then
+    Exit;
+
+  Result := True;
+  aRepoOwner := URLWords[1];
+  aRepoName := URLWords[2];
+end;
+
 procedure TDPMEngine.SavePackage(aPackage: TPackage);
 var
   Bytes: TBytes;
@@ -162,6 +209,11 @@ begin
   Path := TPath.Combine(GetPrivatePackagesPath, aPackage.Name + '.json');
 
   WriteFile(Path, Bytes);
+end;
+
+procedure TDPMEngine.UpdatePrivatePackage(aPackage: TPackage);
+begin
+  SavePackage(aPackage);
 end;
 
 procedure TDPMEngine.WriteFile(const aPath: string; const aBytes: TBytes);
