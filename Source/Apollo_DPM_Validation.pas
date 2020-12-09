@@ -5,8 +5,10 @@ interface
 uses
   Apollo_DPM_Engine,
   Apollo_DPM_Package,
+  System.Classes,
   System.Generics.Collections,
   Vcl.Controls,
+  Vcl.Forms,
   Vcl.Graphics,
   Vcl.StdCtrls;
 
@@ -15,6 +17,7 @@ type
   public
     Control: TWinControl;
     OrigColor: TColor;
+    Checked: Boolean;
     procedure Init;
     constructor Create(aControl: TWinControl);
   end;
@@ -24,15 +27,19 @@ type
     FDPMEngine: TDPMEngine;
     FOutputLabel: TLabel;
     FValidationItems: TArray<TValidationItem>;
+    function AddItem(aControl: TWinControl): TValidationItem;
     function GetItemByControl(aControl: TWinControl): TValidationItem;
-    procedure AddItemIfNotContains(aControl: TWinControl);
+    procedure CurrentFormDestroy(Sender: TObject);
     procedure RestoreColor(aControl: TWinControl);
+    procedure SetChecked(aControl: TWinControl);
     procedure SetColor(aControl: TWinControl; aColor: TColor);
   public
     procedure Assert(const aActive: Boolean; aControl: TWinControl;
       const aValidStatement: Boolean; const aErrMsg: string; var aResult: Boolean);
     procedure SetOutputLabel(aLabel: TLabel);
-    function ValidatePackageNameUniq(const aValue: string; const aVisibility: TVisibility): Boolean;
+    procedure Start(aForm: TForm);
+    function ValidatePackageNameUniq(const aPackageID, aPackageName: string;
+      const aVisibility: TVisibility): Boolean;
     constructor Create(aDPMEngine: TDPMEngine);
   end;
 
@@ -47,22 +54,26 @@ uses
 
 { TValidation }
 
-procedure TValidation.AddItemIfNotContains(aControl: TWinControl);
+function TValidation.AddItem(aControl: TWinControl): TValidationItem;
 begin
-  if GetItemByControl(aControl).Control = nil then
-    FValidationItems := FValidationItems + [TValidationItem.Create(aControl)];
+  Result := TValidationItem.Create(aControl);
+  FValidationItems := FValidationItems + [Result];
 end;
 
 procedure TValidation.Assert(const aActive: Boolean; aControl: TWinControl;
   const aValidStatement: Boolean; const aErrMsg: string; var aResult: Boolean);
+var
+  Item: TValidationItem;
 begin
-  AddItemIfNotContains(aControl);
+  Item := GetItemByControl(aControl);
+  if Item.Control = nil then
+    Item := AddItem(aControl);
+
+  if not Item.Checked then
+    RestoreColor(aControl);
 
   if (not aActive) or (not aResult) then
-  begin
-    RestoreColor(aControl);
     Exit;
-  end;
 
   if not aValidStatement then
   begin
@@ -75,6 +86,13 @@ begin
     aResult := False;
     SetColor(aControl, clRed);
   end;
+
+  SetChecked(aControl);
+end;
+
+procedure TValidation.CurrentFormDestroy(Sender: TObject);
+begin
+  FValidationItems := [];
 end;
 
 constructor TValidation.Create(aDPMEngine: TDPMEngine);
@@ -104,6 +122,15 @@ begin
     SetColor(aControl, Item.OrigColor);
 end;
 
+procedure TValidation.SetChecked(aControl: TWinControl);
+var
+  i: Integer;
+begin
+  for i := 0 to Length(FValidationItems) - 1 do
+    if FValidationItems[i].Control = aControl then
+      FValidationItems[i].Checked := True;
+end;
+
 procedure TValidation.SetColor(aControl: TWinControl; aColor: TColor);
 begin
   if aControl is TLabeledEdit then
@@ -116,14 +143,28 @@ begin
   FOutputLabel.Visible := False;
 end;
 
-function TValidation.ValidatePackageNameUniq(const aValue: string;
+procedure TValidation.Start(aForm: TForm);
+var
+  i: Integer;
+begin
+  aForm.OnDestroy := CurrentFormDestroy;
+
+  for i := 0 to Length(FValidationItems) - 1 do
+    FValidationItems[i].Checked := False;
+end;
+
+function TValidation.ValidatePackageNameUniq(const aPackageID, aPackageName: string;
   const aVisibility: TVisibility): Boolean;
+var
+  Package: TPackage;
 begin
   Result := True;
 
   if aVisibility = vPrivate then
   begin
-    if FDPMEngine.GetPrivatePackages.GetByName(aValue) <> nil then
+    Package := FDPMEngine.GetPrivatePackages.GetByName(aPackageName);
+
+    if Assigned(Package) and (Package.ID <> aPackageID) then
       Exit(False);
   end;
 end;
@@ -142,6 +183,7 @@ procedure TValidationItem.Init;
 begin
   Control := nil;
   OrigColor := clWindow;
+  Checked := False;
 end;
 
 end.

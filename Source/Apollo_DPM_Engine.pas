@@ -134,19 +134,25 @@ function TDPMEngine.GetPrivatePackages: TPackageList;
 var
   FileArr: TArray<string>;
   FileItem: string;
-  JSONStrings: TArray<string>;
+  PackageFileData: TPackageFileData;
+  PackageFileDataArr: TArray<TPackageFileData>;
 begin
   if FPrivatePackages = nil then
   begin
     if TDirectory.Exists(GetPrivatePackagesPath) then
     begin
       FileArr := TDirectory.GetFiles(GetPrivatePackagesPath, '*.json');
-      JSONStrings := [];
+      PackageFileDataArr := [];
       for FileItem in FileArr do
-        JSONStrings := JSONStrings + [TFile.ReadAllText(FileItem, TEncoding.ANSI)];
+      begin
+        PackageFileData.FilePath := FileItem;
+        PackageFileData.JSONString := TFile.ReadAllText(FileItem, TEncoding.ANSI);
 
-      if Length(JSONStrings) > 0 then
-        FPrivatePackages := TPackageList.Create(JSONStrings);
+        PackageFileDataArr := PackageFileDataArr + [PackageFileData];
+      end;
+
+      if Length(PackageFileDataArr) > 0 then
+        FPrivatePackages := TPackageList.Create(PackageFileDataArr);
     end;
   end;
 
@@ -209,10 +215,12 @@ begin
   Path := TPath.Combine(GetPrivatePackagesPath, aPackage.Name + '.json');
 
   WriteFile(Path, Bytes);
+  aPackage.FilePath := Path;
 end;
 
 procedure TDPMEngine.UpdatePrivatePackage(aPackage: TPackage);
 begin
+  TFile.Delete(aPackage.FilePath);
   SavePackage(aPackage);
 end;
 

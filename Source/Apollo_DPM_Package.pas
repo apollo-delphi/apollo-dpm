@@ -13,16 +13,21 @@ type
 
   TPackage = class
   private
+    FFilePath: string;
+    FID: string;
     FName: string;
     FPackageType: TPackageType;
     FRepoName: string;
     FRepoOwner: string;
     FVisibility: TVisibility;
+    function GetID: string;
     procedure Init;
   public
     function GetJSONString: string;
     constructor Create; overload;
     constructor Create(const aJSONString: string); overload;
+    property FilePath: string read FFilePath write FFilePath;
+    property ID: string read GetID write FID;
     property Name: string read FName write FName;
     property PackageType: TPackageType read FPackageType write FPackageType;
     property RepoName: string read FRepoName write FRepoName;
@@ -30,10 +35,15 @@ type
     property Visibility: TVisibility read FVisibility write FVisibility;
   end;
 
+  TPackageFileData = record
+    FilePath: string;
+    JSONString: string;
+  end;
+
   TPackageList = class(TObjectList<TPackage>)
   public
     function GetByName(const aPackageName: string): TPackage;
-    constructor Create(const aJSONStrings: TArray<string>); overload;
+    constructor Create(const aPackageFileDataArr: TArray<TPackageFileData>); overload;
   end;
 
 implementation
@@ -46,20 +56,21 @@ uses
 constructor TPackage.Create(const aJSONString: string);
 var
   iPackageType: Integer;
-  jsnPackage: TJSONObject;
+  jsnObj: TJSONObject;
 begin
   Create;
   try
-    jsnPackage := TJSONObject.ParseJSONValue(aJSONString) as TJSONObject;
+    jsnObj := TJSONObject.ParseJSONValue(aJSONString) as TJSONObject;
     try
-      Name := jsnPackage.GetValue('name').Value;
-      RepoOwner := jsnPackage.GetValue('repoOwner').Value;
-      RepoName := jsnPackage.GetValue('repoName').Value;
+      ID := jsnObj.GetValue('id').Value;
+      Name := jsnObj.GetValue('name').Value;
+      RepoOwner := jsnObj.GetValue('repoOwner').Value;
+      RepoName := jsnObj.GetValue('repoName').Value;
 
-      if jsnPackage.TryGetValue<Integer>('packageType', iPackageType) then
+      if jsnObj.TryGetValue<Integer>('packageType', iPackageType) then
         PackageType := TPackageType(iPackageType);
     finally
-      jsnPackage.Free;
+      jsnObj.Free;
     end;
   except
     on E : Exception do
@@ -73,12 +84,26 @@ begin
   Init;
 end;
 
+function TPackage.GetID: string;
+var
+  GUID: TGUID;
+begin
+  if FID.IsEmpty then
+  begin
+    CreateGUID(GUID);
+    FID := GUID.ToString;
+  end;
+
+  Result := FID;
+end;
+
 function TPackage.GetJSONString: string;
 var
   jsnObj: TJSONObject;
 begin
   jsnObj := TJSONObject.Create;
   try
+    jsnObj.AddPair('id', ID);
     jsnObj.AddPair('name', Name);
     jsnObj.AddPair('repoOwner', RepoOwner);
     jsnObj.AddPair('repoName', RepoName);
@@ -98,14 +123,19 @@ end;
 
 { TPackageList }
 
-constructor TPackageList.Create(const aJSONStrings: TArray<string>);
+constructor TPackageList.Create(const aPackageFileDataArr: TArray<TPackageFileData>);
 var
-  sJSON: string;
+  Package: TPackage;
+  PackageFileData: TPackageFileData;
 begin
   inherited Create(True);
 
-  for sJSON in aJSONStrings do
-    Add(TPackage.Create(sJSON));
+  for PackageFileData in aPackageFileDataArr do
+  begin
+    Package := TPackage.Create(PackageFileData.JSONString);
+    Package.FilePath := PackageFileData.FilePath;
+    Add(Package);
+  end;
 end;
 
 function TPackageList.GetByName(const aPackageName: string): TPackage;

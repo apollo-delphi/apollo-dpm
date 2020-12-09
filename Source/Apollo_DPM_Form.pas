@@ -110,7 +110,10 @@ begin
   case aFrameActionType of
     fatEditPackage:
       if ShowPackageForm(aPackage) then
+      begin
         FDPMEngine.UpdatePrivatePackage(aPackage);
+        RenderPackages;
+      end;
   end;
 end;
 

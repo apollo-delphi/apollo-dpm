@@ -24,12 +24,9 @@ type
     leRepoOwner: TLabeledEdit;
     leRepoName: TLabeledEdit;
     btnGoToURL: TSpeedButton;
-    alActions: TActionList;
-    actGoToURL: TAction;
     aiRepoDataLoad: TActivityIndicator;
-    ilIcons: TImageList;
     procedure btnOkClick(Sender: TObject);
-    procedure actGoToURLExecute(Sender: TObject);
+    procedure btnGoToURLClick(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
     FPackage: TPackage;
@@ -60,7 +57,7 @@ const
 
 { TPackageForm }
 
-procedure TPackageForm.actGoToURLExecute(Sender: TObject);
+procedure TPackageForm.btnGoToURLClick(Sender: TObject);
 var
   IsSuccess: Boolean;
   RepoOwner: string;
@@ -69,9 +66,9 @@ begin
   AsyncLoad(aiRepoDataLoad,
     procedure()
     begin
-      actGoToURL.Enabled := False;
+      btnGoToURL.Enabled := False;
 
-      IsSuccess := FDPMEngine.LoadRepoData(leURL.Text, RepoOwner, RepoName, FRepoDataLoadError);
+      IsSuccess := FDPMEngine.LoadRepoData(leURL.Text, RepoOwner, RepoName, FRepoDataLoadError)
     end,
     procedure()
     begin
@@ -82,8 +79,8 @@ begin
         leRepoName.Text := RepoName;
       end;
 
-      actGoToURL.Enabled := True;
       IsValid(cLoadRepoDataValidation);
+      btnGoToURL.Enabled := True;
     end
   );
 end;
@@ -117,8 +114,9 @@ end;
 
 function TPackageForm.IsValid(const aValidationGroupName: string): Boolean;
 begin
-  Validation.SetOutputLabel(lblValidationMsg);
   Result := True;
+  Validation.SetOutputLabel(lblValidationMsg);
+  Validation.Start(Self);
 
   Validation.Assert(aValidationGroupName = cLoadRepoDataValidation, leURL,
     FRepoDataLoadError = '', FRepoDataLoadError, Result);
@@ -130,7 +128,7 @@ begin
     leName.Text <> '', cStrTheFieldCannotBeEmpty, Result);
 
   Validation.Assert(aValidationGroupName = cOKClickValidation, leName,
-    Validation.ValidatePackageNameUniq(leName.Text, GetSelectedVisibility),
+    Validation.ValidatePackageNameUniq(FPackage.ID, leName.Text, GetSelectedVisibility),
     cStrAPackageWithThisNameAlreadyExists, Result);
 end;
 
@@ -149,6 +147,8 @@ begin
   end;
 
   leName.Text := FPackage.Name;
+  leRepoOwner.Text := FPackage.RepoOwner;
+  leRepoName.Text := FPackage.RepoName;
 end;
 
 end.
