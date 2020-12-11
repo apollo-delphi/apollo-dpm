@@ -8,7 +8,7 @@ uses
 type
   TAsyncLoadCallBack = reference to procedure;
   TAsyncLoadProc = reference to procedure;
-  TFrameActionType = (fatEditPackage);
+  TFrameActionType = (fatInstall, fatEditPackage);
   TFrameActionProc = procedure(const aFrameActionType: TFrameActionType; aPackage: TPackage) of object;
 
 implementation

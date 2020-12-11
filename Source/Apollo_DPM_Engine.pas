@@ -26,6 +26,7 @@ type
     function GetPrivatePackages: TPackageList;
     function LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName, aError: string): Boolean;
     procedure AddNewPrivatePackage(aPackage: TPackage);
+    procedure LoadRepoVersions(aPackage: TPackage);
     procedure UpdatePrivatePackage(aPackage: TPackage);
     constructor Create;
     destructor Destroy; override;
@@ -111,6 +112,7 @@ begin
     DPMForm.ShowModal;
   finally
     DPMForm.Free;
+    FreeAndNil(FPrivatePackages);
   end;
 end;
 
@@ -204,6 +206,28 @@ begin
   Result := True;
   aRepoOwner := URLWords[1];
   aRepoName := URLWords[2];
+end;
+
+procedure TDPMEngine.LoadRepoVersions(aPackage: TPackage);
+var
+  Tag:  TTag;
+  Tags: TArray<TTag>;
+  Version: TVersion;
+begin
+  if aPackage.AreVersionsLoaded then
+    Exit;
+
+  Tags := FGHAPI.GetRepoTags(aPackage.RepoOwner, aPackage.RepoName);
+
+  for Tag in Tags do
+  begin
+    Version.Name := Tag.Name;
+    Version.SHA := Tag.SHA;
+
+    aPackage.AddVersion(Version);
+  end;
+
+  aPackage.AreVersionsLoaded := True;
 end;
 
 procedure TDPMEngine.SavePackage(aPackage: TPackage);

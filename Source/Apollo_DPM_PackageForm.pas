@@ -25,6 +25,7 @@ type
     leRepoName: TLabeledEdit;
     btnGoToURL: TSpeedButton;
     aiRepoDataLoad: TActivityIndicator;
+    leDescription: TLabeledEdit;
     procedure btnOkClick(Sender: TObject);
     procedure btnGoToURLClick(Sender: TObject);
   private
@@ -135,6 +136,7 @@ end;
 procedure TPackageForm.ReadFromControls;
 begin
   FPackage.Name := leName.Text;
+  FPackage.Description := leDescription.Text;
   FPackage.RepoOwner := leRepoOwner.Text;
   FPackage.RepoName := leRepoName.Text;
 end;
@@ -147,6 +149,7 @@ begin
   end;
 
   leName.Text := FPackage.Name;
+  leDescription.Text := FPackage.Description;
   leRepoOwner.Text := FPackage.RepoOwner;
   leRepoName.Text := FPackage.RepoName;
 end;

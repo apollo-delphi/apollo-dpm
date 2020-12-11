@@ -13,6 +13,11 @@ type
       aCallBack: TAsyncLoadCallBack);
   end;
 
+  TFrameHelper = class helper for TFrame
+    procedure AsyncLoad(aIndicator: TActivityIndicator; aLoadProc: TAsyncLoadProc;
+      aCallBack: TAsyncLoadCallBack);
+  end;
+
 implementation
 
 uses
@@ -47,6 +52,14 @@ end;
 { TFormHelper }
 
 procedure TFormHelper.AsyncLoad(aIndicator: TActivityIndicator;
+  aLoadProc: TAsyncLoadProc; aCallBack: TAsyncLoadCallBack);
+begin
+  AsyncLoadCommon(aIndicator, aLoadProc, aCallBack);
+end;
+
+{ TFrameHelper }
+
+procedure TFrameHelper.AsyncLoad(aIndicator: TActivityIndicator;
   aLoadProc: TAsyncLoadProc; aCallBack: TAsyncLoadCallBack);
 begin
   AsyncLoadCommon(aIndicator, aLoadProc, aCallBack);

@@ -148,12 +148,13 @@ begin
 
   for Package in aPackageList do
   begin
-    PackageFrame := TfrmPackage.Create(sbFrames, Package);
+    PackageFrame := TfrmPackage.Create(sbFrames, Package, FDPMEngine);
     PackageFrame.Name := Format('PackageFrame%d', [i]);
     PackageFrame.Parent := sbFrames;
     PackageFrame.OnAction := FrameAction;
     PackageFrame.Top := Top;
     PackageFrame.Left := 0;
+    PackageFrame.Width := sbFrames.Width - 15;
     if not Odd(i) then
       PackageFrame.Color := clBtnFace;
 

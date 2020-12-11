@@ -25,7 +25,7 @@ object PackageForm: TPackageForm
     Left = 6
     Top = 107
     Width = 301
-    Height = 54
+    Height = 53
     Caption = 'Visibility'
     TabOrder = 0
     object rbPrivate: TRadioButton
@@ -47,7 +47,7 @@ object PackageForm: TPackageForm
   end
   object leName: TLabeledEdit
     Left = 77
-    Top = 179
+    Top = 168
     Width = 222
     Height = 21
     EditLabel.Width = 29
@@ -170,5 +170,16 @@ object PackageForm: TPackageForm
       IndicatorSize = aisSmall
       IndicatorType = aitRotatingSector
     end
+  end
+  object leDescription: TLabeledEdit
+    Left = 77
+    Top = 191
+    Width = 222
+    Height = 21
+    EditLabel.Width = 59
+    EditLabel.Height = 13
+    EditLabel.Caption = 'Description'
+    LabelPosition = lpLeft
+    TabOrder = 5
   end
 end

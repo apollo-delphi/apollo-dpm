@@ -7,31 +7,44 @@ uses
   System.JSON;
 
 type
+  TVersion = record
+  public
+    Name: string;
+    SHA: string;
+  end;
+
   TVisibility = (vPrivate, vPublic);
 
   TPackageType = (ptSource);
 
   TPackage = class
   private
+    FAreVersionsLoaded: Boolean;
+    FDescription: string;
     FFilePath: string;
     FID: string;
     FName: string;
     FPackageType: TPackageType;
     FRepoName: string;
     FRepoOwner: string;
+    FVersions: TArray<TVersion>;
     FVisibility: TVisibility;
     function GetID: string;
     procedure Init;
   public
     function GetJSONString: string;
+    procedure AddVersion(const aVersion: TVersion);
     constructor Create; overload;
     constructor Create(const aJSONString: string); overload;
+    property AreVersionsLoaded: Boolean read FAreVersionsLoaded write FAreVersionsLoaded;
+    property Description: string read FDescription write FDescription;
     property FilePath: string read FFilePath write FFilePath;
     property ID: string read GetID write FID;
     property Name: string read FName write FName;
     property PackageType: TPackageType read FPackageType write FPackageType;
     property RepoName: string read FRepoName write FRepoName;
     property RepoOwner: string read FRepoOwner write FRepoOwner;
+    property Versions: TArray<TVersion> read FVersions;
     property Visibility: TVisibility read FVisibility write FVisibility;
   end;
 
@@ -53,6 +66,11 @@ uses
 
 { TPackage }
 
+procedure TPackage.AddVersion(const aVersion: TVersion);
+begin
+  FVersions := FVersions + [aVersion];
+end;
+
 constructor TPackage.Create(const aJSONString: string);
 var
   iPackageType: Integer;
@@ -64,6 +82,7 @@ begin
     try
       ID := jsnObj.GetValue('id').Value;
       Name := jsnObj.GetValue('name').Value;
+      Description := jsnObj.GetValue('description').Value;
       RepoOwner := jsnObj.GetValue('repoOwner').Value;
       RepoName := jsnObj.GetValue('repoName').Value;
 
@@ -105,6 +124,7 @@ begin
   try
     jsnObj.AddPair('id', ID);
     jsnObj.AddPair('name', Name);
+    jsnObj.AddPair('description', Description);
     jsnObj.AddPair('repoOwner', RepoOwner);
     jsnObj.AddPair('repoName', RepoName);
 
@@ -118,6 +138,7 @@ end;
 
 procedure TPackage.Init;
 begin
+  FVersions := [];
   FVisibility := vPrivate;
 end;
 
