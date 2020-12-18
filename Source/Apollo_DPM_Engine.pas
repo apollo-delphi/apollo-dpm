@@ -5,7 +5,9 @@ interface
 uses
   Apollo_DPM_GitHubAPI,
   Apollo_DPM_Package,
+  Apollo_DPM_Types,
   System.SysUtils,
+  ToolsAPI,
   Vcl.Menus;
 
 type
@@ -13,19 +15,30 @@ type
   private
     FGHAPI: TGHAPI;
     FPrivatePackages: TPackageList;
+    function AddPackageFiles(aPackage: TPackage): TArray<string>;
+    function DefineVersion(aPackage: TPackage; const aVersion: TVersion): TVersion;
+    function GetActiveProject: IOTAProject;
+    function GetActiveProjectPath: string;
     function GetApolloMenuItem: TMenuItem;
     function GetIDEMainMenu: TMainMenu;
+    function GetPackagePath(aPackage: TPackage): string;
     function GetPrivatePackagesPath: string;
-    procedure BuildMenu;
+    function GetVendorsPath: string;
+    function IsProjectOpened: Boolean;
+    function SaveContent(const aPackagePath, aSourcePath, aContent: string): string;
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
+    procedure BuildMenu;
     procedure DPMMenuItemClick(Sender: TObject);
+    procedure LoadRepoTree(aPackage: TPackage; const aVersion: TVersion);
     procedure SavePackage(aPackage: TPackage);
     procedure WriteFile(const aPath: string; const aBytes: TBytes);
   public
+    function AllowAction(const aActionType: TFrameActionType): Boolean;
     function GetPrivatePackages: TPackageList;
     function LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName, aError: string): Boolean;
     procedure AddNewPrivatePackage(aPackage: TPackage);
+    procedure InstallPackage(aPackage: TPackage; const aVersion: TVersion);
     procedure LoadRepoVersions(aPackage: TPackage);
     procedure UpdatePrivatePackage(aPackage: TPackage);
     constructor Create;
@@ -40,7 +53,7 @@ uses
   Apollo_DPM_Validation,
   System.Classes,
   System.IOUtils,
-  ToolsAPI;
+  System.NetEncoding;
 
 { TDPMEngine }
 
@@ -72,6 +85,32 @@ begin
   GetPrivatePackages.Add(aPackage);
 end;
 
+function TDPMEngine.AddPackageFiles(aPackage: TPackage): TArray<string>;
+var
+  Blob: TBlob;
+  TreeNode: TTreeNode;
+begin
+  Result := [];
+
+  for TreeNode in aPackage.RepoTree do
+  begin
+    if TreeNode.FileType <> 'blob' then
+      Continue;
+
+    Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
+    SaveContent(GetPackagePath(aPackage), TreeNode.Path, Blob.Content);
+  end;
+end;
+
+function TDPMEngine.AllowAction(const aActionType: TFrameActionType): Boolean;
+begin
+  Result := False;
+  case aActionType of
+    fatInstall: Result := IsProjectOpened;
+    fatEditPackage: Result := True;
+  end;
+end;
+
 procedure TDPMEngine.BuildMenu;
 begin
   if GetApolloMenuItem = nil then
@@ -89,6 +128,22 @@ begin
   BuildMenu;
 
   Validation := TValidation.Create(Self);
+end;
+
+function TDPMEngine.DefineVersion(aPackage: TPackage; const aVersion: TVersion): TVersion;
+begin
+  if not aVersion.SHA.IsEmpty then
+    Exit(aVersion);
+
+  if aVersion.Name = cStrLatestVersionOrCommit then
+  begin
+    LoadRepoVersions(aPackage);
+    if Length(aPackage.Versions) > 0 then
+      Exit(aPackage.Versions[0]);
+  end;
+
+  Result.Name := '';
+  Result.SHA := FGHAPI.GetMasterBranchSHA(aPackage.RepoOwner, aPackage.RepoName);
 end;
 
 destructor TDPMEngine.Destroy;
@@ -116,6 +171,33 @@ begin
   end;
 end;
 
+function TDPMEngine.GetActiveProject: IOTAProject;
+var
+  i: Integer;
+  Module: IOTAModule;
+  ModuleServices: IOTAModuleServices;
+  Project: IOTAProject;
+  ProjectGroup: IOTAProjectGroup;
+begin
+  Result := nil;
+
+  ModuleServices := BorlandIDEServices as IOTAModuleServices;
+  for i := 0 to ModuleServices.ModuleCount - 1 do
+  begin
+    Module := ModuleServices.Modules[i];
+    if Supports(Module, IOTAProjectGroup, ProjectGroup) then
+      Exit(ProjectGroup.ActiveProject)
+    else
+    if Supports(Module, IOTAProject, Project) then
+      Exit(Project);
+  end;
+end;
+
+function TDPMEngine.GetActiveProjectPath: string;
+begin
+  Result := TDirectory.GetParent(GetActiveProject.FileName);
+end;
+
 function TDPMEngine.GetApolloMenuItem: TMenuItem;
 var
   MenuItem: TMenuItem;
@@ -130,6 +212,11 @@ end;
 function TDPMEngine.GetIDEMainMenu: TMainMenu;
 begin
   Result := (BorlandIDEServices as INTAServices).MainMenu;
+end;
+
+function TDPMEngine.GetPackagePath(aPackage: TPackage): string;
+begin
+  Result := TPath.Combine(GetVendorsPath, aPackage.Name);
 end;
 
 function TDPMEngine.GetPrivatePackages: TPackageList;
@@ -166,6 +253,26 @@ end;
 function TDPMEngine.GetPrivatePackagesPath: string;
 begin
   Result := TPath.Combine(TPath.GetPublicPath, cPrivatePackagesPath);
+end;
+
+function TDPMEngine.GetVendorsPath: string;
+begin
+  Result := TDirectory.GetParent(GetActiveProjectPath) + '\Vendors';
+end;
+
+procedure TDPMEngine.InstallPackage(aPackage: TPackage; const aVersion: TVersion);
+var
+  Version: TVersion;
+begin
+  Version := DefineVersion(aPackage, aVersion);
+  LoadRepoTree(aPackage, Version);
+
+  AddPackageFiles(aPackage);
+end;
+
+function TDPMEngine.IsProjectOpened: Boolean;
+begin
+  Result := GetActiveProject <> nil;
 end;
 
 function TDPMEngine.LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName,
@@ -208,6 +315,11 @@ begin
   aRepoName := URLWords[2];
 end;
 
+procedure TDPMEngine.LoadRepoTree(aPackage: TPackage; const aVersion: TVersion);
+begin
+  aPackage.RepoTree := FGHAPI.GetRepoTree(aPackage.RepoOwner, aPackage.RepoName, aVersion.SHA);
+end;
+
 procedure TDPMEngine.LoadRepoVersions(aPackage: TPackage);
 var
   Tag:  TTag;
@@ -228,6 +340,24 @@ begin
   end;
 
   aPackage.AreVersionsLoaded := True;
+end;
+
+function TDPMEngine.SaveContent(const aPackagePath, aSourcePath,
+  aContent: string): string;
+var
+  Bytes: TBytes;
+  RepoPathPart: string;
+  RepoPathParts: TArray<string>;
+begin
+  Result := aPackagePath;
+  RepoPathParts := aSourcePath.Split(['/']);
+
+  for RepoPathPart in RepoPathParts do
+    Result := Result + '\' + RepoPathPart;
+
+  Bytes := TNetEncoding.Base64.DecodeStringToBytes(aContent);
+
+  WriteFile(Result, Bytes);
 end;
 
 procedure TDPMEngine.SavePackage(aPackage: TPackage);

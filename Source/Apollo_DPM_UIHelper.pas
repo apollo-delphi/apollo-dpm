@@ -4,6 +4,7 @@ interface
 
 uses
   Apollo_DPM_Types,
+  Vcl.Controls,
   Vcl.Forms,
   Vcl.WinXCtrls;
 
@@ -11,6 +12,7 @@ type
   TFormHelper = class helper for TForm
     procedure AsyncLoad(aIndicator: TActivityIndicator; aLoadProc: TAsyncLoadProc;
       aCallBack: TAsyncLoadCallBack);
+    procedure SetControlsEnable(const aEnable: Boolean; const aControls: TArray<TControl>);
   end;
 
   TFrameHelper = class helper for TFrame
@@ -55,6 +57,15 @@ procedure TFormHelper.AsyncLoad(aIndicator: TActivityIndicator;
   aLoadProc: TAsyncLoadProc; aCallBack: TAsyncLoadCallBack);
 begin
   AsyncLoadCommon(aIndicator, aLoadProc, aCallBack);
+end;
+
+procedure TFormHelper.SetControlsEnable(const aEnable: Boolean;
+  const aControls: TArray<TControl>);
+var
+  Control: TControl;
+begin
+  for Control in aControls do
+    Control.Enabled := aEnable;
 end;
 
 { TFrameHelper }

@@ -48,6 +48,8 @@ contains
   Apollo_DPM_Validation in 'Apollo_DPM_Validation.pas',
   Apollo_DPM_GitHubAPI in 'Apollo_DPM_GitHubAPI.pas',
   Apollo_HTTP in '..\Vendors\Apollo_HTTP\Apollo_HTTP.pas',
-  Apollo_DPM_Types in 'Apollo_DPM_Types.pas';
+  Apollo_DPM_Types in 'Apollo_DPM_Types.pas',
+  Apollo_DPM_Adjustment in 'Apollo_DPM_Adjustment.pas',
+  Apollo_DPM_EditItemForm in 'Apollo_DPM_EditItemForm.pas' {ItemEditForm};
 
 end.

@@ -7,6 +7,7 @@ const
   cApolloMenuItemName = 'miApollo';
   cDPMMenuItemCaption = 'DPM - Delphi Package Manager...';
   cNavPrivatePackages = 'Private Packages';
+  cNavProjectDependencies = 'Project Dependencies';
   cNavSettings = 'Settings';
   cPrivatePackagesPath = 'Apollo\DPM\PrivatePackages';
   cStrAPackageWithThisNameAlreadyExists = 'A package with this name already exists!';

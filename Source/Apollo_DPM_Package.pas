@@ -3,6 +3,8 @@ unit Apollo_DPM_Package;
 interface
 
 uses
+  Apollo_DPM_Adjustment,
+  Apollo_DPM_GitHubAPI,
   System.Generics.Collections,
   System.JSON;
 
@@ -19,6 +21,7 @@ type
 
   TPackage = class
   private
+    FAdjustment: TAdjustment;
     FAreVersionsLoaded: Boolean;
     FDescription: string;
     FFilePath: string;
@@ -27,6 +30,7 @@ type
     FPackageType: TPackageType;
     FRepoName: string;
     FRepoOwner: string;
+    FRepoTree: TTree;
     FVersions: TArray<TVersion>;
     FVisibility: TVisibility;
     function GetID: string;
@@ -36,6 +40,8 @@ type
     procedure AddVersion(const aVersion: TVersion);
     constructor Create; overload;
     constructor Create(const aJSONString: string); overload;
+    destructor Destroy; override;
+    property Adjustment: TAdjustment read FAdjustment;
     property AreVersionsLoaded: Boolean read FAreVersionsLoaded write FAreVersionsLoaded;
     property Description: string read FDescription write FDescription;
     property FilePath: string read FFilePath write FFilePath;
@@ -44,6 +50,7 @@ type
     property PackageType: TPackageType read FPackageType write FPackageType;
     property RepoName: string read FRepoName write FRepoName;
     property RepoOwner: string read FRepoOwner write FRepoOwner;
+    property RepoTree: TTree read FRepoTree write FRepoTree;
     property Versions: TArray<TVersion> read FVersions;
     property Visibility: TVisibility read FVisibility write FVisibility;
   end;
@@ -64,6 +71,15 @@ implementation
 uses
   System.SysUtils;
 
+const
+  cKeyId = 'id';
+  cKeyName = 'name';
+  cKeyDescription = 'description';
+  cKeyRepoOwner = 'repoOwner';
+  cKeyRepoName = 'repoName';
+  cKeyPackageType = 'packageType';
+  cKeyAdjustment = 'adjustment';
+
 { TPackage }
 
 procedure TPackage.AddVersion(const aVersion: TVersion);
@@ -80,14 +96,16 @@ begin
   try
     jsnObj := TJSONObject.ParseJSONValue(aJSONString) as TJSONObject;
     try
-      ID := jsnObj.GetValue('id').Value;
-      Name := jsnObj.GetValue('name').Value;
-      Description := jsnObj.GetValue('description').Value;
-      RepoOwner := jsnObj.GetValue('repoOwner').Value;
-      RepoName := jsnObj.GetValue('repoName').Value;
+      ID := jsnObj.GetValue(cKeyId).Value;
+      Name := jsnObj.GetValue(cKeyName).Value;
+      Description := jsnObj.GetValue(cKeyDescription).Value;
+      RepoOwner := jsnObj.GetValue(cKeyRepoOwner).Value;
+      RepoName := jsnObj.GetValue(cKeyRepoName).Value;
 
-      if jsnObj.TryGetValue<Integer>('packageType', iPackageType) then
+      if jsnObj.TryGetValue<Integer>(cKeyPackageType, iPackageType) then
         PackageType := TPackageType(iPackageType);
+
+      FAdjustment.SetJSON(jsnObj.GetValue(cKeyAdjustment) as TJSONObject);
     finally
       jsnObj.Free;
     end;
@@ -95,6 +113,12 @@ begin
     on E : Exception do
       raise Exception.CreateFmt('Creation package from JSON error: %s', [E.Message]);
   end;
+end;
+
+destructor TPackage.Destroy;
+begin
+  FAdjustment.Free;
+  inherited;
 end;
 
 constructor TPackage.Create;
@@ -122,13 +146,15 @@ var
 begin
   jsnObj := TJSONObject.Create;
   try
-    jsnObj.AddPair('id', ID);
-    jsnObj.AddPair('name', Name);
-    jsnObj.AddPair('description', Description);
-    jsnObj.AddPair('repoOwner', RepoOwner);
-    jsnObj.AddPair('repoName', RepoName);
+    jsnObj.AddPair(cKeyId, ID);
+    jsnObj.AddPair(cKeyName, Name);
+    jsnObj.AddPair(cKeyDescription, Description);
+    jsnObj.AddPair(cKeyRepoOwner, RepoOwner);
+    jsnObj.AddPair(cKeyRepoName, RepoName);
 
-    jsnObj.AddPair('packageType', TJSONNumber.Create(Ord(PackageType)));
+    jsnObj.AddPair(cKeyPackageType, TJSONNumber.Create(Ord(PackageType)));
+
+    jsnObj.AddPair(cKeyAdjustment, FAdjustment.GetJSON);
 
     Result := jsnObj.ToJSON;
   finally
@@ -138,6 +164,7 @@ end;
 
 procedure TPackage.Init;
 begin
+  FAdjustment := TAdjustment.Create;
   FVersions := [];
   FVisibility := vPrivate;
 end;

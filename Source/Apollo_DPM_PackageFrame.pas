@@ -6,11 +6,20 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls,
   Vcl.Menus, Vcl.Buttons, Vcl.ComCtrls, Vcl.ToolWin, Vcl.WinXCtrls,
+  Vcl.ExtCtrls,
   Apollo_DPM_Engine,
   Apollo_DPM_Package,
-  Apollo_DPM_Types, Vcl.ExtCtrls;
+  Apollo_DPM_Types;
 
 type
+  TVersionComboItem = class
+  private
+    FVersion: TVersion;
+    constructor Create(const aVersion: TVersion); overload;
+    constructor Create(const aGetVersionOption: string); overload;
+    property Version: TVersion read FVersion;
+  end;
+
   TfrmPackage = class(TFrame)
     lblName: TLabel;
     lblDescription: TLabel;
@@ -30,12 +39,20 @@ type
   private
     FDPMEngine: TDPMEngine;
     FOnAction: TFrameActionProc;
+    FOnAllowAction: TFrameAllowActionFunc;
     FPackage: TPackage;
+    function GetFirstActionMenuItem: TMenuItem;
+    function GetSelectedVersion: TVersion;
+    procedure ClearVersionsCombo;
     procedure FillVersionsCombo;
     procedure SetActionBtnMenuItem(aMenuItem: TMenuItem);
+    procedure SetAllowedActions;
   public
+    procedure Init;
     constructor Create(aOwner: TComponent; aPackage: TPackage; aDPMEngine: TDPMEngine); reintroduce;
+    destructor Destroy; override;
     property OnAction: TFrameActionProc read FOnAction write FOnAction;
+    property OnAllowAction: TFrameAllowActionFunc read FOnAllowAction write FOnAllowAction;
   end;
 
 implementation
@@ -72,6 +89,15 @@ begin
   );
 end;
 
+procedure TfrmPackage.ClearVersionsCombo;
+var
+  i: Integer;
+begin
+  for i := 0 to cbVersions.Items.Count - 1 do
+    cbVersions.Items.Objects[i].Free;
+  cbVersions.Items.Clear;
+end;
+
 constructor TfrmPackage.Create(aOwner: TComponent; aPackage: TPackage; aDPMEngine: TDPMEngine);
 begin
   inherited Create(aOwner);
@@ -80,44 +106,91 @@ begin
   FPackage := aPackage;
   lblName.Caption := aPackage.Name;
   lblDescription.Caption := aPackage.Description;
+end;
 
-  SetActionBtnMenuItem(mniInstall);
-  FillVersionsCombo;
+destructor TfrmPackage.Destroy;
+begin
+  ClearVersionsCombo;
+  inherited;
 end;
 
 procedure TfrmPackage.FillVersionsCombo;
 var
   Version: TVersion;
 begin
-  cbVersions.Items.Clear;
+  ClearVersionsCombo;
 
   if not FPackage.AreVersionsLoaded then
-    cbVersions.Items.Add(cStrLatestVersionOrCommit)
+    cbVersions.Items.AddObject(cStrLatestVersionOrCommit, TVersionComboItem.Create(cStrLatestVersionOrCommit))
   else
-    cbVersions.Items.Add(cStrLatestCommit);
+    cbVersions.Items.AddObject(cStrLatestCommit, TVersionComboItem.Create(cStrLatestCommit));
 
   for Version in FPackage.Versions do
-    cbVersions.Items.Add(Version.Name);
+    cbVersions.Items.AddObject(Version.Name, TVersionComboItem.Create(Version));
 
   cbVersions.ItemIndex := 0;
+end;
+
+function TfrmPackage.GetFirstActionMenuItem: TMenuItem;
+var
+  MenuItem: TMenuItem;
+begin
+  Result := nil;
+  for MenuItem in pmActions.Items do
+    if MenuItem.Visible then
+      Exit(MenuItem);
+end;
+
+function TfrmPackage.GetSelectedVersion: TVersion;
+var
+  VersionComboItem: TVersionComboItem;
+begin
+  VersionComboItem := cbVersions.Items.Objects[cbVersions.ItemIndex] as TVersionComboItem;
+  Result := VersionComboItem.Version;
+end;
+
+procedure TfrmPackage.Init;
+begin
+  SetAllowedActions;
+  SetActionBtnMenuItem(GetFirstActionMenuItem);
+  FillVersionsCombo;
 end;
 
 procedure TfrmPackage.mniEditPackageClick(Sender: TObject);
 begin
   SetActionBtnMenuItem(mniEditPackage);
-  FOnAction(fatEditPackage, FPackage);
+  FOnAction(fatEditPackage, FPackage, GetSelectedVersion);
 end;
 
 procedure TfrmPackage.mniInstallClick(Sender: TObject);
 begin
   SetActionBtnMenuItem(mniInstall);
-  FOnAction(fatInstall, FPackage);
+  FOnAction(fatInstall, FPackage, GetSelectedVersion);
 end;
 
 procedure TfrmPackage.SetActionBtnMenuItem(aMenuItem: TMenuItem);
 begin
   btnAction.Caption := aMenuItem.Caption;
   btnAction.OnClick := aMenuItem.OnClick;
+end;
+
+procedure TfrmPackage.SetAllowedActions;
+begin
+  mniInstall.Visible := FOnAllowAction(fatInstall);
+  mniEditPackage.Visible := FOnAllowAction(fatEditPackage);
+end;
+
+{ TVersionComboItem }
+
+constructor TVersionComboItem.Create(const aGetVersionOption: string);
+begin
+  FVersion.Name := aGetVersionOption;
+  FVersion.SHA := '';
+end;
+
+constructor TVersionComboItem.Create(const aVersion: TVersion);
+begin
+  FVersion := aVersion;
 end;
 
 end.

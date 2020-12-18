@@ -11,13 +11,29 @@ type
     SHA: string;
   end;
 
+  TTreeNode = record
+    FileType: string;
+    Path: string;
+    URL: string;
+  end;
+
+  TTree = TArray<TTreeNode>;
+
+  TBlob = record
+    Content: string;
+    Encoding: string;
+    URL: string;
+  end;
+
   TGHAPI = class
   private
     FHTTP: THTTP;
     function GetAPIHostBaseURL(const aRepoOwner, aRepoName: string): string;
   public
     function GetMasterBranchSHA(const aRepoOwner, aRepoName: string): string;
+    function GetRepoBlob(const aURL: string): TBlob;
     function GetRepoTags(const aRepoOwner, aRepoName: string): TArray<TTag>;
+    function GetRepoTree(const aRepoOwner, aRepoName, aSHA: string): TTree;
     constructor Create;
     destructor Destroy; override;
   end;
@@ -66,6 +82,23 @@ begin
   end;
 end;
 
+function TGHAPI.GetRepoBlob(const aURL: string): TBlob;
+var
+  jsnObj: TJSONObject;
+  sJSON: string;
+begin
+  sJSON := FHTTP.Get(aURL);
+
+  jsnObj := TJSONObject.ParseJSONValue(sJSON) as TJSONObject;
+  try
+    Result.URL := jsnObj.GetValue('url').Value;
+    Result.Content := jsnObj.GetValue('content').Value;
+    Result.Encoding := jsnObj.GetValue('encoding').Value;
+  finally
+    jsnObj.Free;
+  end;
+end;
+
 function TGHAPI.GetRepoTags(const aRepoOwner, aRepoName: string): TArray<TTag>;
 var
   jsnArr: TJSONArray;
@@ -93,6 +126,39 @@ begin
     end;
   finally
     jsnArr.Free;
+  end;
+end;
+
+function TGHAPI.GetRepoTree(const aRepoOwner, aRepoName, aSHA: string): TTree;
+var
+  jsnObj: TJSONObject;
+  jsnTree: TJSONArray;
+  jsnTreeNode: TJSONObject;
+  jsnVal: TJSONValue;
+  sJSON: string;
+  TreeNode: TTreeNode;
+  URL: string;
+begin
+  Result := [];
+
+  URL := Format(GetAPIHostBaseURL(aRepoOwner, aRepoName) + '/git/trees/%s?recursive=1', [aSHA]);
+  sJSON := FHTTP.Get(URL);
+
+  jsnObj := TJSONObject.ParseJSONValue(sJSON) as TJSONObject;
+  try
+    jsnTree := jsnObj.GetValue('tree') as TJSONArray;
+    for jsnVal in jsnTree do
+    begin
+      jsnTreeNode := jsnVal as TJSONObject;
+
+      TreeNode.FileType := jsnTreeNode.GetValue('type').Value;
+      TreeNode.Path := jsnTreeNode.GetValue('path').Value;
+      TreeNode.URL := jsnTreeNode.GetValue('url').Value;
+
+      Result := Result + [TreeNode];
+    end;
+  finally
+    jsnObj.Free;
   end;
 end;
 

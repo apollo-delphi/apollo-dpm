@@ -112,8 +112,8 @@ object frmPackage: TfrmPackage
     end
   end
   object pmActions: TPopupMenu
-    Left = 120
-    Top = 8
+    AutoHotkeys = maManual
+    Left = 296
     object mniInstall: TMenuItem
       Caption = 'Install'
       OnClick = mniInstallClick

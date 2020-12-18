@@ -30,6 +30,7 @@ type
     actSwitchPackageDetails: TAction;
     btnNewPackage: TSpeedButton;
     actNewPackage: TAction;
+    act2: TAction;
     procedure pnlDetailsSwitcherClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure swPackageDetailsOpened(Sender: TObject);
@@ -44,7 +45,8 @@ type
     function GetSelectedNavigation: string;
     function ShowPackageForm(aPackage: TPackage): Boolean;
     procedure ClearFrames;
-    procedure FrameAction(const aFrameActionType: TFrameActionType; aPackage: TPackage);
+    procedure FrameAction(const aFrameActionType: TFrameActionType; aPackage: TPackage;
+      const aVersion: TVersion);
     procedure RenderNavigation;
     procedure RenderPackageList(aPackageList: TPackageList);
     procedure RenderPackages;
@@ -105,14 +107,18 @@ begin
 end;
 
 procedure TDPMForm.FrameAction(const aFrameActionType: TFrameActionType;
-  aPackage: TPackage);
+  aPackage: TPackage; const aVersion: TVersion);
 begin
   case aFrameActionType of
+    fatInstall:
+      begin
+        FDPMEngine.InstallPackage(aPackage, aVersion);
+      end;
     fatEditPackage:
       if ShowPackageForm(aPackage) then
       begin
         FDPMEngine.UpdatePrivatePackage(aPackage);
-        RenderPackages;
+        //RenderPackages;
       end;
   end;
 end;
@@ -132,6 +138,7 @@ end;
 
 procedure TDPMForm.RenderNavigation;
 begin
+  tvNavigation.Items.Add(nil, cNavProjectDependencies);
   tvNavigation.Items.Add(nil, cNavPrivatePackages);
   tvNavigation.Items.Add(nil, cNavSettings);
 end;
@@ -152,11 +159,13 @@ begin
     PackageFrame.Name := Format('PackageFrame%d', [i]);
     PackageFrame.Parent := sbFrames;
     PackageFrame.OnAction := FrameAction;
+    PackageFrame.OnAllowAction := FDPMEngine.AllowAction;
     PackageFrame.Top := Top;
     PackageFrame.Left := 0;
     PackageFrame.Width := sbFrames.Width - 15;
     if not Odd(i) then
       PackageFrame.Color := clBtnFace;
+    PackageFrame.Init;
 
     Inc(i);
     Top := Top + PackageFrame.Height + 1;
