@@ -30,7 +30,6 @@ type
     actSwitchPackageDetails: TAction;
     btnNewPackage: TSpeedButton;
     actNewPackage: TAction;
-    act2: TAction;
     procedure pnlDetailsSwitcherClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure swPackageDetailsOpened(Sender: TObject);

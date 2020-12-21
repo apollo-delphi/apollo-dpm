@@ -37,13 +37,16 @@ type
     cbFilterListType: TComboBox;
     lblFilterListType: TLabel;
     btnEditFilterLine: TSpeedButton;
+    alActions: TActionList;
+    ilIcons: TImageList;
+    actGoToURL: TAction;
     procedure btnOkClick(Sender: TObject);
-    procedure btnGoToURLClick(Sender: TObject);
     procedure cbFilterListTypeChange(Sender: TObject);
     procedure btnNewFilterLineClick(Sender: TObject);
     procedure lbFilterListClick(Sender: TObject);
     procedure btnEditFilterLineClick(Sender: TObject);
     procedure btnDeleteFilterLineClick(Sender: TObject);
+    procedure actGoToURLExecute(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
     FPackage: TPackage;
@@ -85,6 +88,34 @@ const
 
 { TPackageForm }
 
+procedure TPackageForm.actGoToURLExecute(Sender: TObject);
+var
+  IsSuccess: Boolean;
+  RepoOwner: string;
+  RepoName: string;
+begin
+  btnGoToURL.Enabled := False;
+
+  AsyncLoad(aiRepoDataLoad,
+    procedure()
+    begin
+      IsSuccess := FDPMEngine.LoadRepoData(leURL.Text, RepoOwner, RepoName, FRepoDataLoadError)
+    end,
+    procedure()
+    begin
+      if IsSuccess then
+      begin
+        leURL.Text := '';
+        leRepoOwner.Text := RepoOwner;
+        leRepoName.Text := RepoName;
+      end;
+
+      IsValid(cLoadRepoDataValidation);
+      btnGoToURL.Enabled := True;
+    end
+  );
+end;
+
 procedure TPackageForm.btnDeleteFilterLineClick(Sender: TObject);
 begin
   if MessageDlg('The filter line will be deleted. Continue?', mtConfirmation,
@@ -106,34 +137,6 @@ begin
   begin
     lbFilterList.Items[lbFilterList.ItemIndex] := OutItems.ValueByKey(cItemKey);
   end;
-end;
-
-procedure TPackageForm.btnGoToURLClick(Sender: TObject);
-var
-  IsSuccess: Boolean;
-  RepoOwner: string;
-  RepoName: string;
-begin
-  AsyncLoad(aiRepoDataLoad,
-    procedure()
-    begin
-      btnGoToURL.Enabled := False;
-
-      IsSuccess := FDPMEngine.LoadRepoData(leURL.Text, RepoOwner, RepoName, FRepoDataLoadError)
-    end,
-    procedure()
-    begin
-      if IsSuccess then
-      begin
-        leURL.Text := '';
-        leRepoOwner.Text := RepoOwner;
-        leRepoName.Text := RepoName;
-      end;
-
-      IsValid(cLoadRepoDataValidation);
-      btnGoToURL.Enabled := True;
-    end
-  );
 end;
 
 procedure TPackageForm.btnNewFilterLineClick(Sender: TObject);
