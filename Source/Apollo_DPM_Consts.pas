@@ -9,9 +9,10 @@ const
   cNavPrivatePackages = 'Private Packages';
   cNavProjectDependencies = 'Project Dependencies';
   cNavSettings = 'Settings';
-  cPrivatePackagesPath = 'Apollo\DPM\PrivatePackages';
+  cPrivatePackagesFolderPath = 'Apollo\DPM\PrivatePackages';
+  cProjectPackagesPath = 'DPM.Packages.json';
   cStrAPackageWithThisNameAlreadyExists = 'A package with this name already exists!';
-  cStrARepositoryNameIsEmpty = 'A repository name is empty. Please go to repository URL!';
+  cStrARepositoryNameIsEmpty = 'A repository name is empty. Please go to GitHub URL!';
   cStrCantLoadTheRepositoryURL = 'Can`t load the repository URL!';
   cStrLatestVersionOrCommit = 'the latest version or commit';
   cStrLatestCommit = 'the latest commit';

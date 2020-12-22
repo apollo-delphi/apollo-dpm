@@ -43,6 +43,7 @@ type
     FPackage: TPackage;
     function GetFirstActionMenuItem: TMenuItem;
     function GetSelectedVersion: TVersion;
+    function GetVersionIndex(const aVersion: TVersion): Integer;
     procedure ClearVersionsCombo;
     procedure FillVersionsCombo;
     procedure SetActionBtnMenuItem(aMenuItem: TMenuItem);
@@ -126,9 +127,7 @@ begin
     cbVersions.Items.AddObject(cStrLatestCommit, TVersionComboItem.Create(cStrLatestCommit));
 
   for Version in FPackage.Versions do
-    cbVersions.Items.AddObject(Version.Name, TVersionComboItem.Create(Version));
-
-  cbVersions.ItemIndex := 0;
+    cbVersions.Items.AddObject(Version.GetDisplayName, TVersionComboItem.Create(Version));
 end;
 
 function TfrmPackage.GetFirstActionMenuItem: TMenuItem;
@@ -149,11 +148,31 @@ begin
   Result := VersionComboItem.Version;
 end;
 
+function TfrmPackage.GetVersionIndex(const aVersion: TVersion): Integer;
+var
+  i: Integer;
+  VersionComboItem: TVersionComboItem;
+begin
+  Result := -1;
+
+  for i := 0 to cbVersions.Items.Count - 1 do
+  begin
+    VersionComboItem := cbVersions.Items.Objects[i] as TVersionComboItem;
+    if VersionComboItem.Version.SHA = aVersion.SHA then
+      Exit(i);
+  end;
+end;
+
 procedure TfrmPackage.Init;
 begin
   SetAllowedActions;
   SetActionBtnMenuItem(GetFirstActionMenuItem);
   FillVersionsCombo;
+
+  if not FPackage.Version.IsEmpty then
+    cbVersions.ItemIndex := GetVersionIndex(FPackage.Version)
+  else
+    cbVersions.ItemIndex := 0;
 end;
 
 procedure TfrmPackage.mniEditPackageClick(Sender: TObject);

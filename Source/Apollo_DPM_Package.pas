@@ -13,9 +13,16 @@ type
   public
     Name: string;
     SHA: string;
+    function GetDisplayName: string;
+    function GetJSON: TJSONObject;
+    function IsEmpty: Boolean;
+    procedure Init;
+    constructor Create(aJSONObj: TJSONObject);
   end;
 
   TVisibility = (vPrivate, vPublic);
+
+  TPackageSide = (psInitial, psDependent);
 
   TPackageType = (ptSource);
 
@@ -27,19 +34,27 @@ type
     FFilePath: string;
     FID: string;
     FName: string;
+    FPackageSide: TPackageSide;
     FPackageType: TPackageType;
     FRepoName: string;
     FRepoOwner: string;
     FRepoTree: TTree;
+    FVersion: TVersion;
     FVersions: TArray<TVersion>;
     FVisibility: TVisibility;
+    function AllowByBlackList(const aPath: string): Boolean;
+    function AllowByWhiteList(const aPath: string): Boolean;
     function GetID: string;
     procedure Init;
   public
+    function AllowPath(const aPath: string): Boolean;
+    function ApplyPathMoves(const aPath: string): string;
+    function GetJSON: TJSONObject;
     function GetJSONString: string;
     procedure AddVersion(const aVersion: TVersion);
     constructor Create; overload;
     constructor Create(const aJSONString: string); overload;
+    constructor Create(aPackage: TPackage); overload;
     destructor Destroy; override;
     property Adjustment: TAdjustment read FAdjustment;
     property AreVersionsLoaded: Boolean read FAreVersionsLoaded write FAreVersionsLoaded;
@@ -51,6 +66,7 @@ type
     property RepoName: string read FRepoName write FRepoName;
     property RepoOwner: string read FRepoOwner write FRepoOwner;
     property RepoTree: TTree read FRepoTree write FRepoTree;
+    property Version: TVersion read FVersion write FVersion;
     property Versions: TArray<TVersion> read FVersions;
     property Visibility: TVisibility read FVisibility write FVisibility;
   end;
@@ -63,7 +79,9 @@ type
   TPackageList = class(TObjectList<TPackage>)
   public
     function GetByName(const aPackageName: string): TPackage;
+    function GetJSONString: string;
     constructor Create(const aPackageFileDataArr: TArray<TPackageFileData>); overload;
+    constructor Create(const aJSONString: string); overload;
   end;
 
 implementation
@@ -72,13 +90,16 @@ uses
   System.SysUtils;
 
 const
+  cKeyAdjustment = 'adjustment';
+  cKeyDescription = 'description';
   cKeyId = 'id';
   cKeyName = 'name';
-  cKeyDescription = 'description';
   cKeyRepoOwner = 'repoOwner';
   cKeyRepoName = 'repoName';
   cKeyPackageType = 'packageType';
-  cKeyAdjustment = 'adjustment';
+  cKeyVersion = 'version';
+  cKeyVersionName = 'name';
+  cKeyVersionSHA = 'sha';
 
 { TPackage }
 
@@ -87,10 +108,88 @@ begin
   FVersions := FVersions + [aVersion];
 end;
 
+function TPackage.AllowByBlackList(const aPath: string): Boolean;
+var
+  FilteItem: string;
+begin
+  Result := True;
+
+  for FilteItem in Adjustment.FilterList do
+    if aPath.StartsWith(FilteItem) then
+      Exit(False);
+end;
+
+function TPackage.AllowByWhiteList(const aPath: string): Boolean;
+var
+  FilteItem: string;
+begin
+  Result := False;
+
+  for FilteItem in Adjustment.FilterList do
+    if aPath.StartsWith(FilteItem) then
+      Exit(True);
+end;
+
+function TPackage.AllowPath(const aPath: string): Boolean;
+begin
+  Result := True;
+
+  case Adjustment.FilterListType of
+    fltBlack: Result := AllowByBlackList(aPath);
+    fltWhite: Result := AllowByWhiteList(aPath);
+  end;
+end;
+
+function TPackage.ApplyPathMoves(const aPath: string): string;
+var
+  PathMove: TPathMove;
+begin
+  Result := aPath;
+
+  for PathMove in Adjustment.PathMoves do
+    Result := Result.Replace(PathMove.Source, PathMove.Destination);
+
+  Result := Result.Replace('\\', '\', [rfReplaceAll]);
+end;
+
+constructor TPackage.Create(aPackage: TPackage);
+begin
+  Create;
+  FPackageSide := psDependent;
+
+  ID := aPackage.ID;
+  Name := aPackage.Name;
+  Description := aPackage.Description;
+  RepoOwner := aPackage.RepoOwner;
+  RepoName := aPackage.RepoName;
+  Version := aPackage.Version;
+end;
+
+function TPackage.GetJSON: TJSONObject;
+begin
+  Result := TJSONObject.Create;
+
+  Result.AddPair(cKeyId, ID);
+  Result.AddPair(cKeyName, Name);
+  Result.AddPair(cKeyDescription, Description);
+  Result.AddPair(cKeyRepoOwner, RepoOwner);
+  Result.AddPair(cKeyRepoName, RepoName);
+
+  Result.AddPair(cKeyPackageType, TJSONNumber.Create(Ord(PackageType)));
+
+  if FPackageSide = psDependent then
+    Result.AddPair(cKeyVersion, Version.GetJSON);
+
+  if FPackageSide = psInitial then
+    Result.AddPair(cKeyAdjustment, FAdjustment.GetJSON);
+end;
+
 constructor TPackage.Create(const aJSONString: string);
 var
   iPackageType: Integer;
+  jsnAdjustment: TJSONObject;
   jsnObj: TJSONObject;
+  jsnVersion: TJSONObject;
 begin
   Create;
   try
@@ -105,7 +204,14 @@ begin
       if jsnObj.TryGetValue<Integer>(cKeyPackageType, iPackageType) then
         PackageType := TPackageType(iPackageType);
 
-      FAdjustment.SetJSON(jsnObj.GetValue(cKeyAdjustment) as TJSONObject);
+      if jsnObj.TryGetValue(cKeyVersion, jsnVersion) then
+      begin
+        Version := TVersion.Create(jsnVersion);
+        AddVersion(Version);
+      end;
+
+      if jsnObj.TryGetValue(cKeyAdjustment, jsnAdjustment) then
+        FAdjustment.SetJSON(jsnAdjustment);
     finally
       jsnObj.Free;
     end;
@@ -144,18 +250,8 @@ function TPackage.GetJSONString: string;
 var
   jsnObj: TJSONObject;
 begin
-  jsnObj := TJSONObject.Create;
+  jsnObj := GetJSON;
   try
-    jsnObj.AddPair(cKeyId, ID);
-    jsnObj.AddPair(cKeyName, Name);
-    jsnObj.AddPair(cKeyDescription, Description);
-    jsnObj.AddPair(cKeyRepoOwner, RepoOwner);
-    jsnObj.AddPair(cKeyRepoName, RepoName);
-
-    jsnObj.AddPair(cKeyPackageType, TJSONNumber.Create(Ord(PackageType)));
-
-    jsnObj.AddPair(cKeyAdjustment, FAdjustment.GetJSON);
-
     Result := jsnObj.ToJSON;
   finally
     jsnObj.Free;
@@ -165,7 +261,9 @@ end;
 procedure TPackage.Init;
 begin
   FAdjustment := TAdjustment.Create;
+  FVersion.Init;
   FVersions := [];
+  FPackageSide := psInitial;
   FVisibility := vPrivate;
 end;
 
@@ -186,6 +284,27 @@ begin
   end;
 end;
 
+constructor TPackageList.Create(const aJSONString: string);
+var
+  jsnArr: TJSONArray;
+  jsnVal: TJSONValue;
+  Package: TPackage;
+begin
+  inherited Create(True);
+
+  jsnArr := TJSONObject.ParseJSONValue(aJSONString) as TJSONArray;
+  try
+    for jsnVal in jsnArr do
+    begin
+      Package := TPackage.Create(jsnVal.ToJSON);
+      Package.FPackageSide := psDependent;
+      Add(Package);
+    end;
+  finally
+    jsnArr.Free;
+  end;
+end;
+
 function TPackageList.GetByName(const aPackageName: string): TPackage;
 var
   Package: TPackage;
@@ -195,6 +314,60 @@ begin
   for Package in Self do
     if Package.Name = aPackageName then
       Exit(Package);
+end;
+
+function TPackageList.GetJSONString: string;
+var
+  jsnArr: TJSONArray;
+  Package: TPackage;
+begin
+  jsnArr := TJSONArray.Create;
+  try
+    for Package in Self do
+      jsnArr.Add(Package.GetJSON);
+
+    Result := jsnArr.ToJSON;
+  finally
+    jsnArr.Free;
+  end;
+end;
+
+{ TVersion }
+
+constructor TVersion.Create(aJSONObj: TJSONObject);
+begin
+  Name := aJSONObj.GetValue(cKeyVersionName).Value;
+  SHA := aJSONObj.GetValue(cKeyVersionSHA).Value;
+end;
+
+function TVersion.GetDisplayName: string;
+begin
+  Result := '';
+
+  if not Name.IsEmpty then
+    Result := Name
+  else
+  if not SHA.IsEmpty then
+    Result := Format('commit %s...', [SHA.Substring(0, 13)]);
+end;
+
+function TVersion.GetJSON: TJSONObject;
+begin
+  Result := TJSONObject.Create;
+
+  Result.AddPair(cKeyVersionName, Name);
+  Result.AddPair(cKeyVersionSHA, SHA);
+end;
+
+procedure TVersion.Init;
+begin
+  Name := '';
+  SHA := '';
+end;
+
+function TVersion.IsEmpty: Boolean;
+begin
+  Result := Name.IsEmpty and SHA.IsEmpty;
 end;
 
 end.

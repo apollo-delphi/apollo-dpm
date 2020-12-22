@@ -177,7 +177,10 @@ begin
   ClearFrames;
 
   if GetSelectedNavigation = cNavPrivatePackages then
-    RenderPackageList(FDPMEngine.GetPrivatePackages);
+    RenderPackageList(FDPMEngine.GetPrivatePackages)
+  else
+  if GetSelectedNavigation = cNavProjectDependencies then
+    RenderPackageList(FDPMEngine.GetProjectPackages);
 end;
 
 function TDPMForm.ShowPackageForm(aPackage: TPackage): Boolean;

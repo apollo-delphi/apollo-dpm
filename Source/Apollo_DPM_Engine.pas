@@ -15,6 +15,7 @@ type
   private
     FGHAPI: TGHAPI;
     FPrivatePackages: TPackageList;
+    FProjectPackages: TPackageList;
     function AddPackageFiles(aPackage: TPackage): TArray<string>;
     function DefineVersion(aPackage: TPackage; const aVersion: TVersion): TVersion;
     function GetActiveProject: IOTAProject;
@@ -22,7 +23,8 @@ type
     function GetApolloMenuItem: TMenuItem;
     function GetIDEMainMenu: TMainMenu;
     function GetPackagePath(aPackage: TPackage): string;
-    function GetPrivatePackagesPath: string;
+    function GetProjectPackagesPath: string;
+    function GetPrivatePackagesFolderPath: string;
     function GetVendorsPath: string;
     function IsProjectOpened: Boolean;
     function SaveContent(const aPackagePath, aSourcePath, aContent: string): string;
@@ -30,12 +32,15 @@ type
     procedure AddDPMMenuItem;
     procedure BuildMenu;
     procedure DPMMenuItemClick(Sender: TObject);
-    procedure LoadRepoTree(aPackage: TPackage; const aVersion: TVersion);
+    procedure FreePackageLists;
+    procedure LoadRepoTree(aPackage: TPackage);
     procedure SavePackage(aPackage: TPackage);
+    procedure SavePackages(aPackageList: TPackageList);
     procedure WriteFile(const aPath: string; const aBytes: TBytes);
   public
     function AllowAction(const aActionType: TFrameActionType): Boolean;
     function GetPrivatePackages: TPackageList;
+    function GetProjectPackages: TPackageList;
     function LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName, aError: string): Boolean;
     procedure AddNewPrivatePackage(aPackage: TPackage);
     procedure InstallPackage(aPackage: TPackage; const aVersion: TVersion);
@@ -88,6 +93,7 @@ end;
 function TDPMEngine.AddPackageFiles(aPackage: TPackage): TArray<string>;
 var
   Blob: TBlob;
+  NodePath: string;
   TreeNode: TTreeNode;
 begin
   Result := [];
@@ -97,8 +103,13 @@ begin
     if TreeNode.FileType <> 'blob' then
       Continue;
 
-    Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
-    SaveContent(GetPackagePath(aPackage), TreeNode.Path, Blob.Content);
+    if aPackage.AllowPath(TreeNode.Path) then
+    begin
+      Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
+
+      NodePath := aPackage.ApplyPathMoves(TreeNode.Path);
+      SaveContent(GetPackagePath(aPackage), NodePath, Blob.Content);
+    end;
   end;
 end;
 
@@ -122,8 +133,6 @@ end;
 constructor TDPMEngine.Create;
 begin
   FGHAPI := TGHAPI.Create;
-
-  FPrivatePackages := nil;
 
   BuildMenu;
 
@@ -150,9 +159,7 @@ destructor TDPMEngine.Destroy;
 begin
   Validation.Free;
   FGHAPI.Free;
-
-  if Assigned(FPrivatePackages) then
-    FPrivatePackages.Free;
+  FreePackageLists;
 
   if GetApolloMenuItem <> nil then
     GetIDEMainMenu.Items.Remove(GetApolloMenuItem);
@@ -167,8 +174,16 @@ begin
     DPMForm.ShowModal;
   finally
     DPMForm.Free;
-    FreeAndNil(FPrivatePackages);
+    FreePackageLists;
   end;
+end;
+
+procedure TDPMEngine.FreePackageLists;
+begin
+  if Assigned(FPrivatePackages) then
+    FreeAndNil(FPrivatePackages);
+  if Assigned(FProjectPackages) then
+    FreeAndNil(FProjectPackages);
 end;
 
 function TDPMEngine.GetActiveProject: IOTAProject;
@@ -228,9 +243,9 @@ var
 begin
   if FPrivatePackages = nil then
   begin
-    if TDirectory.Exists(GetPrivatePackagesPath) then
+    if TDirectory.Exists(GetPrivatePackagesFolderPath) then
     begin
-      FileArr := TDirectory.GetFiles(GetPrivatePackagesPath, '*.json');
+      FileArr := TDirectory.GetFiles(GetPrivatePackagesFolderPath, '*.json');
       PackageFileDataArr := [];
       for FileItem in FileArr do
       begin
@@ -250,14 +265,40 @@ begin
   Result := FPrivatePackages;
 end;
 
-function TDPMEngine.GetPrivatePackagesPath: string;
+function TDPMEngine.GetPrivatePackagesFolderPath: string;
 begin
-  Result := TPath.Combine(TPath.GetPublicPath, cPrivatePackagesPath);
+  Result := TPath.Combine(TPath.GetPublicPath, cPrivatePackagesFolderPath);
+end;
+
+function TDPMEngine.GetProjectPackages: TPackageList;
+var
+  sJSON: string;
+begin
+  if not Assigned(FProjectPackages) then
+  begin
+    if TFile.Exists(GetProjectPackagesPath) then
+    begin
+      sJSON := TFile.ReadAllText(GetProjectPackagesPath, TEncoding.ANSI);
+      FProjectPackages := TPackageList.Create(sJSON);
+    end
+    else
+      FProjectPackages := TPackageList.Create;
+  end;
+
+  Result := FProjectPackages;
+end;
+
+function TDPMEngine.GetProjectPackagesPath: string;
+begin
+  if IsProjectOpened then
+    Result := TPath.Combine(GetActiveProjectPath, cProjectPackagesPath)
+  else
+    Result := '';
 end;
 
 function TDPMEngine.GetVendorsPath: string;
 begin
-  Result := TDirectory.GetParent(GetActiveProjectPath) + '\Vendors';
+  Result := TPath.Combine(TDirectory.GetParent(GetActiveProjectPath), 'Vendors');
 end;
 
 procedure TDPMEngine.InstallPackage(aPackage: TPackage; const aVersion: TVersion);
@@ -265,9 +306,12 @@ var
   Version: TVersion;
 begin
   Version := DefineVersion(aPackage, aVersion);
-  LoadRepoTree(aPackage, Version);
+  aPackage.Version := Version;
+  LoadRepoTree(aPackage);
 
   AddPackageFiles(aPackage);
+  GetProjectPackages.Add(TPackage.Create(aPackage));
+  SavePackages(GetProjectPackages);
 end;
 
 function TDPMEngine.IsProjectOpened: Boolean;
@@ -315,9 +359,10 @@ begin
   aRepoName := URLWords[2];
 end;
 
-procedure TDPMEngine.LoadRepoTree(aPackage: TPackage; const aVersion: TVersion);
+procedure TDPMEngine.LoadRepoTree(aPackage: TPackage);
 begin
-  aPackage.RepoTree := FGHAPI.GetRepoTree(aPackage.RepoOwner, aPackage.RepoName, aVersion.SHA);
+  aPackage.RepoTree := FGHAPI.GetRepoTree(aPackage.RepoOwner, aPackage.RepoName,
+    aPackage.Version.SHA);
 end;
 
 procedure TDPMEngine.LoadRepoVersions(aPackage: TPackage);
@@ -366,10 +411,19 @@ var
   Path: string;
 begin
   Bytes := TEncoding.ANSI.GetBytes(aPackage.GetJSONString);
-  Path := TPath.Combine(GetPrivatePackagesPath, aPackage.Name + '.json');
+  Path := TPath.Combine(GetPrivatePackagesFolderPath, aPackage.Name + '.json');
 
   WriteFile(Path, Bytes);
   aPackage.FilePath := Path;
+end;
+
+procedure TDPMEngine.SavePackages(aPackageList: TPackageList);
+var
+  Bytes: TBytes;
+begin
+  Bytes := TEncoding.ANSI.GetBytes(aPackageList.GetJSONString);
+
+  WriteFile(GetProjectPackagesPath, Bytes);
 end;
 
 procedure TDPMEngine.UpdatePrivatePackage(aPackage: TPackage);
