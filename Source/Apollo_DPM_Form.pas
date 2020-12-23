@@ -8,6 +8,7 @@ uses
   Vcl.WinXCtrls, Vcl.Buttons, System.Actions, Vcl.ActnList, System.ImageList,
   Vcl.ImgList,
   Apollo_DPM_Engine,
+  Apollo_DPM_PackageFrame,
   Apollo_DPM_Package,
   Apollo_DPM_Types;
 
@@ -40,7 +41,7 @@ type
     procedure tvNavigationChange(Sender: TObject; Node: TTreeNode);
   private
     FDPMEngine: TDPMEngine;
-    FFrames: TArray<TFrame>;
+    FFrames: TArray<TfrmPackage>;
     function GetSelectedNavigation: string;
     function ShowPackageForm(aPackage: TPackage): Boolean;
     procedure ClearFrames;
@@ -49,7 +50,9 @@ type
     procedure RenderNavigation;
     procedure RenderPackageList(aPackageList: TPackageList);
     procedure RenderPackages;
+    procedure UpdateFrame(aPackage: TPackage);
   public
+    procedure NotifyObserver(const aText: string);
     constructor Create(aDPMEngine: TDPMEngine); reintroduce;
   end;
 
@@ -62,8 +65,7 @@ implementation
 
 uses
   Apollo_DPM_Consts,
-  Apollo_DPM_PackageForm,
-  Apollo_DPM_PackageFrame;
+  Apollo_DPM_PackageForm;
 
 { TDPMForm }
 
@@ -112,12 +114,13 @@ begin
     fatInstall:
       begin
         FDPMEngine.InstallPackage(aPackage, aVersion);
+        UpdateFrame(aPackage);
       end;
     fatEditPackage:
       if ShowPackageForm(aPackage) then
       begin
         FDPMEngine.UpdatePrivatePackage(aPackage);
-        //RenderPackages;
+        UpdateFrame(aPackage);
       end;
   end;
 end;
@@ -128,6 +131,14 @@ begin
 
   if tvNavigation.Selected <> nil then
     Result := tvNavigation.Selected.Text;
+end;
+
+procedure TDPMForm.NotifyObserver(const aText: string);
+begin
+  reActionLog.Lines.Add(aText);
+
+  reActionLog.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+  Application.ProcessMessages;
 end;
 
 procedure TDPMForm.pnlDetailsSwitcherClick(Sender: TObject);
@@ -154,7 +165,7 @@ begin
 
   for Package in aPackageList do
   begin
-    PackageFrame := TfrmPackage.Create(sbFrames, Package, FDPMEngine);
+    PackageFrame := TfrmPackage.Create(sbFrames, FDPMEngine);
     PackageFrame.Name := Format('PackageFrame%d', [i]);
     PackageFrame.Parent := sbFrames;
     PackageFrame.OnAction := FrameAction;
@@ -164,7 +175,7 @@ begin
     PackageFrame.Width := sbFrames.Width - 15;
     if not Odd(i) then
       PackageFrame.Color := clBtnFace;
-    PackageFrame.Init;
+    PackageFrame.RenderPackage(Package);
 
     Inc(i);
     Top := Top + PackageFrame.Height + 1;
@@ -234,6 +245,15 @@ begin
 
   Rect := Node.DisplayRect(True);
   Sender.Canvas.TextOut(Rect.Left, Rect.Top, Node.Text);
+end;
+
+procedure TDPMForm.UpdateFrame(aPackage: TPackage);
+var
+  Frame: TfrmPackage;
+begin
+  for Frame in FFrames do
+    if Frame.IsShowingPackage(aPackage) then
+      Frame.RenderPackage(aPackage);
 end;
 
 {

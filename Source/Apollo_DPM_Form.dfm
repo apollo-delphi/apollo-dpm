@@ -18,26 +18,32 @@ object DPMForm: TDPMForm
     Anchors = [akLeft, akTop, akRight, akBottom]
     BevelOuter = bvNone
     Caption = 'pnlMainContainer'
+    Color = clWindow
+    ParentBackground = False
     TabOrder = 0
     object splHorizontal: TSplitter
       Left = 0
-      Top = 339
+      Top = 333
       Width = 619
       Height = 2
       Cursor = crVSplit
       Align = alBottom
     end
     object reActionLog: TRichEdit
-      Left = 0
-      Top = 341
-      Width = 619
+      AlignWithMargins = True
+      Left = 6
+      Top = 338
+      Width = 607
       Height = 100
+      Margins.Left = 6
+      Margins.Right = 6
       Align = alBottom
       BevelInner = bvNone
       BevelOuter = bvNone
       BorderStyle = bsNone
       ParentFont = False
       ReadOnly = True
+      ScrollBars = ssVertical
       TabOrder = 1
       Zoom = 100
       Font.Charset = RUSSIAN_CHARSET
@@ -46,7 +52,7 @@ object DPMForm: TDPMForm
       Left = 0
       Top = 0
       Width = 619
-      Height = 339
+      Height = 333
       Align = alClient
       BevelOuter = bvNone
       Caption = 'pnlMain'
@@ -57,14 +63,14 @@ object DPMForm: TDPMForm
         Left = 170
         Top = 0
         Width = 2
-        Height = 339
+        Height = 333
       end
       object tvNavigation: TTreeView
         AlignWithMargins = True
         Left = 0
         Top = 15
         Width = 170
-        Height = 324
+        Height = 318
         Margins.Left = 0
         Margins.Top = 15
         Margins.Right = 0
@@ -86,7 +92,7 @@ object DPMForm: TDPMForm
         Left = 172
         Top = 0
         Width = 447
-        Height = 339
+        Height = 333
         Align = alClient
         BevelOuter = bvNone
         Caption = 'pnlFrames'
@@ -95,7 +101,7 @@ object DPMForm: TDPMForm
           Left = 0
           Top = 30
           Width = 447
-          Height = 309
+          Height = 303
           Align = alClient
           BevelInner = bvNone
           BevelOuter = bvNone

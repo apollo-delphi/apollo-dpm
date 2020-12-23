@@ -33,6 +33,19 @@ object frmPackage: TfrmPackage
     Height = 13
     Caption = 'Version'
   end
+  object lblInstalled: TLabel
+    Left = 325
+    Top = 3
+    Width = 41
+    Height = 13
+    Anchors = [akTop, akRight]
+    Caption = 'Installed'
+    ParentFont = False
+    Visible = False
+    Font.Name = 'Tahoma'
+    Font.Color = clGreen
+    Font.Charset = DEFAULT_CHARSET
+  end
   object cbVersions: TComboBox
     Left = 58
     Top = 44
@@ -113,10 +126,13 @@ object frmPackage: TfrmPackage
   end
   object pmActions: TPopupMenu
     AutoHotkeys = maManual
-    Left = 296
+    Left = 288
     object mniInstall: TMenuItem
       Caption = 'Install'
       OnClick = mniInstallClick
+    end
+    object mniUninstall: TMenuItem
+      Caption = 'Uninstall'
     end
     object mniEditPackage: TMenuItem
       Caption = 'Edit Package...'

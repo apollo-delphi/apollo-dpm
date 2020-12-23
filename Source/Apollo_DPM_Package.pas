@@ -20,6 +20,11 @@ type
     constructor Create(aJSONObj: TJSONObject);
   end;
 
+  TVersionsHelper = record helper for TArray<TVersion>
+    function Contain(const aVersion: TVersion): Boolean;
+    function Count: Integer;
+  end;
+
   TVisibility = (vPrivate, vPublic);
 
   TPackageSide = (psInitial, psDependent);
@@ -46,6 +51,7 @@ type
     function AllowByWhiteList(const aPath: string): Boolean;
     function GetID: string;
     procedure Init;
+    procedure SetVersion(const aVersion: TVersion);
   public
     function AllowPath(const aPath: string): Boolean;
     function ApplyPathMoves(const aPath: string): string;
@@ -62,11 +68,12 @@ type
     property FilePath: string read FFilePath write FFilePath;
     property ID: string read GetID write FID;
     property Name: string read FName write FName;
+    property PackageSide: TPackageSide read FPackageSide;
     property PackageType: TPackageType read FPackageType write FPackageType;
     property RepoName: string read FRepoName write FRepoName;
     property RepoOwner: string read FRepoOwner write FRepoOwner;
     property RepoTree: TTree read FRepoTree write FRepoTree;
-    property Version: TVersion read FVersion write FVersion;
+    property Version: TVersion read FVersion write SetVersion;
     property Versions: TArray<TVersion> read FVersions;
     property Visibility: TVisibility read FVisibility write FVisibility;
   end;
@@ -78,8 +85,10 @@ type
 
   TPackageList = class(TObjectList<TPackage>)
   public
+    function GetByID(const aID: string): TPackage;
     function GetByName(const aPackageName: string): TPackage;
     function GetJSONString: string;
+    procedure SyncToExternal(aPackage: TPackage);
     constructor Create(const aPackageFileDataArr: TArray<TPackageFileData>); overload;
     constructor Create(const aJSONString: string); overload;
   end;
@@ -105,7 +114,8 @@ const
 
 procedure TPackage.AddVersion(const aVersion: TVersion);
 begin
-  FVersions := FVersions + [aVersion];
+  if not FVersions.Contain(aVersion) then
+    FVersions := FVersions + [aVersion];
 end;
 
 function TPackage.AllowByBlackList(const aPath: string): Boolean;
@@ -205,10 +215,7 @@ begin
         PackageType := TPackageType(iPackageType);
 
       if jsnObj.TryGetValue(cKeyVersion, jsnVersion) then
-      begin
         Version := TVersion.Create(jsnVersion);
-        AddVersion(Version);
-      end;
 
       if jsnObj.TryGetValue(cKeyAdjustment, jsnAdjustment) then
         FAdjustment.SetJSON(jsnAdjustment);
@@ -267,6 +274,12 @@ begin
   FVisibility := vPrivate;
 end;
 
+procedure TPackage.SetVersion(const aVersion: TVersion);
+begin
+  FVersion := aVersion;
+  AddVersion(aVersion);
+end;
+
 { TPackageList }
 
 constructor TPackageList.Create(const aPackageFileDataArr: TArray<TPackageFileData>);
@@ -305,6 +318,17 @@ begin
   end;
 end;
 
+function TPackageList.GetByID(const aID: string): TPackage;
+var
+  Package: TPackage;
+begin
+  Result := nil;
+
+  for Package in Self do
+    if Package.ID = aID then
+      Exit(Package);
+end;
+
 function TPackageList.GetByName(const aPackageName: string): TPackage;
 var
   Package: TPackage;
@@ -329,6 +353,17 @@ begin
     Result := jsnArr.ToJSON;
   finally
     jsnArr.Free;
+  end;
+end;
+
+procedure TPackageList.SyncToExternal(aPackage: TPackage);
+var
+  Package: TPackage;
+begin
+  Package := GetByID(aPackage.ID);
+  if Package <> nil then
+  begin
+    aPackage.Version := Package.Version;
   end;
 end;
 
@@ -368,6 +403,24 @@ end;
 function TVersion.IsEmpty: Boolean;
 begin
   Result := Name.IsEmpty and SHA.IsEmpty;
+end;
+
+{TVersionsHelper}
+
+function TVersionsHelper.Count: Integer;
+begin
+  Result := Length(Self);
+end;
+
+function TVersionsHelper.Contain(const aVersion: TVersion): Boolean;
+var
+  Version: TVersion;
+begin
+  Result := False;
+
+  for Version in Self do
+    if Version.SHA = aVersion.SHA then
+      Exit(True);
 end;
 
 end.

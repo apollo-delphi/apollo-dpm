@@ -16,6 +16,7 @@ type
     FGHAPI: TGHAPI;
     FPrivatePackages: TPackageList;
     FProjectPackages: TPackageList;
+    FUINotifyProc: TUINotifyProc;
     function AddPackageFiles(aPackage: TPackage): TArray<string>;
     function DefineVersion(aPackage: TPackage; const aVersion: TVersion): TVersion;
     function GetActiveProject: IOTAProject;
@@ -38,7 +39,8 @@ type
     procedure SavePackages(aPackageList: TPackageList);
     procedure WriteFile(const aPath: string; const aBytes: TBytes);
   public
-    function AllowAction(const aActionType: TFrameActionType): Boolean;
+    function AllowAction(const aFrameActionType: TFrameActionType;
+      aPackage: TPackage): Boolean;
     function GetPrivatePackages: TPackageList;
     function GetProjectPackages: TPackageList;
     function LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName, aError: string): Boolean;
@@ -113,12 +115,20 @@ begin
   end;
 end;
 
-function TDPMEngine.AllowAction(const aActionType: TFrameActionType): Boolean;
+function TDPMEngine.AllowAction(const aFrameActionType: TFrameActionType;
+  aPackage: TPackage): Boolean;
 begin
   Result := False;
-  case aActionType of
-    fatInstall: Result := IsProjectOpened;
-    fatEditPackage: Result := True;
+  case aFrameActionType of
+    fatInstall:
+      Result := IsProjectOpened
+                and aPackage.Version.IsEmpty;
+
+    fatUninstall:
+      Result := not aPackage.Version.IsEmpty;
+
+    fatEditPackage:
+      Result := aPackage.PackageSide = psInitial;
   end;
 end;
 
@@ -171,6 +181,7 @@ procedure TDPMEngine.DPMMenuItemClick(Sender: TObject);
 begin
   DPMForm := TDPMForm.Create(Self);
   try
+    FUINotifyProc := DPMForm.NotifyObserver;
     DPMForm.ShowModal;
   finally
     DPMForm.Free;
@@ -238,6 +249,7 @@ function TDPMEngine.GetPrivatePackages: TPackageList;
 var
   FileArr: TArray<string>;
   FileItem: string;
+  Package: TPackage;
   PackageFileData: TPackageFileData;
   PackageFileDataArr: TArray<TPackageFileData>;
 begin
@@ -257,6 +269,9 @@ begin
 
       if Length(PackageFileDataArr) > 0 then
         FPrivatePackages := TPackageList.Create(PackageFileDataArr);
+
+      for Package in FPrivatePackages do
+        GetProjectPackages.SyncToExternal(Package);
     end;
   end;
 
@@ -305,6 +320,8 @@ procedure TDPMEngine.InstallPackage(aPackage: TPackage; const aVersion: TVersion
 var
   Version: TVersion;
 begin
+  FUINotifyProc(Format(#13#10 + 'Installing %s...', [aPackage.Name]));
+
   Version := DefineVersion(aPackage, aVersion);
   aPackage.Version := Version;
   LoadRepoTree(aPackage);
@@ -312,6 +329,8 @@ begin
   AddPackageFiles(aPackage);
   GetProjectPackages.Add(TPackage.Create(aPackage));
   SavePackages(GetProjectPackages);
+
+  FUINotifyProc('Success');
 end;
 
 function TDPMEngine.IsProjectOpened: Boolean;
@@ -403,6 +422,8 @@ begin
   Bytes := TNetEncoding.Base64.DecodeStringToBytes(aContent);
 
   WriteFile(Result, Bytes);
+
+  FUINotifyProc('Writing ' + Result);
 end;
 
 procedure TDPMEngine.SavePackage(aPackage: TPackage);

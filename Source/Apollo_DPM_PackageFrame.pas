@@ -32,6 +32,8 @@ type
     btnAction: TSpeedButton;
     pnlActions: TPanel;
     btnActionDropDown: TSpeedButton;
+    lblInstalled: TLabel;
+    mniUninstall: TMenuItem;
     procedure mniEditPackageClick(Sender: TObject);
     procedure cbVersionsDropDown(Sender: TObject);
     procedure mniInstallClick(Sender: TObject);
@@ -49,8 +51,9 @@ type
     procedure SetActionBtnMenuItem(aMenuItem: TMenuItem);
     procedure SetAllowedActions;
   public
-    procedure Init;
-    constructor Create(aOwner: TComponent; aPackage: TPackage; aDPMEngine: TDPMEngine); reintroduce;
+    function IsShowingPackage(aPackage: TPackage): Boolean;
+    procedure RenderPackage(aPackage: TPackage);
+    constructor Create(aOwner: TComponent; aDPMEngine: TDPMEngine); reintroduce;
     destructor Destroy; override;
     property OnAction: TFrameActionProc read FOnAction write FOnAction;
     property OnAllowAction: TFrameAllowActionFunc read FOnAllowAction write FOnAllowAction;
@@ -99,14 +102,11 @@ begin
   cbVersions.Items.Clear;
 end;
 
-constructor TfrmPackage.Create(aOwner: TComponent; aPackage: TPackage; aDPMEngine: TDPMEngine);
+constructor TfrmPackage.Create(aOwner: TComponent; aDPMEngine: TDPMEngine);
 begin
   inherited Create(aOwner);
 
   FDPMEngine := aDPMEngine;
-  FPackage := aPackage;
-  lblName.Caption := aPackage.Name;
-  lblDescription.Caption := aPackage.Description;
 end;
 
 destructor TfrmPackage.Destroy;
@@ -163,14 +163,26 @@ begin
   end;
 end;
 
-procedure TfrmPackage.Init;
+function TfrmPackage.IsShowingPackage(aPackage: TPackage): Boolean;
 begin
+  Result := aPackage.ID = FPackage.ID;
+end;
+
+procedure TfrmPackage.RenderPackage(aPackage: TPackage);
+begin
+  FPackage := aPackage;
+  lblName.Caption := aPackage.Name;
+  lblDescription.Caption := aPackage.Description;
+
   SetAllowedActions;
   SetActionBtnMenuItem(GetFirstActionMenuItem);
   FillVersionsCombo;
 
   if not FPackage.Version.IsEmpty then
-    cbVersions.ItemIndex := GetVersionIndex(FPackage.Version)
+  begin
+    cbVersions.ItemIndex := GetVersionIndex(FPackage.Version);
+    lblInstalled.Visible := True;
+  end
   else
     cbVersions.ItemIndex := 0;
 end;
@@ -195,8 +207,9 @@ end;
 
 procedure TfrmPackage.SetAllowedActions;
 begin
-  mniInstall.Visible := FOnAllowAction(fatInstall);
-  mniEditPackage.Visible := FOnAllowAction(fatEditPackage);
+  mniInstall.Visible := FOnAllowAction(fatInstall, FPackage);
+  mniUninstall.Visible := FOnAllowAction(fatUninstall, FPackage);
+  mniEditPackage.Visible := FOnAllowAction(fatEditPackage, FPackage);
 end;
 
 { TVersionComboItem }
