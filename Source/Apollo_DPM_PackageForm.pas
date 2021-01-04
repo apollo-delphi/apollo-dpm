@@ -7,7 +7,6 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Buttons,
   System.Actions, Vcl.ActnList, Vcl.WinXCtrls, System.ImageList, Vcl.ImgList,
   Vcl.ComCtrls,
-  Apollo_DPM_Adjustment,
   Apollo_DPM_Engine,
   Apollo_DPM_Package,
   Apollo_DPM_Validation;
@@ -63,7 +62,7 @@ type
     procedure actDeletePathMoveExecute(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
-    FPackage: TPackage;
+    FPackage: TInitialPackage;
     FRepoDataLoadError: string;
     function GetSelectedVisibility: TVisibility;
     function IsValid(const aValidationGroupName: string): Boolean;
@@ -74,7 +73,7 @@ type
     procedure RenderPathMoveItem(const aSource, aDestination: string);
     procedure WriteToControls;
   public
-    constructor Create(aDPMEngine: TDPMEngine; aPackage: TPackage); reintroduce;
+    constructor Create(aDPMEngine: TDPMEngine; aPackage: TInitialPackage); reintroduce;
   end;
 
 var
@@ -219,7 +218,7 @@ begin
   FilterListTypeChanged(TFilterListType(cbFilterListType.ItemIndex));
 end;
 
-constructor TPackageForm.Create(aDPMEngine: TDPMEngine; aPackage: TPackage);
+constructor TPackageForm.Create(aDPMEngine: TDPMEngine; aPackage: TInitialPackage);
 var
   i: Integer;
 begin
@@ -333,18 +332,18 @@ begin
   FPackage.RepoOwner := leRepoOwner.Text;
   FPackage.RepoName := leRepoName.Text;
 
-  FPackage.Adjustment.FilterListType := TFilterListType(cbFilterListType.ItemIndex);
+  FPackage.FilterListType := TFilterListType(cbFilterListType.ItemIndex);
 
-  FPackage.Adjustment.FilterList := [];
+  FPackage.FilterList := [];
   for i := 0 to lbFilterList.Items.Count - 1 do
-    FPackage.Adjustment.FilterList := FPackage.Adjustment.FilterList + [lbFilterList.Items[i]];
+    FPackage.FilterList := FPackage.FilterList + [lbFilterList.Items[i]];
 
-  FPackage.Adjustment.PathMoves := [];
+  FPackage.PathMoves := [];
   for i := 0 to lvPathMoves.Items.Count - 1 do
   begin
     PathMove.Source := lvPathMoves.Items[i].Caption;
     PathMove.Destination := lvPathMoves.Items[i].SubItems[0];
-    FPackage.Adjustment.PathMoves := FPackage.Adjustment.PathMoves + [PathMove];
+    FPackage.PathMoves := FPackage.PathMoves + [PathMove];
   end;
 end;
 
@@ -372,13 +371,13 @@ begin
   leRepoOwner.Text := FPackage.RepoOwner;
   leRepoName.Text := FPackage.RepoName;
 
-  cbFilterListType.ItemIndex := Ord(FPackage.Adjustment.FilterListType);
-  FilterListTypeChanged(FPackage.Adjustment.FilterListType);
+  cbFilterListType.ItemIndex := Ord(FPackage.FilterListType);
+  FilterListTypeChanged(FPackage.FilterListType);
 
-  for FilterItem in FPackage.Adjustment.FilterList do
+  for FilterItem in FPackage.FilterList do
     lbFilterList.Items.Add(FilterItem);
 
-  for PathMove in FPackage.Adjustment.PathMoves do
+  for PathMove in FPackage.PathMoves do
     RenderPathMoveItem(PathMove.Source, PathMove.Destination);
   PathMoveSelected;
 end;

@@ -10,7 +10,8 @@ uses
   Apollo_DPM_Engine,
   Apollo_DPM_PackageFrame,
   Apollo_DPM_Package,
-  Apollo_DPM_Types;
+  Apollo_DPM_Types,
+  Apollo_DPM_Version;
 
 type
   TDPMForm = class(TForm)
@@ -30,27 +31,30 @@ type
     alActions: TActionList;
     actSwitchPackageDetails: TAction;
     btnNewPackage: TSpeedButton;
-    actNewPackage: TAction;
+    actNewInitialPackage: TAction;
     procedure pnlDetailsSwitcherClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure swPackageDetailsOpened(Sender: TObject);
     procedure swPackageDetailsClosed(Sender: TObject);
     procedure tvNavigationCustomDrawItem(Sender: TCustomTreeView;
       Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
-    procedure actNewPackageExecute(Sender: TObject);
+    procedure actNewInitialPackageExecute(Sender: TObject);
     procedure tvNavigationChange(Sender: TObject; Node: TTreeNode);
   private
     FDPMEngine: TDPMEngine;
     FFrames: TArray<TfrmPackage>;
     function GetSelectedNavigation: string;
-    function ShowPackageForm(aPackage: TPackage): Boolean;
+    function ShowPackageForm(aPackage: TInitialPackage): Boolean;
     procedure ClearFrames;
+    procedure DoRenderPackageList(aPackages: TArray<TPackage>);
     procedure FrameAction(const aFrameActionType: TFrameActionType; aPackage: TPackage;
-      const aVersion: TVersion);
+      aVersion: TVersion);
     procedure RenderNavigation;
-    procedure RenderPackageList(aPackageList: TPackageList);
+    procedure RenderPackageList(aPackageList: TPrivatePackageList); overload;
+    procedure RenderPackageList(aPackageList: TDependentPackageList); overload;
     procedure RenderPackages;
     procedure UpdateFrame(aPackage: TPackage);
+    procedure UpdateFrames(aPackageHandles: TPackageHandles);
   public
     procedure NotifyObserver(const aText: string);
     constructor Create(aDPMEngine: TDPMEngine); reintroduce;
@@ -69,11 +73,11 @@ uses
 
 { TDPMForm }
 
-procedure TDPMForm.actNewPackageExecute(Sender: TObject);
+procedure TDPMForm.actNewInitialPackageExecute(Sender: TObject);
 var
-  Package: TPackage;
+  Package: TInitialPackage;
 begin
-  Package := TPackage.Create;
+  Package := TInitialPackage.Create;
   if ShowPackageForm(Package) then
   begin
     FDPMEngine.AddNewPrivatePackage(Package);
@@ -102,26 +106,65 @@ begin
   RenderNavigation;
 end;
 
+procedure TDPMForm.DoRenderPackageList(aPackages: TArray<TPackage>);
+var
+  i: Integer;
+  Package: TPackage;
+  PackageFrame: TfrmPackage;
+  Top: Integer;
+begin
+  i := 0;
+  Top := 0;
+
+  for Package in aPackages do
+  begin
+    PackageFrame := TfrmPackage.Create(sbFrames, FDPMEngine, i);
+    PackageFrame.OnAction := FrameAction;
+    PackageFrame.OnAllowAction := FDPMEngine.AllowAction;
+    PackageFrame.Top := Top;
+    if not Odd(i) then
+      PackageFrame.Color := clBtnFace;
+
+    PackageFrame.RenderPackage(Package);
+
+    Inc(i);
+    Top := Top + PackageFrame.Height + 1;
+    FFrames := FFrames + [PackageFrame];
+  end;
+end;
+
 procedure TDPMForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
  //SaveLayout([Self, splHorizontal, splVertical, swPackageDetail]);
 end;
 
 procedure TDPMForm.FrameAction(const aFrameActionType: TFrameActionType;
-  aPackage: TPackage; const aVersion: TVersion);
+  aPackage: TPackage; aVersion: TVersion);
+var
+  PackageHandles: TPackageHandles;
 begin
   case aFrameActionType of
     fatInstall:
       begin
-        FDPMEngine.InstallPackage(aPackage, aVersion);
-        UpdateFrame(aPackage);
+        PackageHandles := FDPMEngine.Install(aPackage as TInitialPackage, aVersion);
+        UpdateFrames(PackageHandles);
+      end;
+    fatUninstall:
+      begin
+        FDPMEngine.Uninstall(aPackage);
+        {if aPackage.PackageSide = psInitial then
+          UpdateFrame(aPackage)
+        else
+          RenderPackages;}
       end;
     fatEditPackage:
-      if ShowPackageForm(aPackage) then
+    begin
+      if ShowPackageForm(aPackage as TInitialPackage) then
       begin
-        FDPMEngine.UpdatePrivatePackage(aPackage);
+        FDPMEngine.UpdatePrivatePackage(aPackage as TPrivatePackage);
         UpdateFrame(aPackage);
       end;
+    end;
   end;
 end;
 
@@ -153,34 +196,30 @@ begin
   tvNavigation.Items.Add(nil, cNavSettings);
 end;
 
-procedure TDPMForm.RenderPackageList(aPackageList: TPackageList);
+procedure TDPMForm.RenderPackageList(aPackageList: TPrivatePackageList);
 var
-  i: Integer;
-  Package: TPackage;
-  PackageFrame: TfrmPackage;
-  Top: Integer;
+  Package: TPrivatePackage;
+  Packages: TArray<TPackage>;
 begin
-  i := 0;
-  Top := 0;
+  Packages := [];
 
   for Package in aPackageList do
-  begin
-    PackageFrame := TfrmPackage.Create(sbFrames, FDPMEngine);
-    PackageFrame.Name := Format('PackageFrame%d', [i]);
-    PackageFrame.Parent := sbFrames;
-    PackageFrame.OnAction := FrameAction;
-    PackageFrame.OnAllowAction := FDPMEngine.AllowAction;
-    PackageFrame.Top := Top;
-    PackageFrame.Left := 0;
-    PackageFrame.Width := sbFrames.Width - 15;
-    if not Odd(i) then
-      PackageFrame.Color := clBtnFace;
-    PackageFrame.RenderPackage(Package);
+    Packages := Packages + [Package];
 
-    Inc(i);
-    Top := Top + PackageFrame.Height + 1;
-    FFrames := FFrames + [PackageFrame];
-  end;
+  DoRenderPackageList(Packages);
+end;
+
+procedure TDPMForm.RenderPackageList(aPackageList: TDependentPackageList);
+var
+  Package: TDependentPackage;
+  Packages: TArray<TPackage>;
+begin
+  Packages := [];
+
+  for Package in aPackageList do
+    Packages := Packages + [Package];
+
+  DoRenderPackageList(Packages);
 end;
 
 procedure TDPMForm.RenderPackages;
@@ -194,7 +233,7 @@ begin
     RenderPackageList(FDPMEngine.GetProjectPackages);
 end;
 
-function TDPMForm.ShowPackageForm(aPackage: TPackage): Boolean;
+function TDPMForm.ShowPackageForm(aPackage: TInitialPackage): Boolean;
 begin
   PackageForm := TPackageForm.Create(FDPMEngine, aPackage);
   try
@@ -253,7 +292,15 @@ var
 begin
   for Frame in FFrames do
     if Frame.IsShowingPackage(aPackage) then
-      Frame.RenderPackage(aPackage);
+      Frame.ReRenderPackage;
+end;
+
+procedure TDPMForm.UpdateFrames(aPackageHandles: TPackageHandles);
+var
+  PackageHandle: TPackageHandle;
+begin
+  for PackageHandle in aPackageHandles do
+    UpdateFrame(PackageHandle.InitialPackage);
 end;
 
 {

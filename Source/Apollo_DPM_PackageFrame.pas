@@ -9,15 +9,18 @@ uses
   Vcl.ExtCtrls,
   Apollo_DPM_Engine,
   Apollo_DPM_Package,
-  Apollo_DPM_Types;
+  Apollo_DPM_Types,
+  Apollo_DPM_Version;
 
 type
   TVersionComboItem = class
   private
     FVersion: TVersion;
-    constructor Create(const aVersion: TVersion); overload;
+    FIsOption: Boolean;
+  public
+    constructor Create(aVersion: TVersion); overload;
     constructor Create(const aGetVersionOption: string); overload;
-    property Version: TVersion read FVersion;
+    destructor Destroy; override;
   end;
 
   TfrmPackage = class(TFrame)
@@ -38,6 +41,7 @@ type
     procedure cbVersionsDropDown(Sender: TObject);
     procedure mniInstallClick(Sender: TObject);
     procedure btnActionDropDownClick(Sender: TObject);
+    procedure mniUninstallClick(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
     FOnAction: TFrameActionProc;
@@ -53,7 +57,9 @@ type
   public
     function IsShowingPackage(aPackage: TPackage): Boolean;
     procedure RenderPackage(aPackage: TPackage);
-    constructor Create(aOwner: TComponent; aDPMEngine: TDPMEngine); reintroduce;
+    procedure ReRenderPackage;
+    constructor Create(aOwner: TWinControl; aDPMEngine: TDPMEngine;
+      const aIndex: Integer); reintroduce;
     destructor Destroy; override;
     property OnAction: TFrameActionProc read FOnAction write FOnAction;
     property OnAllowAction: TFrameAllowActionFunc read FOnAllowAction write FOnAllowAction;
@@ -84,7 +90,7 @@ begin
   AsyncLoad(aiVersionLoad,
     procedure
     begin
-      FDPMEngine.LoadRepoVersions(FPackage);
+      FDPMEngine.GetVersions(FPackage);
     end,
     procedure
     begin
@@ -96,15 +102,26 @@ end;
 procedure TfrmPackage.ClearVersionsCombo;
 var
   i: Integer;
+  VersionComboItem: TVersionComboItem;
 begin
   for i := 0 to cbVersions.Items.Count - 1 do
-    cbVersions.Items.Objects[i].Free;
+  begin
+    VersionComboItem := cbVersions.Items.Objects[i] as TVersionComboItem;
+    VersionComboItem.Free;
+  end;
+
   cbVersions.Items.Clear;
 end;
 
-constructor TfrmPackage.Create(aOwner: TComponent; aDPMEngine: TDPMEngine);
+constructor TfrmPackage.Create(aOwner: TWinControl; aDPMEngine: TDPMEngine;
+  const aIndex: Integer);
 begin
   inherited Create(aOwner);
+
+  Name := Format('PackageFrame%d', [aIndex]);
+  Parent := aOwner;
+  Left := 0;
+  Width := aOwner.Width - 15;
 
   FDPMEngine := aDPMEngine;
 end;
@@ -118,16 +135,18 @@ end;
 procedure TfrmPackage.FillVersionsCombo;
 var
   Version: TVersion;
+  Versions: TArray<TVersion>;
 begin
   ClearVersionsCombo;
 
-  if not FPackage.AreVersionsLoaded then
+  if not FDPMEngine.AreVersionsLoaded(FPackage.ID) then
     cbVersions.Items.AddObject(cStrLatestVersionOrCommit, TVersionComboItem.Create(cStrLatestVersionOrCommit))
   else
     cbVersions.Items.AddObject(cStrLatestCommit, TVersionComboItem.Create(cStrLatestCommit));
 
-  for Version in FPackage.Versions do
-    cbVersions.Items.AddObject(Version.GetDisplayName, TVersionComboItem.Create(Version));
+  Versions := FDPMEngine.GetVersions(FPackage, True);
+  for Version in Versions do
+    cbVersions.Items.AddObject(Version.DisplayName, TVersionComboItem.Create(Version));
 end;
 
 function TfrmPackage.GetFirstActionMenuItem: TMenuItem;
@@ -145,7 +164,7 @@ var
   VersionComboItem: TVersionComboItem;
 begin
   VersionComboItem := cbVersions.Items.Objects[cbVersions.ItemIndex] as TVersionComboItem;
-  Result := VersionComboItem.Version;
+  Result := VersionComboItem.FVersion;
 end;
 
 function TfrmPackage.GetVersionIndex(const aVersion: TVersion): Integer;
@@ -158,7 +177,7 @@ begin
   for i := 0 to cbVersions.Items.Count - 1 do
   begin
     VersionComboItem := cbVersions.Items.Objects[i] as TVersionComboItem;
-    if VersionComboItem.Version.SHA = aVersion.SHA then
+    if VersionComboItem.FVersion.SHA = aVersion.SHA then
       Exit(i);
   end;
 end;
@@ -169,6 +188,8 @@ begin
 end;
 
 procedure TfrmPackage.RenderPackage(aPackage: TPackage);
+var
+  Version: TVersion;
 begin
   FPackage := aPackage;
   lblName.Caption := aPackage.Name;
@@ -178,13 +199,31 @@ begin
   SetActionBtnMenuItem(GetFirstActionMenuItem);
   FillVersionsCombo;
 
-  if not FPackage.Version.IsEmpty then
+  Version := nil;
+  if FPackage is TDependentPackage then
+    Version := (FPackage as TDependentPackage).Version
+  else
+  if FPackage is TInitialPackage then
   begin
-    cbVersions.ItemIndex := GetVersionIndex(FPackage.Version);
+    if Assigned((FPackage as TInitialPackage).DependentPackage) then
+      Version := (FPackage as TInitialPackage).DependentPackage.Version;
+  end;
+
+  if Assigned(Version) then
+  begin
+    cbVersions.ItemIndex := GetVersionIndex(Version);
     lblInstalled.Visible := True;
   end
   else
+  begin
     cbVersions.ItemIndex := 0;
+    lblInstalled.Visible := False;
+  end;
+end;
+
+procedure TfrmPackage.ReRenderPackage;
+begin
+  RenderPackage(FPackage);
 end;
 
 procedure TfrmPackage.mniEditPackageClick(Sender: TObject);
@@ -197,6 +236,12 @@ procedure TfrmPackage.mniInstallClick(Sender: TObject);
 begin
   SetActionBtnMenuItem(mniInstall);
   FOnAction(fatInstall, FPackage, GetSelectedVersion);
+end;
+
+procedure TfrmPackage.mniUninstallClick(Sender: TObject);
+begin
+  SetActionBtnMenuItem(mniUninstall);
+  FOnAction(fatUninstall, FPackage, GetSelectedVersion);
 end;
 
 procedure TfrmPackage.SetActionBtnMenuItem(aMenuItem: TMenuItem);
@@ -216,12 +261,24 @@ end;
 
 constructor TVersionComboItem.Create(const aGetVersionOption: string);
 begin
+  FIsOption := True;
+  FVersion := TVersion.Create;
+
   FVersion.Name := aGetVersionOption;
   FVersion.SHA := '';
 end;
 
-constructor TVersionComboItem.Create(const aVersion: TVersion);
+destructor TVersionComboItem.Destroy;
 begin
+  if FIsOption then
+    FVersion.Free;
+
+  inherited;
+end;
+
+constructor TVersionComboItem.Create(aVersion: TVersion);
+begin
+  FIsOption := False;
   FVersion := aVersion;
 end;
 

@@ -127,7 +127,7 @@ object DPMForm: TDPMForm
             Top = 4
             Width = 22
             Height = 22
-            Action = actNewPackage
+            Action = actNewInitialPackage
             Anchors = [akTop, akRight]
             Flat = True
             ParentShowHint = False
@@ -325,10 +325,10 @@ object DPMForm: TDPMForm
     object actSwitchPackageDetails: TAction
       ImageIndex = 0
     end
-    object actNewPackage: TAction
+    object actNewInitialPackage: TAction
       Hint = 'New package'
       ImageIndex = 2
-      OnExecute = actNewPackageExecute
+      OnExecute = actNewInitialPackageExecute
     end
   end
 end

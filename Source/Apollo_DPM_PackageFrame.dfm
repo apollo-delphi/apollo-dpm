@@ -133,6 +133,7 @@ object frmPackage: TfrmPackage
     end
     object mniUninstall: TMenuItem
       Caption = 'Uninstall'
+      OnClick = mniUninstallClick
     end
     object mniEditPackage: TMenuItem
       Caption = 'Edit Package...'
