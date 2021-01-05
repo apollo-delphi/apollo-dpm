@@ -32,7 +32,8 @@ type
     function GetVersionCacheList: TVersionCacheList;
     function GetTextFromFile(const aPath: string): string;
     function IsProjectOpened: Boolean;
-    function LoadDependencies(aPackage: TPackage; aVersion: TVersion): TDependentPackageList;
+    function LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList; overload;
+    function LoadDependencies(aDependentPackage: TDependentPackage): TDependentPackageList; overload;
     function LoadRepoTree(aPackage: TPackage; aVersion: TVersion): TTree;
     function SaveAsPrivatePackage(aPackage: TInitialPackage): string;
     function SaveContent(const aPackagePath, aSourcePath, aContent: string): string;
@@ -43,9 +44,12 @@ type
     procedure DeletePackagePath(aPackage: TPackage);
     procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion);
     procedure DoLoadDependencies(aDependentPackage: TDependentPackage; aVersion: TVersion;
-      aResult: TDependentPackageList);
+      aResult: TDependentPackageList); overload;
+    procedure DoLoadDependencies(aDependentPackage: TDependentPackage; aResult: TDependentPackageList); overload;
+    procedure DoUninstall(aDependentPackage: TDependentPackage);
     procedure DPMMenuItemClick(Sender: TObject);
     procedure FreePackageLists;
+    procedure FreeVersionCacheList;
     procedure LoadRepoVersions(aPackage: TPackage);
     procedure SaveProjectPackages;
     procedure WriteFile(const aPath: string; const aBytes: TBytes);
@@ -58,8 +62,8 @@ type
     function GetVersions(aPackage: TPackage; aCachedOnly: Boolean = False): TArray<TVersion>;
     function Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
     function LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName, aError: string): Boolean;
+    function Uninstall(aPackage: TPackage): TPackageHandles;
     procedure AddNewPrivatePackage(aPackage: TInitialPackage);
-    procedure Uninstall(aPackage: TPackage);
     procedure UpdatePrivatePackage(aPackage: TPrivatePackage);
     constructor Create;
     destructor Destroy; override;
@@ -211,8 +215,14 @@ begin
 end;
 
 procedure TDPMEngine.DeletePackagePath(aPackage: TPackage);
+var
+  Path: string;
 begin
-  TDirectory.Delete(GetPackagePath(aPackage), True);
+  Path := GetPackagePath(aPackage);
+
+  FUINotifyProc('Deleting ' + Path);
+
+  TDirectory.Delete(Path, True);
 
   if Length(TDirectory.GetDirectories(GetVendorsPath, '*', TSearchOption.soTopDirectoryOnly)) = 0 then
     TDirectory.Delete(GetVendorsPath);
@@ -223,9 +233,7 @@ begin
   Validation.Free;
   FGHAPI.Free;
   FreePackageLists;
-
-  if Assigned(FVersionCacheList) then
-    FreeAndNil(FVersionCacheList);
+  FreeVersionCacheList;
 
   if GetApolloMenuItem <> nil then
     GetIDEMainMenu.Items.Remove(GetApolloMenuItem);
@@ -242,12 +250,42 @@ begin
   DependentPackage := TDependentPackage.Create(aInitialPackage);
   DependentPackage.Version := aVersion;
 
-  if not GetVersionCacheList.AddVersion(DependentPackage.ID, aVersion) then
-    raise Exception.Create('Version already installed!');
+  GetVersionCacheList.AddVersion(DependentPackage.ID, aVersion);
 
   AddPackageFiles(aInitialPackage, aVersion);
 
   GetProjectPackages.Add(DependentPackage);
+end;
+
+procedure TDPMEngine.DoLoadDependencies(aDependentPackage: TDependentPackage; aResult: TDependentPackageList);
+var
+  DependentPackage: TDependentPackage;
+  ID: string;
+begin
+  for ID in aDependentPackage.Version.Dependencies do
+    if not GetProjectPackages.DoUseDependence(ID, aDependentPackage.ID) then
+    begin
+      DependentPackage := GetProjectPackages.GetByID(ID);
+
+      if Assigned(DependentPackage) then
+      begin
+        aResult.Add(DependentPackage);
+        DoLoadDependencies(DependentPackage, aResult);
+      end;
+    end;
+end;
+
+procedure TDPMEngine.DoUninstall(aDependentPackage: TDependentPackage);
+var
+  InitialPackage: TInitialPackage;
+begin
+  DeletePackagePath(aDependentPackage);
+
+  InitialPackage := GetInitialPackage(aDependentPackage);
+  if Assigned(InitialPackage) then
+    InitialPackage.DependentPackage := nil;
+
+  GetProjectPackages.RemoveByID(aDependentPackage.ID);
 end;
 
 procedure TDPMEngine.DoLoadDependencies(aDependentPackage: TDependentPackage; aVersion: TVersion;
@@ -260,8 +298,7 @@ var
   sJSON: string;
   TreeNode: TTreeNode;
 begin
-  if Length(aVersion.RepoTree) = 0 then
-    aVersion.RepoTree := LoadRepoTree(aDependentPackage, aVersion);
+  aVersion.RepoTree := LoadRepoTree(aDependentPackage, aVersion);
 
   for TreeNode in aVersion.RepoTree do
     if TreeNode.Path.EndsWith(cProjectPackagesPath) then
@@ -275,6 +312,7 @@ begin
         begin
           Package := PackageList.ExtractAt(i);
           aResult.Add(Package);
+          aVersion.Dependencies := aVersion.Dependencies + [Package.ID];
 
           DoLoadDependencies(Package, Package.Version, aResult);
         end;
@@ -303,9 +341,6 @@ begin
 
   if Assigned(Result) then
     Exit(Result);
-
-  Result := TInitialPackage.Create;
-  Result.Assign(aDependentPackage);
 end;
 
 procedure TDPMEngine.FreePackageLists;
@@ -314,6 +349,12 @@ begin
     FreeAndNil(FPrivatePackages);
   if Assigned(FProjectPackages) then
     FreeAndNil(FProjectPackages);
+end;
+
+procedure TDPMEngine.FreeVersionCacheList;
+begin
+  if Assigned(FVersionCacheList) then
+    FreeAndNil(FVersionCacheList);
 end;
 
 function TDPMEngine.GetActiveProject: IOTAProject;
@@ -471,6 +512,8 @@ var
   Dependency: TDependentPackage;
   DependencyInitialPackage: TInitialPackage;
   DependencyVersion: TVersion;
+  InitialPackage: TInitialPackage;
+  NeedToFree: Boolean;
   PackageHandle: TPackageHandle;
   Version: TVersion;
 begin
@@ -481,12 +524,20 @@ begin
   try
     for Dependency in Dependencies do
     begin
+      NeedToFree := False;
       DependencyInitialPackage := GetInitialPackage(Dependency);
+
+      if not Assigned(DependencyInitialPackage) then
+      begin
+        DependencyInitialPackage := TInitialPackage.Create;
+        DependencyInitialPackage.Assign(Dependency);
+        NeedToFree := True;
+      end;
 
       DependencyVersion := TVersion.Create;
       DependencyVersion.Assign(Dependency.Version);
 
-      Result := Result + [TPackageHandle.Create(paInstall, DependencyInitialPackage, DependencyVersion)];
+      Result := Result + [TPackageHandle.Create(paInstall, DependencyInitialPackage, DependencyVersion, NeedToFree)];
     end;
   finally
     Dependencies.Free;
@@ -494,7 +545,11 @@ begin
 
   for PackageHandle in Result do
   begin
-    DoInstall(PackageHandle.InitialPackage, PackageHandle.Version);
+    InitialPackage := PackageHandle.Package as TInitialPackage;
+    DoInstall(InitialPackage, PackageHandle.Version);
+
+    if PackageHandle.NeedToFree then
+      InitialPackage.Free;
   end;
 
   SaveProjectPackages;
@@ -507,7 +562,7 @@ begin
   Result := GetActiveProject <> nil;
 end;
 
-function TDPMEngine.LoadDependencies(aPackage: TPackage; aVersion: TVersion): TDependentPackageList;
+function TDPMEngine.LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList;
 var
   DependentPackage: TDependentPackage;
 begin
@@ -515,12 +570,19 @@ begin
 
   DependentPackage := TDependentPackage.Create;
   try
-    DependentPackage.Assign(aPackage);
+    DependentPackage.Assign(aInitialPackage);
 
     DoLoadDependencies(DependentPackage, aVersion, Result);
   finally
     DependentPackage.Free;
   end;
+end;
+
+function TDPMEngine.LoadDependencies(
+  aDependentPackage: TDependentPackage): TDependentPackageList;
+begin
+  Result := TDependentPackageList.Create(False);
+  DoLoadDependencies(aDependentPackage, Result);
 end;
 
 function TDPMEngine.LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName,
@@ -630,21 +692,47 @@ procedure TDPMEngine.SaveProjectPackages;
 var
   Bytes: TBytes;
 begin
-  Bytes := TEncoding.ANSI.GetBytes(GetProjectPackages.GetJSONString);
-
-  WriteFile(GetProjectPackagesPath, Bytes);
+  if GetProjectPackages.Count = 0 then
+    TFile.Delete(GetProjectPackagesPath)
+  else
+  begin
+    Bytes := TEncoding.ANSI.GetBytes(GetProjectPackages.GetJSONString);
+    WriteFile(GetProjectPackagesPath, Bytes);
+  end;
 end;
 
-procedure TDPMEngine.Uninstall(aPackage: TPackage);
+function TDPMEngine.Uninstall(aPackage: TPackage): TPackageHandles;
+var
+  Dependency: TDependentPackage;
+  Dependencies: TDependentPackageList;
+  DependentPackage: TDependentPackage;
+  PackageHandle: TPackageHandle;
 begin
   FUINotifyProc(Format(#13#10 + 'Uninstalling %s...', [aPackage.Name]));
 
-  DeletePackagePath(aPackage);
+  if aPackage is TDependentPackage then
+    DependentPackage := aPackage as TDependentPackage
+  else
+  if aPackage is TInitialPackage then
+    DependentPackage := (aPackage as TInitialPackage).DependentPackage
+  else
+    raise Exception.Create('Uninstall: unknown package type');
 
-  //aPackage.Version.Init;
-  //GetPrivatePackages.SyncToExternal(aPackage);
+  Result := [TPackageHandle.Create(paUninstall, DependentPackage, nil)];
 
-  //GetProjectPackages.RemoveByID(aPackage.ID);
+  Dependencies := LoadDependencies(DependentPackage);
+  try
+    for Dependency in Dependencies do
+      Result := Result + [TPackageHandle.Create(paUninstall, Dependency, nil)];
+  finally
+    Dependencies.Free;
+  end;
+
+  for PackageHandle in Result do
+  begin
+    DoUninstall(PackageHandle.Package as TDependentPackage);
+  end;
+
   SaveProjectPackages;
 
   FUINotifyProc('Success');

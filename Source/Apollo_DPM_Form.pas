@@ -43,9 +43,12 @@ type
   private
     FDPMEngine: TDPMEngine;
     FFrames: TArray<TfrmPackage>;
+    function GetFrame(const aPackageID: string): TfrmPackage;
+    function GetFrameIndex(aFrame: TfrmPackage): Integer;
     function GetSelectedNavigation: string;
     function ShowPackageForm(aPackage: TInitialPackage): Boolean;
     procedure ClearFrames;
+    procedure DeleteFrame(aFrame: TfrmPackage);
     procedure DoRenderPackageList(aPackages: TArray<TPackage>);
     procedure FrameAction(const aFrameActionType: TFrameActionType; aPackage: TPackage;
       aVersion: TVersion);
@@ -53,7 +56,7 @@ type
     procedure RenderPackageList(aPackageList: TPrivatePackageList); overload;
     procedure RenderPackageList(aPackageList: TDependentPackageList); overload;
     procedure RenderPackages;
-    procedure UpdateFrame(aPackage: TPackage);
+    procedure UpdateFrame(aFrame: TfrmPackage);
     procedure UpdateFrames(aPackageHandles: TPackageHandles);
   public
     procedure NotifyObserver(const aText: string);
@@ -106,6 +109,23 @@ begin
   RenderNavigation;
 end;
 
+procedure TDPMForm.DeleteFrame(aFrame: TfrmPackage);
+var
+  Frame: TfrmPackage;
+  Top: Integer;
+begin
+  if not Assigned(aFrame) then
+    Exit;
+
+  Delete(FFrames, GetFrameIndex(aFrame), 1);
+  Top := aFrame.Top;
+  aFrame.Free;
+
+  for Frame in FFrames do
+    if Frame.Top > Top then
+      Frame.Top := Frame.Top - Frame.Height;
+end;
+
 procedure TDPMForm.DoRenderPackageList(aPackages: TArray<TPackage>);
 var
   i: Integer;
@@ -151,21 +171,40 @@ begin
       end;
     fatUninstall:
       begin
-        FDPMEngine.Uninstall(aPackage);
-        {if aPackage.PackageSide = psInitial then
-          UpdateFrame(aPackage)
-        else
-          RenderPackages;}
+        PackageHandles := FDPMEngine.Uninstall(aPackage);
+        UpdateFrames(PackageHandles);
       end;
     fatEditPackage:
     begin
       if ShowPackageForm(aPackage as TInitialPackage) then
       begin
         FDPMEngine.UpdatePrivatePackage(aPackage as TPrivatePackage);
-        UpdateFrame(aPackage);
+        UpdateFrame(GetFrame(aPackage.ID));
       end;
     end;
   end;
+end;
+
+function TDPMForm.GetFrame(const aPackageID: string): TfrmPackage;
+var
+  Frame: TfrmPackage;
+begin
+  Result := nil;
+
+  for Frame in FFrames do
+    if Frame.IsShowingPackage(aPackageID) then
+      Exit(Frame);
+end;
+
+function TDPMForm.GetFrameIndex(aFrame: TfrmPackage): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+
+  for i := 0 to Length(FFrames) - 1 do
+    if FFrames[i] = aFrame then
+      Exit(i);
 end;
 
 function TDPMForm.GetSelectedNavigation: string;
@@ -286,21 +325,36 @@ begin
   Sender.Canvas.TextOut(Rect.Left, Rect.Top, Node.Text);
 end;
 
-procedure TDPMForm.UpdateFrame(aPackage: TPackage);
-var
-  Frame: TfrmPackage;
+procedure TDPMForm.UpdateFrame(aFrame: TfrmPackage);
 begin
-  for Frame in FFrames do
-    if Frame.IsShowingPackage(aPackage) then
-      Frame.ReRenderPackage;
+  if Assigned(aFrame) then
+    aFrame.ReRenderPackage;
 end;
 
 procedure TDPMForm.UpdateFrames(aPackageHandles: TPackageHandles);
 var
+  Frame: TfrmPackage;
   PackageHandle: TPackageHandle;
 begin
   for PackageHandle in aPackageHandles do
-    UpdateFrame(PackageHandle.InitialPackage);
+  begin
+    Frame := GetFrame(PackageHandle.PackageID);
+
+    if not Assigned(Frame) then
+      Continue;
+
+    if Frame.PackageClass = TPrivatePackage then
+      case PackageHandle.PackageAction of
+        paInstall: UpdateFrame(Frame);
+        paUninstall: UpdateFrame(Frame);
+      end
+    else
+    if Frame.PackageClass = TDependentPackage then
+      case PackageHandle.PackageAction of
+        paInstall: UpdateFrame(Frame);
+        paUninstall: DeleteFrame(Frame);
+      end;
+  end;
 end;
 
 {

@@ -10,6 +10,7 @@ uses
 type
   TVersion = class
   private
+    FDependencies: TArray<string>;
     FName: string;
     FRepoTree: TTree;
     FRepoTreeLoaded: Boolean;
@@ -17,10 +18,12 @@ type
     function GetDisplayName: string;
     procedure Init;
   public
+    function ContainsDependency(const ID: string): Boolean;
     function GetJSON: TJSONObject;
     procedure Assign(aVersion: TVersion);
     constructor Create; overload;
     constructor Create(aJSONObj: TJSONObject); overload;
+    property Dependencies: TArray<string> read FDependencies write FDependencies;
     property DisplayName: string read GetDisplayName;
     property Name: string read FName write FName;
     property RepoTree: TTree read FRepoTree write FRepoTree;
@@ -54,11 +57,8 @@ type
 implementation
 
 uses
+  Apollo_DPM_Consts,
   System.SysUtils;
-
-const
-  cKeyVersionName = 'name';
-  cKeyVersionSHA = 'sha';
 
 { TVersion }
 
@@ -69,12 +69,30 @@ begin
   RepoTree := aVersion.RepoTree;
 end;
 
+function TVersion.ContainsDependency(const ID: string): Boolean;
+var
+  Dependency: string;
+begin
+  Result := False;
+
+  for Dependency in Dependencies do
+    if Dependency = ID then
+      Exit(True);
+end;
+
 constructor TVersion.Create(aJSONObj: TJSONObject);
+var
+  jsnDependencies: TJSONArray;
+  jsnDependency: TJSONValue;
 begin
   Init;
 
   Name := aJSONObj.GetValue(cKeyVersionName).Value;
   SHA := aJSONObj.GetValue(cKeyVersionSHA).Value;
+
+  if aJSONObj.TryGetValue(cKeyDependencies, jsnDependencies) then
+    for jsnDependency in jsnDependencies do
+      Dependencies := Dependencies + [jsnDependency.Value];
 end;
 
 constructor TVersion.Create;
@@ -94,15 +112,28 @@ begin
 end;
 
 function TVersion.GetJSON: TJSONObject;
+var
+  Dependency: string;
+  jsnDependencies: TJSONArray;
 begin
   Result := TJSONObject.Create;
 
   Result.AddPair(cKeyVersionName, Name);
   Result.AddPair(cKeyVersionSHA, SHA);
+
+  if Length(Dependencies) > 0 then
+  begin
+    jsnDependencies := TJSONArray.Create;
+    for Dependency in Dependencies do
+      jsnDependencies.Add(Dependency);
+
+    Result.AddPair(cKeyDependencies, jsnDependencies);
+  end;
 end;
 
 procedure TVersion.Init;
 begin
+  FDependencies := [];
   FRepoTree := [];
   FRepoTreeLoaded := False;
 end;

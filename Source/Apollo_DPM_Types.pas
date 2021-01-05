@@ -20,11 +20,13 @@ type
 
   TPackageHandle = record
   public
-    InitialPackage: TInitialPackage;
+    NeedToFree: Boolean;
+    Package: TPackage;
     PackageAction: TPackageAction;
+    PackageID: string;
     Version: TVersion;
-    constructor Create(const aPackageAction: TPackageAction; aInitialPackage: TInitialPackage;
-      aVersion: TVersion);
+    constructor Create(const aPackageAction: TPackageAction; aPackage: TPackage;
+      aVersion: TVersion; aNeedToFree: Boolean = False);
   end;
 
   TPackageHandles = TArray<TPackageHandle>;
@@ -36,11 +38,13 @@ implementation
 { TPackageHandle }
 
 constructor TPackageHandle.Create(const aPackageAction: TPackageAction;
-  aInitialPackage: TInitialPackage; aVersion: TVersion);
+  aPackage: TPackage; aVersion: TVersion; aNeedToFree: Boolean = False);
 begin
   PackageAction := aPackageAction;
-  InitialPackage := aInitialPackage;
+  Package := aPackage;
+  PackageID := Package.ID;
   Version := aVersion;
+  NeedToFree := aNeedToFree;
 end;
 
 end.

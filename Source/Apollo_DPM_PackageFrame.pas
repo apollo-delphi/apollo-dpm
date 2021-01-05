@@ -47,6 +47,8 @@ type
     FOnAction: TFrameActionProc;
     FOnAllowAction: TFrameAllowActionFunc;
     FPackage: TPackage;
+    FPackageID: string;
+    FPackageClass: TPackageClass;
     function GetFirstActionMenuItem: TMenuItem;
     function GetSelectedVersion: TVersion;
     function GetVersionIndex(const aVersion: TVersion): Integer;
@@ -55,12 +57,13 @@ type
     procedure SetActionBtnMenuItem(aMenuItem: TMenuItem);
     procedure SetAllowedActions;
   public
-    function IsShowingPackage(aPackage: TPackage): Boolean;
+    function IsShowingPackage(const aPackageID: string): Boolean;
     procedure RenderPackage(aPackage: TPackage);
     procedure ReRenderPackage;
     constructor Create(aOwner: TWinControl; aDPMEngine: TDPMEngine;
       const aIndex: Integer); reintroduce;
     destructor Destroy; override;
+    property PackageClass: TPackageClass read FPackageClass;
     property OnAction: TFrameActionProc read FOnAction write FOnAction;
     property OnAllowAction: TFrameAllowActionFunc read FOnAllowAction write FOnAllowAction;
   end;
@@ -182,9 +185,9 @@ begin
   end;
 end;
 
-function TfrmPackage.IsShowingPackage(aPackage: TPackage): Boolean;
+function TfrmPackage.IsShowingPackage(const aPackageID: string): Boolean;
 begin
-  Result := aPackage.ID = FPackage.ID;
+  Result := aPackageID = FPackageID;
 end;
 
 procedure TfrmPackage.RenderPackage(aPackage: TPackage);
@@ -192,6 +195,9 @@ var
   Version: TVersion;
 begin
   FPackage := aPackage;
+  FPackageID := aPackage.ID;
+  FPackageClass := TPackageClass(aPackage.ClassType);
+
   lblName.Caption := aPackage.Name;
   lblDescription.Caption := aPackage.Description;
 

@@ -43,6 +43,8 @@ type
     property Visibility: TVisibility read FVisibility write FVisibility;
   end;
 
+  TPackageClass = class of TPackage;
+
   TFilterListType = (fltNone, fltBlack, fltWhite);
 
   TPathMove = record
@@ -86,8 +88,10 @@ type
 
   TDependentPackageList = class(TObjectList<TDependentPackage>)
  public
+    function DoUseDependence(const aID, aOwnerID: string): Boolean;
     function GetByID(const aID: string): TDependentPackage;
     function GetJSONString: string;
+    procedure RemoveByID(const aID: string);
     constructor Create; reintroduce; overload;
     constructor Create(const aJSONString: string); reintroduce; overload;
   end;
@@ -487,6 +491,17 @@ begin
   end;
 end;
 
+function TDependentPackageList.DoUseDependence(const aID, aOwnerID: string): Boolean;
+var
+  Package: TDependentPackage;
+begin
+  Result := False;
+
+  for Package in Self do
+    if (Package.ID <> aOwnerID) and Package.Version.ContainsDependency(aID) then
+      Exit(True);
+end;
+
 function TDependentPackageList.GetByID(const aID: string): TDependentPackage;
 var
   Package: TDependentPackage;
@@ -512,6 +527,16 @@ begin
   finally
     jsnArr.Free;
   end;
+end;
+
+procedure TDependentPackageList.RemoveByID(const aID: string);
+var
+  Package: TDependentPackage;
+begin
+  Package := GetByID(aID);
+
+  if Package <> nil then
+    Remove(Package);
 end;
 
 constructor TDependentPackageList.Create;

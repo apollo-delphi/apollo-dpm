@@ -6,6 +6,11 @@ const
   cApolloMenuItemCaption = 'Apollo';
   cApolloMenuItemName = 'miApollo';
   cDPMMenuItemCaption = 'DPM - Delphi Package Manager...';
+
+  cKeyDependencies = 'dependencies';
+  cKeyVersionName = 'name';
+  cKeyVersionSHA = 'sha';
+
   cNavPrivatePackages = 'Private Packages';
   cNavProjectDependencies = 'Project Dependencies';
   cNavSettings = 'Settings';
