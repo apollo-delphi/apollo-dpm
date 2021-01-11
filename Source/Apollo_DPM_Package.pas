@@ -31,7 +31,6 @@ type
   public
     function GetJSONString: string;
     procedure Assign(aPackage: TPackage); virtual;
-    constructor Create; overload;
     constructor Create(const aJSONString: string); overload;
     destructor Destroy; override;
     property Description: string read FDescription write FDescription;
@@ -69,6 +68,7 @@ type
   public
     function AllowPath(const aPath: string): Boolean;
     function ApplyPathMoves(const aPath: string): string;
+    function IsInstalled: Boolean;
     property DependentPackage: TDependentPackage read FDependentPackage write FDependentPackage;
     property FilterList: TArray<string> read FFilterList write FFilterList;
     property FilterListType: TFilterListType read FFilterListType write FFilterListType;
@@ -82,7 +82,10 @@ type
     function GetJSON: TJSONObject; override;
     procedure SetJSON(aJSONObj: TJSONObject); override;
   public
-    constructor Create(aInitialPackage: TInitialPackage); overload;
+    constructor Create(const aJSONString: string;
+      aVersionCacheSyncFunc: TVersionCacheSyncFunc); reintroduce;
+    constructor CreateByInitial(aInitialPackage: TInitialPackage;
+     const aOwnes: Boolean = True);
     property Version: TVersion read FVersion write FVersion;
   end;
 
@@ -92,8 +95,9 @@ type
     function GetByID(const aID: string): TDependentPackage;
     function GetJSONString: string;
     procedure RemoveByID(const aID: string);
-    constructor Create; reintroduce; overload;
-    constructor Create(const aJSONString: string); reintroduce; overload;
+    constructor Create; overload;
+    constructor Create(const aJSONString: string;
+      aVersionCacheSyncFunc: TVersionCacheSyncFunc); overload;
   end;
 
   TPrivatePackage = class(TInitialPackage)
@@ -114,15 +118,6 @@ type
     function GetByName(const aPackageName: string): TPrivatePackage;
     constructor Create(const aPrivatePackageFiles: TArray<TPrivatePackageFile>); reintroduce;
   end;
-
-  {TPackageList = class(TObjectList<TPackage>)
-  public
-    function GetByID(const aID: string): TPackage;
-    function GetByName(const aPackageName: string): TPackage;
-    function GetJSONString: string;
-    procedure RemoveByID(const aID: string);
-    procedure SyncToExternal(aPackage: TPackage);
-  end;}
 
 implementation
 
@@ -190,11 +185,6 @@ begin
   Description := aPackage.Description;
   RepoOwner := aPackage.RepoOwner;
   RepoName := aPackage.RepoName;
-end;
-
-constructor TPackage.Create;
-begin
-  Init;
 end;
 
 function TPackage.GetID: string;
@@ -369,68 +359,10 @@ begin
   ];
 end;
 
-{ TPackageList }
-
-{function TPackageList.GetByID(const aID: string): TPackage;
-var
-  Package: TPackage;
+function TInitialPackage.IsInstalled: Boolean;
 begin
-  Result := nil;
-
-  for Package in Self do
-    if Package.ID = aID then
-      Exit(Package);
+  Result := Assigned(DependentPackage);
 end;
-
-function TPackageList.GetByName(const aPackageName: string): TPackage;
-var
-  Package: TPackage;
-begin
-  Result := nil;
-
-  for Package in Self do
-    if Package.Name = aPackageName then
-      Exit(Package);
-end;
-
-function TPackageList.GetJSONString: string;
-var
-  jsnArr: TJSONArray;
-  Package: TPackage;
-begin
-  jsnArr := TJSONArray.Create;
-  try
-    for Package in Self do
-      jsnArr.Add(Package.GetJSON);
-
-    Result := jsnArr.ToJSON;
-  finally
-    jsnArr.Free;
-  end;
-end;
-
-procedure TPackageList.SyncToExternal(aPackage: TPackage);
-var
-  Package: TPackage;
-begin
-  Package := GetByID(aPackage.ID);
-  if Package <> nil then
-  begin
-    aPackage.Version := Package.Version;
-  end;
-end;
-
-procedure TPackageList.RemoveByID(const aID: string);
-var
-  Package: TPackage;
-begin
-  Package := GetByID(aID);
-
-  if Package <> nil then
-    Remove(Package);
-end; }
-
-{ TPrivatePackageList }
 
 constructor TPrivatePackageList.Create(const aPrivatePackageFiles: TArray<TPrivatePackageFile>);
 var
@@ -471,7 +403,8 @@ end;
 
 { TDependentPackageList }
 
-constructor TDependentPackageList.Create(const aJSONString: string);
+constructor TDependentPackageList.Create(const aJSONString: string;
+  aVersionCacheSyncFunc: TVersionCacheSyncFunc);
 var
   jsnArr: TJSONArray;
   jsnVal: TJSONValue;
@@ -483,7 +416,7 @@ begin
   try
     for jsnVal in jsnArr do
     begin
-      Package := TDependentPackage.Create(jsnVal.ToJSON);
+      Package := TDependentPackage.Create(jsnVal.ToJSON, aVersionCacheSyncFunc);
       Add(Package);
     end;
   finally
@@ -546,12 +479,14 @@ end;
 
 { TDependentPackage }
 
-constructor TDependentPackage.Create(aInitialPackage: TInitialPackage);
+constructor TDependentPackage.CreateByInitial(aInitialPackage: TInitialPackage;
+  const aOwnes: Boolean = True);
 begin
   inherited Create;
 
   Assign(aInitialPackage);
-  aInitialPackage.DependentPackage := Self;
+  if aOwnes then
+    aInitialPackage.DependentPackage := Self;
 end;
 
 procedure TDependentPackage.SetJSON(aJSONObj: TJSONObject);
@@ -562,6 +497,13 @@ begin
 
   jsnVersion := aJSONObj.GetValue(cKeyVersion) as TJSONObject;
   Version := TVersion.Create(jsnVersion);
+end;
+
+constructor TDependentPackage.Create(const aJSONString: string;
+  aVersionCacheSyncFunc: TVersionCacheSyncFunc);
+begin
+  inherited Create(aJSONString);
+  Version := aVersionCacheSyncFunc(ID, Version);
 end;
 
 function TDependentPackage.GetJSON: TJSONObject;

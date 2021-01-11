@@ -48,11 +48,13 @@ type
     function GetBySHA(const aSHA: string): TVersion;
   public
     procedure AddLoadedPackageID(const aPackageID: string);
-    function AddVersion(const aPackageID: string; aVersion: TVersion): Boolean;
     function ContainsLoadedPackageID(const aPackageID: string): Boolean;
     function GetByPackageID(const aPackageID: string): TArray<TVersion>;
+    function SyncVersion(const aPackageID: string; aVersion: TVersion): TVersion;
     constructor Create; reintroduce;
   end;
+
+  TVersionCacheSyncFunc = function(const aPackageID: string; aVersion: TVersion): TVersion of object;
 
 implementation
 
@@ -161,16 +163,19 @@ begin
     FLoadedPackageIDs := FLoadedPackageIDs + [aPackageID];
 end;
 
-function TVersionCacheList.AddVersion(const aPackageID: string;
-  aVersion: TVersion): Boolean;
+function TVersionCacheList.SyncVersion(const aPackageID: string;
+  aVersion: TVersion): TVersion;
 begin
-  if not ContainsSHA(aVersion.SHA) then
+  if ContainsSHA(aVersion.SHA) then
   begin
-    Add(TVersionCache.Create(aPackageID, aVersion));
-    Result := True;
+    Result := GetBySHA(aVersion.SHA);
+    FreeAndNil(aVersion);
   end
   else
-    Result := False;
+  begin
+    Result := aVersion;
+    Add(TVersionCache.Create(aPackageID, aVersion));
+  end;
 end;
 
 function TVersionCacheList.ContainsLoadedPackageID(const aPackageID: string): Boolean;

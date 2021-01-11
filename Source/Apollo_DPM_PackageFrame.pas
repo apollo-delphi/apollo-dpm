@@ -37,13 +37,20 @@ type
     btnActionDropDown: TSpeedButton;
     lblInstalled: TLabel;
     mniUninstall: TMenuItem;
+    mniUpdate: TMenuItem;
     procedure mniEditPackageClick(Sender: TObject);
     procedure cbVersionsDropDown(Sender: TObject);
     procedure mniInstallClick(Sender: TObject);
     procedure btnActionDropDownClick(Sender: TObject);
     procedure mniUninstallClick(Sender: TObject);
+    procedure cbVersionsChange(Sender: TObject);
+    procedure cbVersionsCloseUp(Sender: TObject);
+    procedure cbVersionsDrawItem(Control: TWinControl; Index: Integer;
+      Rect: TRect; State: TOwnerDrawState);
+    procedure mniUpdateClick(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
+    FInstalledVersion: TVersion;
     FOnAction: TFrameActionProc;
     FOnAllowAction: TFrameAllowActionFunc;
     FPackage: TPackage;
@@ -86,6 +93,37 @@ begin
   LowerLeft := Point(btnAction.Left, btnAction.Top + btnAction.Height + 2);
   LowerLeft := pnlActions.ClientToScreen(LowerLeft);
   pmActions.Popup(LowerLeft.X, LowerLeft.Y);
+end;
+
+procedure TfrmPackage.cbVersionsChange(Sender: TObject);
+begin
+  SetAllowedActions;
+  SetActionBtnMenuItem(GetFirstActionMenuItem);
+end;
+
+procedure TfrmPackage.cbVersionsCloseUp(Sender: TObject);
+begin
+  if cbVersions.ItemIndex < 0 then
+  begin
+    cbVersions.ItemIndex := 0;
+    cbVersionsChange(cbVersions);
+  end;
+end;
+
+procedure TfrmPackage.cbVersionsDrawItem(Control: TWinControl; Index: Integer;
+  Rect: TRect; State: TOwnerDrawState);
+var
+  VersionComboItem: TVersionComboItem;
+begin
+  VersionComboItem := cbVersions.Items.Objects[Index] as TVersionComboItem;
+
+  if GetVersionIndex(FInstalledVersion) = Index then
+    cbVersions.Canvas.Font.Style := [fsBold]
+  else
+    cbVersions.Canvas.Font.Style := [];
+
+  cbVersions.Canvas.FillRect(Rect);
+  cbVersions.Canvas.TextOut(Rect.Left + 1, Rect.Top + 1, VersionComboItem.FVersion.DisplayName);
 end;
 
 procedure TfrmPackage.cbVersionsDropDown(Sender: TObject);
@@ -166,6 +204,9 @@ function TfrmPackage.GetSelectedVersion: TVersion;
 var
   VersionComboItem: TVersionComboItem;
 begin
+  if cbVersions.ItemIndex < 0 then
+    Exit(nil);
+
   VersionComboItem := cbVersions.Items.Objects[cbVersions.ItemIndex] as TVersionComboItem;
   Result := VersionComboItem.FVersion;
 end;
@@ -176,6 +217,8 @@ var
   VersionComboItem: TVersionComboItem;
 begin
   Result := -1;
+  if not Assigned(aVersion) then
+    Exit;
 
   for i := 0 to cbVersions.Items.Count - 1 do
   begin
@@ -191,8 +234,6 @@ begin
 end;
 
 procedure TfrmPackage.RenderPackage(aPackage: TPackage);
-var
-  Version: TVersion;
 begin
   FPackage := aPackage;
   FPackageID := aPackage.ID;
@@ -201,23 +242,21 @@ begin
   lblName.Caption := aPackage.Name;
   lblDescription.Caption := aPackage.Description;
 
-  SetAllowedActions;
-  SetActionBtnMenuItem(GetFirstActionMenuItem);
   FillVersionsCombo;
 
-  Version := nil;
+  FInstalledVersion := nil;
   if FPackage is TDependentPackage then
-    Version := (FPackage as TDependentPackage).Version
+    FInstalledVersion := (FPackage as TDependentPackage).Version
   else
   if FPackage is TInitialPackage then
   begin
     if Assigned((FPackage as TInitialPackage).DependentPackage) then
-      Version := (FPackage as TInitialPackage).DependentPackage.Version;
+      FInstalledVersion := (FPackage as TInitialPackage).DependentPackage.Version;
   end;
 
-  if Assigned(Version) then
+  if Assigned(FInstalledVersion) then
   begin
-    cbVersions.ItemIndex := GetVersionIndex(Version);
+    cbVersions.ItemIndex := GetVersionIndex(FInstalledVersion);
     lblInstalled.Visible := True;
   end
   else
@@ -225,6 +264,9 @@ begin
     cbVersions.ItemIndex := 0;
     lblInstalled.Visible := False;
   end;
+
+  SetAllowedActions;
+  SetActionBtnMenuItem(GetFirstActionMenuItem);
 end;
 
 procedure TfrmPackage.ReRenderPackage;
@@ -250,6 +292,12 @@ begin
   FOnAction(fatUninstall, FPackage, GetSelectedVersion);
 end;
 
+procedure TfrmPackage.mniUpdateClick(Sender: TObject);
+begin
+  SetActionBtnMenuItem(mniUpdate);
+  FOnAction(fatUpdate, FPackage, GetSelectedVersion);
+end;
+
 procedure TfrmPackage.SetActionBtnMenuItem(aMenuItem: TMenuItem);
 begin
   btnAction.Caption := aMenuItem.Caption;
@@ -258,9 +306,10 @@ end;
 
 procedure TfrmPackage.SetAllowedActions;
 begin
-  mniInstall.Visible := FOnAllowAction(fatInstall, FPackage);
-  mniUninstall.Visible := FOnAllowAction(fatUninstall, FPackage);
-  mniEditPackage.Visible := FOnAllowAction(fatEditPackage, FPackage);
+  mniInstall.Visible := FOnAllowAction(fatInstall, FPackage, GetSelectedVersion);
+  mniUpdate.Visible := FOnAllowAction(fatUpdate, FPackage, GetSelectedVersion);
+  mniUninstall.Visible := FOnAllowAction(fatUninstall, FPackage, GetSelectedVersion);
+  mniEditPackage.Visible := FOnAllowAction(fatEditPackage, FPackage, nil);
 end;
 
 { TVersionComboItem }

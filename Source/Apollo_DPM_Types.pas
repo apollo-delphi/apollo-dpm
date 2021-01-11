@@ -10,9 +10,9 @@ type
   TAsyncLoadCallBack = reference to procedure;
   TAsyncLoadProc = reference to procedure;
 
-  TFrameActionType = (fatInstall, fatUninstall, fatEditPackage);
+  TFrameActionType = (fatInstall, fatUpdate, fatUninstall, fatEditPackage);
   TFrameAllowActionFunc = function(const aFrameActionType: TFrameActionType;
-    aPackage: TPackage): Boolean of object;
+    aPackage: TPackage; aVersion: TVersion): Boolean of object;
   TFrameActionProc = procedure(const aFrameActionType: TFrameActionType; aPackage: TPackage;
     aVersion: TVersion) of object;
 
@@ -31,6 +31,11 @@ type
 
   TPackageHandles = TArray<TPackageHandle>;
 
+  TPackageHandlesHelper = record helper for TPackageHandles
+    function GetFirstInstallPackage: TInitialPackage;
+    function ContainsInstallHandle(const aID: string): Boolean;
+  end;
+
   TUINotifyProc = procedure(const aText: string) of object;
 
 implementation
@@ -45,6 +50,33 @@ begin
   PackageID := Package.ID;
   Version := aVersion;
   NeedToFree := aNeedToFree;
+end;
+
+{ TPackageHandlesHelper }
+
+function TPackageHandlesHelper.ContainsInstallHandle(
+  const aID: string): Boolean;
+var
+  PackageHandle: TPackageHandle;
+begin
+  Result := False;
+
+  for PackageHandle in Self do
+    if (PackageHandle.PackageAction = paInstall) and
+       (PackageHandle.PackageID = aID)
+    then
+      Exit(True);
+end;
+
+function TPackageHandlesHelper.GetFirstInstallPackage: TInitialPackage;
+var
+  PackageHandle: TPackageHandle;
+begin
+  Result := nil;
+
+  for PackageHandle in Self do
+    if PackageHandle.PackageAction = paInstall then
+      Exit(PackageHandle.Package as TInitialPackage);
 end;
 
 end.

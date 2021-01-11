@@ -53,6 +53,9 @@ object frmPackage: TfrmPackage
     Height = 22
     Style = csOwnerDrawFixed
     TabOrder = 0
+    OnChange = cbVersionsChange
+    OnCloseUp = cbVersionsCloseUp
+    OnDrawItem = cbVersionsDrawItem
     OnDropDown = cbVersionsDropDown
   end
   object aiVersionLoad: TActivityIndicator
@@ -130,6 +133,10 @@ object frmPackage: TfrmPackage
     object mniInstall: TMenuItem
       Caption = 'Install'
       OnClick = mniInstallClick
+    end
+    object mniUpdate: TMenuItem
+      Caption = 'Update'
+      OnClick = mniUpdateClick
     end
     object mniUninstall: TMenuItem
       Caption = 'Uninstall'

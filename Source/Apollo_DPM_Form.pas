@@ -55,6 +55,7 @@ type
     procedure RenderNavigation;
     procedure RenderPackageList(aPackageList: TPrivatePackageList); overload;
     procedure RenderPackageList(aPackageList: TDependentPackageList); overload;
+    procedure RenderPackage(aPackage: TPackage; const aIndex: Integer);
     procedure RenderPackages;
     procedure UpdateFrame(aFrame: TfrmPackage);
     procedure UpdateFrames(aPackageHandles: TPackageHandles);
@@ -129,28 +130,9 @@ end;
 procedure TDPMForm.DoRenderPackageList(aPackages: TArray<TPackage>);
 var
   i: Integer;
-  Package: TPackage;
-  PackageFrame: TfrmPackage;
-  Top: Integer;
 begin
-  i := 0;
-  Top := 0;
-
-  for Package in aPackages do
-  begin
-    PackageFrame := TfrmPackage.Create(sbFrames, FDPMEngine, i);
-    PackageFrame.OnAction := FrameAction;
-    PackageFrame.OnAllowAction := FDPMEngine.AllowAction;
-    PackageFrame.Top := Top;
-    if not Odd(i) then
-      PackageFrame.Color := clBtnFace;
-
-    PackageFrame.RenderPackage(Package);
-
-    Inc(i);
-    Top := Top + PackageFrame.Height + 1;
-    FFrames := FFrames + [PackageFrame];
-  end;
+  for i := 0 to Length(aPackages) - 1 do
+    RenderPackage(aPackages[i], i);
 end;
 
 procedure TDPMForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -167,6 +149,11 @@ begin
     fatInstall:
       begin
         PackageHandles := FDPMEngine.Install(aPackage as TInitialPackage, aVersion);
+        UpdateFrames(PackageHandles);
+      end;
+    fatUpdate:
+      begin
+        PackageHandles := FDPMEngine.Update(aPackage, aVersion);
         UpdateFrames(PackageHandles);
       end;
     fatUninstall:
@@ -246,6 +233,22 @@ begin
     Packages := Packages + [Package];
 
   DoRenderPackageList(Packages);
+end;
+
+procedure TDPMForm.RenderPackage(aPackage: TPackage; const aIndex: Integer);
+var
+  PackageFrame: TfrmPackage;
+begin
+  PackageFrame := TfrmPackage.Create(sbFrames, FDPMEngine, aIndex);
+  PackageFrame.OnAction := FrameAction;
+  PackageFrame.OnAllowAction := FDPMEngine.AllowAction;
+  PackageFrame.Top := (PackageFrame.Height + 2) * aIndex;
+  if not Odd(aIndex) then
+    PackageFrame.Color := clBtnFace;
+
+  PackageFrame.RenderPackage(aPackage);
+
+  FFrames := FFrames + [PackageFrame];
 end;
 
 procedure TDPMForm.RenderPackageList(aPackageList: TDependentPackageList);
@@ -341,7 +344,12 @@ begin
     Frame := GetFrame(PackageHandle.PackageID);
 
     if not Assigned(Frame) then
+    begin
+      if GetSelectedNavigation = cNavProjectDependencies then
+        RenderPackage(FDPMEngine.GetProjectPackages.GetByID(PackageHandle.PackageID), Length(FFrames));
+
       Continue;
+    end;
 
     if Frame.PackageClass = TPrivatePackage then
       case PackageHandle.PackageAction of
