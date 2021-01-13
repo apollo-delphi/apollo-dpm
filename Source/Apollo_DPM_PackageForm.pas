@@ -16,7 +16,7 @@ type
     rbPrivate: TRadioButton;
     grpVisibility: TGroupBox;
     leName: TLabeledEdit;
-    btnOk: TButton;
+    btnApply: TButton;
     btnCancel: TButton;
     rbPublic: TRadioButton;
     lblValidationMsg: TLabel;
@@ -49,7 +49,7 @@ type
     actNewPathMove: TAction;
     actEditPathMove: TAction;
     actDeletePathMove: TAction;
-    procedure btnOkClick(Sender: TObject);
+    procedure btnApplyClick(Sender: TObject);
     procedure cbFilterListTypeChange(Sender: TObject);
     procedure lbFilterListClick(Sender: TObject);
     procedure actGoToURLExecute(Sender: TObject);
@@ -204,7 +204,7 @@ begin
     RenderPathMoveItem(OutItems.ValueByKey(cSource), OutItems.ValueByKey(cDestination));
 end;
 
-procedure TPackageForm.btnOkClick(Sender: TObject);
+procedure TPackageForm.btnApplyClick(Sender: TObject);
 begin
   if IsValid(cOKClickValidation) then
   begin

@@ -39,8 +39,11 @@ type
     function LoadDependencies(aDependentPackage: TDependentPackage): TDependentPackageList; overload;
     function LoadRepoTree(aPackage: TPackage; aVersion: TVersion): TTree;
     function PostProcessPackageHandles(const aPackageHandles: TPackageHandles): TPackageHandles;
+    function ProcessRequiredDependencies(const aCaption: string;
+      aRequiredDependencies: TDependentPackageList): TPackageHandles;
     function SaveAsPrivatePackage(aPackage: TInitialPackage): string;
     function SaveContent(const aPackagePath, aSourcePath, aContent: string): string;
+    function ShowConflictForm(const aCaption: string; aVersionConflicts: TVersionConflicts): TVersionConflicts;
     function SyncVersionCache(const aPackageID: string; aVersion: TVersion): TVersion;
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
@@ -78,12 +81,14 @@ type
 implementation
 
 uses
+  Apollo_DPM_ConflictForm,
   Apollo_DPM_Consts,
   Apollo_DPM_Form,
   Apollo_DPM_Validation,
   System.Classes,
   System.IOUtils,
-  System.NetEncoding;
+  System.NetEncoding,
+  Vcl.Controls;
 
 { TDPMEngine }
 
@@ -291,16 +296,15 @@ var
   ID: string;
 begin
   for ID in aDependentPackage.Version.Dependencies do
-    if not GetProjectPackages.DoUseDependence(ID, aDependentPackage.ID) then
-    begin
-      DependentPackage := GetProjectPackages.GetByID(ID);
+  begin
+    DependentPackage := GetProjectPackages.GetByID(ID);
 
-      if Assigned(DependentPackage) then
-      begin
-        aResult.Add(DependentPackage);
-        DoLoadDependencies(DependentPackage, aResult);
-      end;
+    if Assigned(DependentPackage) then
+    begin
+      aResult.Add(DependentPackage);
+      DoLoadDependencies(DependentPackage, aResult);
     end;
+  end;
 end;
 
 procedure TDPMEngine.DoUninstall(aDependentPackage: TDependentPackage);
@@ -566,30 +570,36 @@ end;
 
 function TDPMEngine.Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
 var
-  Dependencies: TDependentPackageList;
-  Dependency: TDependentPackage;
   PackageHandle: TPackageHandle;
+  RequiredDependencies: TDependentPackageList;
   Version: TVersion;
 begin
-  Version := DefineVersion(aInitialPackage, aVersion);
-  Result := [TPackageHandle.Create(paInstall, aInitialPackage, Version)];
-
-  Dependencies := LoadDependencies(aInitialPackage, Version);
   try
-    for Dependency in Dependencies do
-      Result := Result + [GetInstallPackageHandle(Dependency, Dependency.Version)];
+    Version := DefineVersion(aInitialPackage, aVersion);
+    Result := [TPackageHandle.Create(paInstall, aInitialPackage, Version)];
+
+    RequiredDependencies := LoadDependencies(aInitialPackage, Version);
+    try
+      Result := Result + ProcessRequiredDependencies(Format('Installing package %s version conflict', [aInitialPackage.Name]),
+        RequiredDependencies);
+    finally
+      RequiredDependencies.Free;
+    end;
+
+    for PackageHandle in Result do
+      if PackageHandle.PackageAction = paUninstall then
+        DoUninstall(PackageHandle.Package as TDependentPackage);
+
+    for PackageHandle in Result do
+      if PackageHandle.PackageAction = paInstall then
+        DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version);
+
+    SaveProjectPackages;
+
+    FUINotifyProc(#13#10'Success');
   finally
-    Dependencies.Free;
+    Result := PostProcessPackageHandles(Result);
   end;
-
-  for PackageHandle in Result do
-    DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version);
-
-  Result := PostProcessPackageHandles(Result);
-
-  SaveProjectPackages;
-
-  FUINotifyProc(#13#10'Success');
 end;
 
 function TDPMEngine.IsProjectOpened: Boolean;
@@ -715,6 +725,47 @@ begin
   end;
 end;
 
+function TDPMEngine.ProcessRequiredDependencies(const aCaption: string;
+  aRequiredDependencies: TDependentPackageList): TPackageHandles;
+var
+  InstalledDependency: TDependentPackage;
+  RequiredDependency: TDependentPackage;
+  VersionConflict: TVersionConflict;
+  VersionConflicts: TVersionConflicts;
+begin
+  Result := [];
+  VersionConflicts := [];
+
+  for RequiredDependency in aRequiredDependencies do
+  begin
+    InstalledDependency := GetProjectPackages.GetByID(RequiredDependency.ID);
+
+    if Assigned(InstalledDependency) and
+      (InstalledDependency.Version.SHA <> RequiredDependency.Version.SHA)
+    then
+        VersionConflicts := VersionConflicts + [
+          TVersionConflict.Create(RequiredDependency, RequiredDependency.Version, InstalledDependency.Version)]
+    else
+      Result := Result + [GetInstallPackageHandle(RequiredDependency, RequiredDependency.Version)];
+  end;
+
+  if Length(VersionConflicts) > 0 then
+  begin
+    VersionConflicts := ShowConflictForm(aCaption, VersionConflicts);
+
+    for VersionConflict in VersionConflicts do
+    begin
+      if VersionConflict.Selection = VersionConflict.RequiredVersion then
+      begin
+        InstalledDependency := GetProjectPackages.GetByID(VersionConflict.DependentPackage.ID);
+        Result := Result + [TPackageHandle.Create(paUninstall, InstalledDependency, nil)];
+
+        Result := Result + [GetInstallPackageHandle(VersionConflict.DependentPackage, VersionConflict.Selection)];
+      end;
+    end;
+  end;
+end;
+
 function TDPMEngine.SaveAsPrivatePackage(aPackage: TInitialPackage): string;
 var
   Bytes: TBytes;
@@ -758,6 +809,24 @@ begin
   end;
 end;
 
+function TDPMEngine.ShowConflictForm(const aCaption: string;
+  aVersionConflicts: TVersionConflicts): TVersionConflicts;
+var
+  ConflictForm: TConflictForm;
+begin
+  Result := [];
+
+  ConflictForm := TConflictForm.Create(aCaption, DPMForm, aVersionConflicts);
+  try
+    if ConflictForm.ShowModal = mrOK then
+      Result := ConflictForm.GetResult
+    else
+      Abort;
+  finally
+    ConflictForm.Free;
+  end;
+end;
+
 function TDPMEngine.Uninstall(aPackage: TPackage): TPackageHandles;
 var
   Dependency: TDependentPackage;
@@ -771,7 +840,8 @@ begin
   Dependencies := LoadDependencies(DependentPackage);
   try
     for Dependency in Dependencies do
-      Result := Result + [TPackageHandle.Create(paUninstall, Dependency, nil)];
+      if not GetProjectPackages.IsUsingDependenceExceptOwner(Dependency.ID, DependentPackage.ID) then
+        Result := Result + [TPackageHandle.Create(paUninstall, Dependency, nil)];
   finally
     Dependencies.Free;
   end;
@@ -789,12 +859,11 @@ end;
 function TDPMEngine.Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
 var
   DependentPackage: TDependentPackage;
-  ExistPackage: TDependentPackage;
-  NewDependencies: TDependentPackageList;
-  NewDependency: TDependentPackage;
-  OldDependencies: TDependentPackageList;
-  OldDependency: TDependentPackage;
+  InstalledDependencies: TDependentPackageList;
+  InstalledDependency: TDependentPackage;
   PackageHandle: TPackageHandle;
+  RequiredDependencies: TDependentPackageList;
+  RequiredDependency: TDependentPackage;
   Version: TVersion;
 begin
   Version := DefineVersion(aPackage, aVersion);
@@ -810,22 +879,20 @@ begin
   Result := [TPackageHandle.Create(paUninstall, DependentPackage, nil)];
   Result := Result + [GetInstallPackageHandle(DependentPackage, Version)];
 
-  OldDependencies := LoadDependencies(DependentPackage);
-  NewDependencies := LoadDependencies(Result.GetFirstInstallPackage, Version);
+  InstalledDependencies := LoadDependencies(DependentPackage);
+  RequiredDependencies := LoadDependencies(Result.GetFirstInstallPackage, Version);
   try
-    for OldDependency in OldDependencies do
+    for InstalledDependency in InstalledDependencies do
     begin
-      NewDependency := NewDependencies.GetByID(OldDependency.ID);
-      if not Assigned(NewDependency) or (NewDependency.Version.SHA <> OldDependency.Version.SHA) then
-        Result := Result + [TPackageHandle.Create(paUninstall, OldDependency, nil)];
+      RequiredDependency := RequiredDependencies.GetByID(InstalledDependency.ID);
+      if (not Assigned(RequiredDependency)) and
+         (not GetProjectPackages.IsUsingDependenceExceptOwner(InstalledDependency.ID, DependentPackage.ID))
+      then
+        Result := Result + [TPackageHandle.Create(paUninstall, InstalledDependency, nil)];
     end;
 
-    for NewDependency in NewDependencies do
-    begin
-      ExistPackage := GetProjectPackages.GetByID(NewDependency.ID);
-      if not Assigned(ExistPackage) or (NewDependency.Version.SHA <> ExistPackage.Version.SHA) then
-        Result := Result + [GetInstallPackageHandle(NewDependency, NewDependency.Version)];
-    end;
+    Result := Result + ProcessRequiredDependencies(Format('Updating package %s version conflict', [DependentPackage.Name]),
+      RequiredDependencies);
 
     for PackageHandle in Result do
       if PackageHandle.PackageAction = paUninstall then
@@ -835,14 +902,13 @@ begin
       if PackageHandle.PackageAction = paInstall then
         DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version);
 
-    Result := PostProcessPackageHandles(Result);
-
     SaveProjectPackages;
 
     FUINotifyProc(#13#10'Success');
   finally
-    OldDependencies.Free;
-    NewDependencies.Free;
+    InstalledDependencies.Free;
+    RequiredDependencies.Free;
+    Result := PostProcessPackageHandles(Result);
   end;
 end;
 

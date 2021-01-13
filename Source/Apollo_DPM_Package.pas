@@ -10,7 +10,7 @@ uses
 type
   TVisibility = (vPrivate, vPublic);
 
-  TPackageType = (ptSource);
+  TPackageType = (ptCodeSource);
 
   TPackage = class abstract
   private
@@ -91,9 +91,9 @@ type
 
   TDependentPackageList = class(TObjectList<TDependentPackage>)
  public
-    function DoUseDependence(const aID, aOwnerID: string): Boolean;
     function GetByID(const aID: string): TDependentPackage;
     function GetJSONString: string;
+    function IsUsingDependenceExceptOwner(const aID, aOwnerID: string): Boolean;
     procedure RemoveByID(const aID: string);
     constructor Create; overload;
     constructor Create(const aJSONString: string;
@@ -122,23 +122,8 @@ type
 implementation
 
 uses
+  Apollo_DPM_Consts,
   System.SysUtils;
-
-const
-  cKeyAdjustment = 'adjustment';
-  cKeyDescription = 'description';
-  cKeyId = 'id';
-  cKeyName = 'name';
-  cKeyRepoOwner = 'repoOwner';
-  cKeyRepoName = 'repoName';
-  cKeyPackageType = 'packageType';
-  cKeyVersion = 'version';
-
-  cKeyFilterListType = 'filterListType';
-  cKeyFilterList = 'filterList';
-  cKeyPathMoves = 'pathMoves';
-  cKeySource = 'source';
-  cKeyDestination = 'destination';
 
 { TPackage }
 
@@ -424,7 +409,7 @@ begin
   end;
 end;
 
-function TDependentPackageList.DoUseDependence(const aID, aOwnerID: string): Boolean;
+function TDependentPackageList.IsUsingDependenceExceptOwner(const aID, aOwnerID: string): Boolean;
 var
   Package: TDependentPackage;
 begin

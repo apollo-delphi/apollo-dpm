@@ -134,7 +134,10 @@ end;
 procedure TValidation.SetColor(aControl: TWinControl; aColor: TColor);
 begin
   if aControl is TLabeledEdit then
-    TLabeledEdit(aControl).Color := aColor;
+    TLabeledEdit(aControl).Color := aColor
+  else
+  if aControl is TFrame then
+    TFrame(aControl).Color := aColor;
 end;
 
 procedure TValidation.SetOutputLabel(aLabel: TLabel);
@@ -176,7 +179,10 @@ begin
   Control := aControl;
 
   if aControl is TLabeledEdit then
-    OrigColor := TLabeledEdit(aControl).Color;
+    OrigColor := TLabeledEdit(aControl).Color
+  else
+  if aControl is TFrame then
+    OrigColor := TFrame(aControl).Color;
 end;
 
 procedure TValidationItem.Init;

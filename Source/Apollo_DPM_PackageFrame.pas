@@ -23,7 +23,7 @@ type
     destructor Destroy; override;
   end;
 
-  TfrmPackage = class(TFrame)
+  TPackageFrame = class(TFrame)
     lblName: TLabel;
     lblDescription: TLabel;
     pmActions: TPopupMenu;
@@ -86,7 +86,7 @@ uses
 
 { TfrmPackage }
 
-procedure TfrmPackage.btnActionDropDownClick(Sender: TObject);
+procedure TPackageFrame.btnActionDropDownClick(Sender: TObject);
 var
   LowerLeft: TPoint;
 begin
@@ -95,13 +95,13 @@ begin
   pmActions.Popup(LowerLeft.X, LowerLeft.Y);
 end;
 
-procedure TfrmPackage.cbVersionsChange(Sender: TObject);
+procedure TPackageFrame.cbVersionsChange(Sender: TObject);
 begin
   SetAllowedActions;
   SetActionBtnMenuItem(GetFirstActionMenuItem);
 end;
 
-procedure TfrmPackage.cbVersionsCloseUp(Sender: TObject);
+procedure TPackageFrame.cbVersionsCloseUp(Sender: TObject);
 begin
   if cbVersions.ItemIndex < 0 then
   begin
@@ -110,7 +110,7 @@ begin
   end;
 end;
 
-procedure TfrmPackage.cbVersionsDrawItem(Control: TWinControl; Index: Integer;
+procedure TPackageFrame.cbVersionsDrawItem(Control: TWinControl; Index: Integer;
   Rect: TRect; State: TOwnerDrawState);
 var
   VersionComboItem: TVersionComboItem;
@@ -126,7 +126,7 @@ begin
   cbVersions.Canvas.TextOut(Rect.Left + 1, Rect.Top + 1, VersionComboItem.FVersion.DisplayName);
 end;
 
-procedure TfrmPackage.cbVersionsDropDown(Sender: TObject);
+procedure TPackageFrame.cbVersionsDropDown(Sender: TObject);
 begin
   AsyncLoad(aiVersionLoad,
     procedure
@@ -140,7 +140,7 @@ begin
   );
 end;
 
-procedure TfrmPackage.ClearVersionsCombo;
+procedure TPackageFrame.ClearVersionsCombo;
 var
   i: Integer;
   VersionComboItem: TVersionComboItem;
@@ -154,7 +154,7 @@ begin
   cbVersions.Items.Clear;
 end;
 
-constructor TfrmPackage.Create(aOwner: TWinControl; aDPMEngine: TDPMEngine;
+constructor TPackageFrame.Create(aOwner: TWinControl; aDPMEngine: TDPMEngine;
   const aIndex: Integer);
 begin
   inherited Create(aOwner);
@@ -164,16 +164,20 @@ begin
   Left := 0;
   Width := aOwner.Width - 15;
 
+  Top := (Height + 2) * aIndex;
+  if not Odd(aIndex) then
+    Color := clBtnFace;
+
   FDPMEngine := aDPMEngine;
 end;
 
-destructor TfrmPackage.Destroy;
+destructor TPackageFrame.Destroy;
 begin
   ClearVersionsCombo;
   inherited;
 end;
 
-procedure TfrmPackage.FillVersionsCombo;
+procedure TPackageFrame.FillVersionsCombo;
 var
   Version: TVersion;
   Versions: TArray<TVersion>;
@@ -190,7 +194,7 @@ begin
     cbVersions.Items.AddObject(Version.DisplayName, TVersionComboItem.Create(Version));
 end;
 
-function TfrmPackage.GetFirstActionMenuItem: TMenuItem;
+function TPackageFrame.GetFirstActionMenuItem: TMenuItem;
 var
   MenuItem: TMenuItem;
 begin
@@ -200,7 +204,7 @@ begin
       Exit(MenuItem);
 end;
 
-function TfrmPackage.GetSelectedVersion: TVersion;
+function TPackageFrame.GetSelectedVersion: TVersion;
 var
   VersionComboItem: TVersionComboItem;
 begin
@@ -211,7 +215,7 @@ begin
   Result := VersionComboItem.FVersion;
 end;
 
-function TfrmPackage.GetVersionIndex(const aVersion: TVersion): Integer;
+function TPackageFrame.GetVersionIndex(const aVersion: TVersion): Integer;
 var
   i: Integer;
   VersionComboItem: TVersionComboItem;
@@ -228,12 +232,12 @@ begin
   end;
 end;
 
-function TfrmPackage.IsShowingPackage(const aPackageID: string): Boolean;
+function TPackageFrame.IsShowingPackage(const aPackageID: string): Boolean;
 begin
   Result := aPackageID = FPackageID;
 end;
 
-procedure TfrmPackage.RenderPackage(aPackage: TPackage);
+procedure TPackageFrame.RenderPackage(aPackage: TPackage);
 begin
   FPackage := aPackage;
   FPackageID := aPackage.ID;
@@ -269,42 +273,42 @@ begin
   SetActionBtnMenuItem(GetFirstActionMenuItem);
 end;
 
-procedure TfrmPackage.ReRenderPackage;
+procedure TPackageFrame.ReRenderPackage;
 begin
   RenderPackage(FPackage);
 end;
 
-procedure TfrmPackage.mniEditPackageClick(Sender: TObject);
+procedure TPackageFrame.mniEditPackageClick(Sender: TObject);
 begin
   SetActionBtnMenuItem(mniEditPackage);
   FOnAction(fatEditPackage, FPackage, GetSelectedVersion);
 end;
 
-procedure TfrmPackage.mniInstallClick(Sender: TObject);
+procedure TPackageFrame.mniInstallClick(Sender: TObject);
 begin
   SetActionBtnMenuItem(mniInstall);
   FOnAction(fatInstall, FPackage, GetSelectedVersion);
 end;
 
-procedure TfrmPackage.mniUninstallClick(Sender: TObject);
+procedure TPackageFrame.mniUninstallClick(Sender: TObject);
 begin
   SetActionBtnMenuItem(mniUninstall);
   FOnAction(fatUninstall, FPackage, GetSelectedVersion);
 end;
 
-procedure TfrmPackage.mniUpdateClick(Sender: TObject);
+procedure TPackageFrame.mniUpdateClick(Sender: TObject);
 begin
   SetActionBtnMenuItem(mniUpdate);
   FOnAction(fatUpdate, FPackage, GetSelectedVersion);
 end;
 
-procedure TfrmPackage.SetActionBtnMenuItem(aMenuItem: TMenuItem);
+procedure TPackageFrame.SetActionBtnMenuItem(aMenuItem: TMenuItem);
 begin
   btnAction.Caption := aMenuItem.Caption;
   btnAction.OnClick := aMenuItem.OnClick;
 end;
 
-procedure TfrmPackage.SetAllowedActions;
+procedure TPackageFrame.SetAllowedActions;
 begin
   mniInstall.Visible := FOnAllowAction(fatInstall, FPackage, GetSelectedVersion);
   mniUpdate.Visible := FOnAllowAction(fatUpdate, FPackage, GetSelectedVersion);

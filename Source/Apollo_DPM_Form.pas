@@ -42,13 +42,13 @@ type
     procedure tvNavigationChange(Sender: TObject; Node: TTreeNode);
   private
     FDPMEngine: TDPMEngine;
-    FFrames: TArray<TfrmPackage>;
-    function GetFrame(const aPackageID: string): TfrmPackage;
-    function GetFrameIndex(aFrame: TfrmPackage): Integer;
+    FFrames: TArray<TPackageFrame>;
+    function GetFrame(const aPackageID: string): TPackageFrame;
+    function GetFrameIndex(aFrame: TPackageFrame): Integer;
     function GetSelectedNavigation: string;
     function ShowPackageForm(aPackage: TInitialPackage): Boolean;
     procedure ClearFrames;
-    procedure DeleteFrame(aFrame: TfrmPackage);
+    procedure DeleteFrame(aFrame: TPackageFrame);
     procedure DoRenderPackageList(aPackages: TArray<TPackage>);
     procedure FrameAction(const aFrameActionType: TFrameActionType; aPackage: TPackage;
       aVersion: TVersion);
@@ -57,7 +57,7 @@ type
     procedure RenderPackageList(aPackageList: TDependentPackageList); overload;
     procedure RenderPackage(aPackage: TPackage; const aIndex: Integer);
     procedure RenderPackages;
-    procedure UpdateFrame(aFrame: TfrmPackage);
+    procedure UpdateFrame(aFrame: TPackageFrame);
     procedure UpdateFrames(aPackageHandles: TPackageHandles);
   public
     procedure NotifyObserver(const aText: string);
@@ -110,9 +110,9 @@ begin
   RenderNavigation;
 end;
 
-procedure TDPMForm.DeleteFrame(aFrame: TfrmPackage);
+procedure TDPMForm.DeleteFrame(aFrame: TPackageFrame);
 var
-  Frame: TfrmPackage;
+  Frame: TPackageFrame;
   Top: Integer;
 begin
   if not Assigned(aFrame) then
@@ -172,9 +172,9 @@ begin
   end;
 end;
 
-function TDPMForm.GetFrame(const aPackageID: string): TfrmPackage;
+function TDPMForm.GetFrame(const aPackageID: string): TPackageFrame;
 var
-  Frame: TfrmPackage;
+  Frame: TPackageFrame;
 begin
   Result := nil;
 
@@ -183,7 +183,7 @@ begin
       Exit(Frame);
 end;
 
-function TDPMForm.GetFrameIndex(aFrame: TfrmPackage): Integer;
+function TDPMForm.GetFrameIndex(aFrame: TPackageFrame): Integer;
 var
   i: Integer;
 begin
@@ -237,14 +237,11 @@ end;
 
 procedure TDPMForm.RenderPackage(aPackage: TPackage; const aIndex: Integer);
 var
-  PackageFrame: TfrmPackage;
+  PackageFrame: TPackageFrame;
 begin
-  PackageFrame := TfrmPackage.Create(sbFrames, FDPMEngine, aIndex);
+  PackageFrame := TPackageFrame.Create(sbFrames, FDPMEngine, aIndex);
   PackageFrame.OnAction := FrameAction;
   PackageFrame.OnAllowAction := FDPMEngine.AllowAction;
-  PackageFrame.Top := (PackageFrame.Height + 2) * aIndex;
-  if not Odd(aIndex) then
-    PackageFrame.Color := clBtnFace;
 
   PackageFrame.RenderPackage(aPackage);
 
@@ -328,7 +325,7 @@ begin
   Sender.Canvas.TextOut(Rect.Left, Rect.Top, Node.Text);
 end;
 
-procedure TDPMForm.UpdateFrame(aFrame: TfrmPackage);
+procedure TDPMForm.UpdateFrame(aFrame: TPackageFrame);
 begin
   if Assigned(aFrame) then
     aFrame.ReRenderPackage;
@@ -336,7 +333,7 @@ end;
 
 procedure TDPMForm.UpdateFrames(aPackageHandles: TPackageHandles);
 var
-  Frame: TfrmPackage;
+  Frame: TPackageFrame;
   PackageHandle: TPackageHandle;
 begin
   for PackageHandle in aPackageHandles do

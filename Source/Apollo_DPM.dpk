@@ -44,12 +44,14 @@ contains
   Apollo_DPM_Package in 'Apollo_DPM_Package.pas',
   Apollo_DPM_PackageForm in 'Apollo_DPM_PackageForm.pas' {PackageForm},
   Apollo_DPM_UIHelper in 'Apollo_DPM_UIHelper.pas',
-  Apollo_DPM_PackageFrame in 'Apollo_DPM_PackageFrame.pas' {frmPackage: TFrame},
+  Apollo_DPM_PackageFrame in 'Apollo_DPM_PackageFrame.pas' {PackageFrame: TFrame},
   Apollo_DPM_Validation in 'Apollo_DPM_Validation.pas',
   Apollo_DPM_GitHubAPI in 'Apollo_DPM_GitHubAPI.pas',
   Apollo_DPM_Types in 'Apollo_DPM_Types.pas',
   Apollo_DPM_EditItemForm in 'Apollo_DPM_EditItemForm.pas' {ItemEditForm},
   Apollo_DPM_Version in 'Apollo_DPM_Version.pas',
-  Apollo_HTTP in '..\Back\Apollo_HTTP.pas';
+  Apollo_HTTP in '..\Back\Apollo_HTTP.pas',
+  Apollo_DPM_ConflictForm in 'Apollo_DPM_ConflictForm.pas' {ConflictForm},
+  Apollo_DPM_ConflictFrame in 'Apollo_DPM_ConflictFrame.pas' {ConflictFrame: TFrame};
 
 end.

@@ -36,6 +36,18 @@ type
     function ContainsInstallHandle(const aID: string): Boolean;
   end;
 
+  TVersionConflict = record
+  public
+    DependentPackage: TDependentPackage;
+    InstalledVersion: TVersion;
+    RequiredVersion: TVersion;
+    Selection: TVersion;
+    constructor Create(aDependentPackage: TDependentPackage; aRequiredVersion: TVersion;
+      aInstalledVersion: TVersion);
+  end;
+
+  TVersionConflicts = TArray<TVersionConflict>;
+
   TUINotifyProc = procedure(const aText: string) of object;
 
 implementation
@@ -77,6 +89,17 @@ begin
   for PackageHandle in Self do
     if PackageHandle.PackageAction = paInstall then
       Exit(PackageHandle.Package as TInitialPackage);
+end;
+
+{ TVersionConflict }
+
+constructor TVersionConflict.Create(aDependentPackage: TDependentPackage;
+  aRequiredVersion, aInstalledVersion: TVersion);
+begin
+  DependentPackage := aDependentPackage;
+  RequiredVersion := aRequiredVersion;
+  InstalledVersion := aInstalledVersion;
+  Selection := nil;
 end;
 
 end.

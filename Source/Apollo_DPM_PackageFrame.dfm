@@ -1,4 +1,4 @@
-object frmPackage: TfrmPackage
+object PackageFrame: TPackageFrame
   Left = 0
   Top = 0
   Width = 370

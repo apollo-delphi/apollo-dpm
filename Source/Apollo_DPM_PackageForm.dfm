@@ -67,14 +67,14 @@ object PackageForm: TPackageForm
     LabelPosition = lpLeft
     TabOrder = 1
   end
-  object btnOk: TButton
+  object btnApply: TButton
     Left = 153
     Top = 440
     Width = 75
     Height = 25
-    Caption = 'Ok'
+    Caption = 'Apply'
     TabOrder = 5
-    OnClick = btnOkClick
+    OnClick = btnApplyClick
   end
   object btnCancel: TButton
     Left = 234

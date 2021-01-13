@@ -111,7 +111,7 @@
         </DCCReference>
         <DCCReference Include="Apollo_DPM_UIHelper.pas"/>
         <DCCReference Include="Apollo_DPM_PackageFrame.pas">
-            <Form>frmPackage</Form>
+            <Form>PackageFrame</Form>
             <FormType>dfm</FormType>
             <DesignClass>TFrame</DesignClass>
         </DCCReference>
@@ -124,6 +124,15 @@
         </DCCReference>
         <DCCReference Include="Apollo_DPM_Version.pas"/>
         <DCCReference Include="..\Back\Apollo_HTTP.pas"/>
+        <DCCReference Include="Apollo_DPM_ConflictForm.pas">
+            <Form>ConflictForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="Apollo_DPM_ConflictFrame.pas">
+            <Form>ConflictFrame</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TFrame</DesignClass>
+        </DCCReference>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
