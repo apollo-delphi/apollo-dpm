@@ -139,7 +139,7 @@
         </DCCReference>
         <DCCReference Include="Apollo_DPM_Settings.pas"/>
         <DCCReference Include="..\Vendors\Apollo_HTTP\Apollo_HTTP.pas"/>
-        <DCCReference Include="..\Vendors\IPCUsingPipes\Pipes.pas"/>
+        <DCCReference Include="Apollo_DPM_Pipes.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

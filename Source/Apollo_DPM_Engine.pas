@@ -10,7 +10,8 @@ uses
   Apollo_DPM_Version,
   System.SysUtils,
   ToolsAPI,
-  Vcl.Menus;
+  Vcl.Menus,
+  Xml.XMLIntf;
 
 type
   TDPMEngine = class
@@ -18,10 +19,11 @@ type
     FGHAPI: TGHAPI;
     FPrivatePackages: TPrivatePackageList;
     FProjectPackages: TDependentPackageList;
-    FUINotifyProc: TUINotifyProc;
     FSettings: TSettings;
+    FUINotifyProc: TUINotifyProc;
     FVersionCacheList: TVersionCacheList;
     function DefineVersion(aPackage: TPackage; aVersion: TVersion): TVersion;
+    function FindXmlNode(aNode: IXMLNode; const aNodeName: string): IXMLNode;
     function GetActiveProject: IOTAProject;
     function GetActiveProjectPath: string;
     function GetApolloMenuItem: TMenuItem;
@@ -45,6 +47,7 @@ type
     function PostProcessPackageHandles(const aPackageHandles: TPackageHandles): TPackageHandles;
     function ProcessRequiredDependencies(const aCaption: string;
       aRequiredDependencies: TDependentPackageList): TPackageHandles;
+    function RunConsole(const aCommand: string): string;
     function SaveAsPrivatePackage(aPackage: TInitialPackage): string;
     function SaveContent(const aPackagePath, aSourcePath, aContent: string): string;
     function ShowConflictForm(const aCaption: string; aVersionConflicts: TVersionConflicts): TVersionConflicts;
@@ -65,6 +68,7 @@ type
     procedure DPMOpened;
     procedure FreePackageLists;
     procedure FreeVersionCacheList;
+    procedure InstallBpl(const aBplPath: string);
     procedure LoadRepoVersions(aPackage: TPackage);
     procedure SaveProjectPackages;
     procedure WriteFile(const aPath: string; const aBytes: TBytes);
@@ -82,9 +86,6 @@ type
     procedure AddNewPrivatePackage(aPackage: TInitialPackage);
     procedure ApplyAndSaveSettings;
     procedure UpdatePrivatePackage(aPackage: TPrivatePackage);
-
-    procedure Test;
-
     constructor Create;
     destructor Destroy; override;
     property Settings: TSettings read FSettings;
@@ -96,11 +97,14 @@ uses
   Apollo_DPM_ConflictForm,
   Apollo_DPM_Consts,
   Apollo_DPM_Form,
+  Apollo_DPM_Pipes,
   Apollo_DPM_Validation,
   System.Classes,
   System.IOUtils,
   System.NetEncoding,
-  Vcl.Controls;
+  System.Types,
+  Vcl.Controls,
+  Xml.XMLDoc;
 
 { TDPMEngine }
 
@@ -226,41 +230,70 @@ end;
 
 function TDPMEngine.MakeBPL(aPackage: TInitialPackage): string;
 var
-//  BplProjectPath: string;
-//  FileItem: string;
-//  Files: TArray<string>;
-//  ModuleServices: IOTAModuleServices;
-//  Project: IOTAProject;
+  BplOutputFile: string;
+  BplOutputPath: string;
+  BplProjectPath: string;
+  ConsoleOutput: string;
+  FileItem: string;
+  Files: TArray<string>;
+  FrameworkDir: string;
+  MSBuildPath: string;
   RsVarsPath: string;
+  StringList: TStringList;
+  XmlFile: IXMLDocument;
+  XmlNode: IXMLNode;
 begin
-  RsVarsPath := TPath.Combine((BorlandIDEServices as IOTAServices).ExpandRootMacro('$(BDSBIN)'), 'rsvars.bat');
+  FUINotifyProc(Format('compiling %s', [aPackage.BplProjectFile]));
 
-
-  {BplProjectPath := '';
-
+  BplProjectPath := '';
   Files := TDirectory.GetFiles(GetPackagePath(aPackage), '*', TSearchOption.soAllDirectories);
   for FileItem in Files do
-    if FileItem.EndsWith(aPackage.BplProjectFile) then
+      if FileItem.EndsWith(aPackage.BplProjectFile) then
     begin
       BplProjectPath := FileItem;
       Break;
     end;
 
   if BplProjectPath.IsEmpty then
-    raise Exception.CreateFmt('%s was not found.', [aPackage.BplProjectFile]);}
+    raise Exception.CreateFmt('Making bpl: %s was not found.', [aPackage.BplProjectFile]);
 
+  RsVarsPath := TPath.Combine((BorlandIDEServices as IOTAServices).ExpandRootMacro('$(BDSBIN)'), 'rsvars.bat');
 
+  if not TFile.Exists(RsVarsPath) then
+    raise Exception.Create('Making bpl: can`t find rsvars.bat');
 
+  StringList := TStringList.Create;
+  try
+    StringList.LoadFromFile(RsVarsPath);
+    FrameworkDir := StringList.Values['@SET FrameworkDir'];
+  finally
+    StringList.Free;
+  end;
 
-  //ModuleServices := BorlandIDEServices as IOTAModuleServices;
+  if FrameworkDir.IsEmpty then
+    raise Exception.Create('Making bpl: can`t find .NET FrameworkDir');
 
-  //Project := ModuleServices.OpenModule(BplProjectPath) as IOTAProject;
-  //ModuleServices.MainProjectGroup.ActiveProject := Project;
+  MSBuildPath := TPath.Combine(FrameworkDir, 'MSBuild.exe');
+  ConsoleOutput := RunConsole(Format('%s "%s" /t:Make', [MSBuildPath, BplProjectPath]));
 
-  //if not GetActiveProject.ProjectBuilder.BuildProject(cmOTAMake, False, True) then
-  //  raise Exception.CreateFmt('%s was not compiled.', [aPackage.BplProjectFile]);
+  //FUINotifyProc(ConsoleOutput);
 
-  //Result := Project.ProjectOptions.TargetName;
+  XmlFile := LoadXMLDocument(BplProjectPath);
+
+  XmlNode := FindXmlNode(XmlFile.Node, 'DCC_BplOutput');
+  if Assigned(XmlNode) and not XmlNode.Text.IsEmpty then
+    BplOutputPath := XmlNode.Text
+  else
+    BplOutputPath := '$(BDSCOMMONDIR)\Bpl';
+  BplOutputPath := (BorlandIDEServices as IOTAServices).ExpandRootMacro(BplOutputPath);
+
+  BplOutputFile := FindXmlNode(XmlFile.Node, 'MainSource').Text;
+  BplOutputFile := BplOutputFile.Remove(BplOutputFile.LastIndexOf('.'));
+  BplOutputFile := BplOutputFile + '.bpl';
+
+  Result := TPath.Combine(BplOutputPath, BplOutputFile);
+  if not TFile.Exists(Result) then
+    raise Exception.CreateFmt('Making bpl: %s was not found.', [Result]);
 end;
 
 procedure TDPMEngine.BuildMenu;
@@ -329,6 +362,7 @@ end;
 
 procedure TDPMEngine.DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion);
 var
+  BplPath: string;
   DependentPackage: TDependentPackage;
 begin
   DependentPackage := TDependentPackage.CreateByInitial(aInitialPackage);
@@ -337,7 +371,10 @@ begin
   AddPackageFiles(aInitialPackage, aVersion);
 
   if aInitialPackage.PackageType = ptBplSource then
-    MakeBPL(aInitialPackage);
+  begin
+    BplPath := MakeBPL(aInitialPackage);
+    InstallBpl(BplPath);
+  end;
 
   GetProjectPackages.Add(DependentPackage);
 end;
@@ -445,6 +482,27 @@ begin
 
   if Assigned(Result) then
     Exit(Result);
+end;
+
+function TDPMEngine.FindXmlNode(aNode: IXMLNode;
+  const aNodeName: string): IXMLNode;
+var
+  i: Integer;
+begin
+  Result := nil;
+  if not Assigned(aNode) then
+    Exit;
+
+  if CompareText(aNode.NodeName, aNodeName) = 0 then
+    Result := aNode
+  else
+    if Assigned(aNode.ChildNodes) then
+      for i := 0 to aNode.ChildNodes.Count - 1 do
+      begin
+        Result := FindXmlNode(aNode.ChildNodes[I], aNodeName);
+        if Result <> nil then
+          Exit;
+      end;
 end;
 
 procedure TDPMEngine.FreePackageLists;
@@ -661,20 +719,39 @@ begin
       RequiredDependencies.Free;
     end;
 
-    for PackageHandle in Result do
-      if PackageHandle.PackageAction = paUninstall then
-        DoUninstall(PackageHandle.Package as TDependentPackage);
+    try
+      for PackageHandle in Result do
+        if PackageHandle.PackageAction = paUninstall then
+          DoUninstall(PackageHandle.Package as TDependentPackage);
 
-    for PackageHandle in Result do
-      if PackageHandle.PackageAction = paInstall then
-        DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version);
+      for PackageHandle in Result do
+        if PackageHandle.PackageAction = paInstall then
+          DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version);
 
-    SaveProjectPackages;
-
-    FUINotifyProc('Success');
+      FUINotifyProc('Succeeded');
+    except
+      on E: Exception do
+      begin
+        FUINotifyProc(E.Message);
+        FUINotifyProc('Installation failed');
+      end;
+    end;
   finally
+    SaveProjectPackages;
     Result := PostProcessPackageHandles(Result);
   end;
+end;
+
+procedure TDPMEngine.InstallBpl(const aBplPath: string);
+var
+  PackageServices: IOTAPackageServices;
+begin
+  FUINotifyProc(Format('installing %s', [TPath.GetFileName(aBplPath)]));
+
+  PackageServices := BorlandIDEServices as IOTAPackageServices;
+
+  PackageServices.InstallPackage('C:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl\PipesDesignTime.bpl');
+  //PackageServices.InstallPackage(aBplPath);
 end;
 
 function TDPMEngine.IsProjectOpened: Boolean;
@@ -838,6 +915,16 @@ begin
         Result := Result + [GetInstallPackageHandle(VersionConflict.DependentPackage, VersionConflict.Selection)];
       end;
     end;
+  end;
+end;
+
+function TDPMEngine.RunConsole(const aCommand: string): string;
+begin
+  try
+    Result := RunCommandPrompt(aCommand);
+  except
+    on E: Exception do
+      raise Exception.CreateFmt('RunConsole: %s '#13#10'%s', [aCommand, E.Message]);
   end;
 end;
 
@@ -1016,16 +1103,6 @@ end;
 function TDPMEngine.SyncVersionCache(const aPackageID: string; aVersion: TVersion): TVersion;
 begin
   Result := GetVersionCacheList.SyncVersion(aPackageID, aVersion);
-end;
-
-procedure TDPMEngine.Test;
-var
-  PS: IOTAPAckageServices;
-begin
-  PS := BorlandIDEServices as IOTAPAckageServices;
-
-  //PS.InstallPackage('c:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl\DCEF_DX10.bpl');
-  PS.UninstallPackage('c:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl\DCEF_DX10.bpl');
 end;
 
 procedure TDPMEngine.WriteFile(const aPath: string; const aBytes: TBytes);

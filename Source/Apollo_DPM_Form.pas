@@ -12,8 +12,7 @@ uses
   Apollo_DPM_Package,
   Apollo_DPM_SettingsFrame,
   Apollo_DPM_Types,
-  Apollo_DPM_Version,
-  Pipes;
+  Apollo_DPM_Version;
 
 type
   TDPMForm = class(TForm)
@@ -45,7 +44,6 @@ type
   private
     FDPMEngine: TDPMEngine;
     FPackageFrames: TArray<TPackageFrame>;
-    FPipeConsole: TPipeConsole;
     FSettingsFrame: TSettingsFrame;
     function GetFrame(const aPackageID: string): TPackageFrame;
     function GetFrameIndex(aFrame: TPackageFrame): Integer;
@@ -62,7 +60,6 @@ type
     procedure RenderPackage(aPackage: TPackage; const aIndex: Integer);
     procedure RenderPackages;
     procedure RenderSettings;
-    procedure RunConsole(const aCommand: string);
     procedure UpdateFrame(aFrame: TPackageFrame);
     procedure UpdateFrames(aPackageHandles: TPackageHandles);
   public
@@ -116,7 +113,6 @@ begin
   inherited Create(nil);
 
   FDPMEngine := aDPMEngine;
-  FPipeConsole := TPipeConsole.Create(Self);
 
   RenderNavigation;
 end;
@@ -156,8 +152,6 @@ procedure TDPMForm.FrameAction(const aFrameActionType: TFrameActionType;
 var
   PackageHandles: TPackageHandles;
 begin
-  RunConsole('F:\Dev\apollo-delphi\apollo-dpm\Vendors\Compile.bat');{
-
   case aFrameActionType of
     fatInstall:
       begin
@@ -198,7 +192,7 @@ begin
         UpdateFrame(GetFrame(aPackage.ID));
       end;
     end;
-  end;   }
+  end;
 end;
 
 function TDPMForm.GetFrame(const aPackageID: string): TPackageFrame;
@@ -311,32 +305,6 @@ begin
   FSettingsFrame := TSettingsFrame.Create(sbFrames, FDPMEngine);
   FSettingsFrame.Parent := sbFrames;
   FSettingsFrame.Align := alClient;
-end;
-
-procedure TDPMForm.RunConsole(const aCommand: string);
-var
-  ErrorStream: TBytesStream;
-  LastError: DWORD;
-  OutputStream: TBytesStream;
-  ProcessExitCode: DWORD;
-  ProcessID: DWORD;
-  sOutput: string;
-begin
-  ErrorStream := TBytesStream.Create;
-  OutputStream := TBytesStream.Create;
-  try
-    LastError := FPipeConsole.Execute(aCommand, '', OutputStream,
-      ErrorStream, ProcessExitCode, ProcessID, nil);
-      if LastError <> 0 then
-        RaiseLastOSError;
-
-    sOutput := TEncoding.ANSI.GetString(OutputStream.Bytes).Trim;
-    reActionLog.Lines.Add(sOutput);
-      //reActionLog.Lines.Add(TEncoding.ANSI.GetString(ErrorStream.Bytes));
-  finally
-    ErrorStream.Free;
-    OutputStream.Free;
-  end;
 end;
 
 function TDPMForm.ShowPackageForm(aPackage: TInitialPackage): Boolean;
