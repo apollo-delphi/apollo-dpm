@@ -10,7 +10,7 @@ uses
 type
   TVisibility = (vPrivate, vPublic);
 
-  TPackageType = (ptCodeSource);
+  TPackageType = (ptCodeSource, ptBplSource, ptBplBinary, ptProjectTemplate);
 
   TPackage = class abstract
   private
@@ -44,17 +44,19 @@ type
 
   TPackageClass = class of TPackage;
 
-  TFilterListType = (fltNone, fltBlack, fltWhite);
-
   TPathMove = record
     Destination: string;
     Source: string;
   end;
 
+  TFilterListType = (fltNone, fltBlack, fltWhite);
+
   TDependentPackage = class;
 
   TInitialPackage = class(TPackage)
   private
+    FBplBinaryFile: string;
+    FBplProjectFile: string;
     FDependentPackage: TDependentPackage;
     FFilterList: TArray<string>;
     FFilterListType: TFilterListType;
@@ -69,6 +71,9 @@ type
     function AllowPath(const aPath: string): Boolean;
     function ApplyPathMoves(const aPath: string): string;
     function IsInstalled: Boolean;
+    constructor Create; overload;
+    property BplBinaryFile: string read FBplBinaryFile write FBplBinaryFile;
+    property BplProjectFile: string read FBplProjectFile write FBplProjectFile;
     property DependentPackage: TDependentPackage read FDependentPackage write FDependentPackage;
     property FilterList: TArray<string> read FFilterList write FFilterList;
     property FilterListType: TFilterListType read FFilterListType write FFilterListType;
@@ -90,7 +95,7 @@ type
   end;
 
   TDependentPackageList = class(TObjectList<TDependentPackage>)
- public
+  public
     function GetByID(const aID: string): TDependentPackage;
     function GetJSONString: string;
     function IsUsingDependenceExceptOwner(const aID, aOwnerID: string): Boolean;
@@ -264,6 +269,11 @@ begin
   Result := Result.Replace('\\', '\', [rfReplaceAll]);
 end;
 
+constructor TInitialPackage.Create;
+begin
+  Init;
+end;
+
 procedure TInitialPackage.SetJSON(aJSONObj: TJSONObject);
 var
   iFilterListType: Integer;
@@ -271,6 +281,7 @@ var
   jsnPathMoves: TJSONArray;
   jsnVal: TJSONValue;
   PathMove: TPathMove;
+  Value: string;
 begin
   inherited;
 
@@ -291,6 +302,12 @@ begin
 
       PathMoves := PathMoves + [PathMove];
     end;
+
+  if aJSONObj.TryGetValue(cKeyBplProjectFile, Value) then
+    BplProjectFile := Value;
+
+  if aJSONObj.TryGetValue(cKeyBplBinaryFile, Value) then
+    BplBinaryFile := Value;
 end;
 
 function TInitialPackage.GetJSON: TJSONObject;
@@ -305,7 +322,7 @@ begin
 
   Result.AddPair(cKeyFilterListType, TJSONNumber.Create(Ord(FilterListType)));
 
-  if Length(FilterList) > 0 then
+  if (FilterListType <> fltNone) and (Length(FilterList) > 0) then
   begin
     jsnFilterList := TJSONArray.Create;
 
@@ -313,7 +330,9 @@ begin
       jsnFilterList.Add(FilterListItem);
 
     Result.AddPair(cKeyFilterList, jsnFilterList);
-  end;
+  end
+  else
+    FilterList := [];
 
   if Length(FPathMoves) > 0 then
   begin
@@ -330,6 +349,16 @@ begin
 
     Result.AddPair(cKeyPathMoves, jsnPathMoves);
   end;
+
+  if PackageType = ptBplSource then
+    Result.AddPair(cKeyBplProjectFile, BplProjectFile)
+  else
+    BplProjectFile := '';
+
+  if PackageType = ptBplBinary then
+    Result.AddPair(cKeyBplBinaryFile, BplBinaryFile)
+  else
+    BplBinaryFile := '';
 end;
 
 procedure TInitialPackage.Init;

@@ -50,8 +50,11 @@ contains
   Apollo_DPM_Types in 'Apollo_DPM_Types.pas',
   Apollo_DPM_EditItemForm in 'Apollo_DPM_EditItemForm.pas' {ItemEditForm},
   Apollo_DPM_Version in 'Apollo_DPM_Version.pas',
-  Apollo_HTTP in '..\Back\Apollo_HTTP.pas',
   Apollo_DPM_ConflictForm in 'Apollo_DPM_ConflictForm.pas' {ConflictForm},
-  Apollo_DPM_ConflictFrame in 'Apollo_DPM_ConflictFrame.pas' {ConflictFrame: TFrame};
+  Apollo_DPM_ConflictFrame in 'Apollo_DPM_ConflictFrame.pas' {ConflictFrame: TFrame},
+  Apollo_DPM_SettingsFrame in 'Apollo_DPM_SettingsFrame.pas' {SettingsFrame: TFrame},
+  Apollo_DPM_Settings in 'Apollo_DPM_Settings.pas',
+  Apollo_HTTP in '..\Vendors\Apollo_HTTP\Apollo_HTTP.pas',
+  Pipes in '..\Vendors\IPCUsingPipes\Pipes.pas';
 
 end.

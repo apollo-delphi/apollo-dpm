@@ -5,6 +5,7 @@ interface
 uses
   Apollo_DPM_GitHubAPI,
   Apollo_DPM_Package,
+  Apollo_DPM_Settings,
   Apollo_DPM_Types,
   Apollo_DPM_Version,
   System.SysUtils,
@@ -18,6 +19,7 @@ type
     FPrivatePackages: TPrivatePackageList;
     FProjectPackages: TDependentPackageList;
     FUINotifyProc: TUINotifyProc;
+    FSettings: TSettings;
     FVersionCacheList: TVersionCacheList;
     function DefineVersion(aPackage: TPackage; aVersion: TVersion): TVersion;
     function GetActiveProject: IOTAProject;
@@ -31,6 +33,7 @@ type
     function GetPackagePath(aPackage: TPackage): string;
     function GetProjectPackagesPath: string;
     function GetPrivatePackagesFolderPath: string;
+    function GetSettingsPath: string;
     function GetVendorsPath: string;
     function GetVersionCacheList: TVersionCacheList;
     function GetTextFromFile(const aPath: string): string;
@@ -38,6 +41,7 @@ type
     function LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList; overload;
     function LoadDependencies(aDependentPackage: TDependentPackage): TDependentPackageList; overload;
     function LoadRepoTree(aPackage: TPackage; aVersion: TVersion): TTree;
+    function MakeBPL(aPackage: TInitialPackage): string;
     function PostProcessPackageHandles(const aPackageHandles: TPackageHandles): TPackageHandles;
     function ProcessRequiredDependencies(const aCaption: string;
       aRequiredDependencies: TDependentPackageList): TPackageHandles;
@@ -48,6 +52,7 @@ type
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
     procedure AddPackageFiles(aInitialPackage: TInitialPackage; aVersion: TVersion);
+    procedure ApplySettings;
     procedure BuildMenu;
     procedure DeletePackagePath(aPackage: TPackage);
     procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion);
@@ -55,7 +60,9 @@ type
       aResult: TDependentPackageList); overload;
     procedure DoLoadDependencies(aDependentPackage: TDependentPackage; aResult: TDependentPackageList); overload;
     procedure DoUninstall(aDependentPackage: TDependentPackage);
+    procedure DPMClosed;
     procedure DPMMenuItemClick(Sender: TObject);
+    procedure DPMOpened;
     procedure FreePackageLists;
     procedure FreeVersionCacheList;
     procedure LoadRepoVersions(aPackage: TPackage);
@@ -73,9 +80,14 @@ type
     function Uninstall(aPackage: TPackage): TPackageHandles;
     function Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
     procedure AddNewPrivatePackage(aPackage: TInitialPackage);
+    procedure ApplyAndSaveSettings;
     procedure UpdatePrivatePackage(aPackage: TPrivatePackage);
+
+    procedure Test;
+
     constructor Create;
     destructor Destroy; override;
+    property Settings: TSettings read FSettings;
   end;
 
 implementation
@@ -212,6 +224,45 @@ begin
   Result := GetVersionCacheList.ContainsLoadedPackageID(aPackageID);
 end;
 
+function TDPMEngine.MakeBPL(aPackage: TInitialPackage): string;
+var
+//  BplProjectPath: string;
+//  FileItem: string;
+//  Files: TArray<string>;
+//  ModuleServices: IOTAModuleServices;
+//  Project: IOTAProject;
+  RsVarsPath: string;
+begin
+  RsVarsPath := TPath.Combine((BorlandIDEServices as IOTAServices).ExpandRootMacro('$(BDSBIN)'), 'rsvars.bat');
+
+
+  {BplProjectPath := '';
+
+  Files := TDirectory.GetFiles(GetPackagePath(aPackage), '*', TSearchOption.soAllDirectories);
+  for FileItem in Files do
+    if FileItem.EndsWith(aPackage.BplProjectFile) then
+    begin
+      BplProjectPath := FileItem;
+      Break;
+    end;
+
+  if BplProjectPath.IsEmpty then
+    raise Exception.CreateFmt('%s was not found.', [aPackage.BplProjectFile]);}
+
+
+
+
+  //ModuleServices := BorlandIDEServices as IOTAModuleServices;
+
+  //Project := ModuleServices.OpenModule(BplProjectPath) as IOTAProject;
+  //ModuleServices.MainProjectGroup.ActiveProject := Project;
+
+  //if not GetActiveProject.ProjectBuilder.BuildProject(cmOTAMake, False, True) then
+  //  raise Exception.CreateFmt('%s was not compiled.', [aPackage.BplProjectFile]);
+
+  //Result := Project.ProjectOptions.TargetName;
+end;
+
 procedure TDPMEngine.BuildMenu;
 begin
   if GetApolloMenuItem = nil then
@@ -267,8 +318,8 @@ destructor TDPMEngine.Destroy;
 begin
   Validation.Free;
   FGHAPI.Free;
-  FreePackageLists;
   FreeVersionCacheList;
+  DPMClosed;
 
   if GetApolloMenuItem <> nil then
     GetIDEMainMenu.Items.Remove(GetApolloMenuItem);
@@ -280,12 +331,13 @@ procedure TDPMEngine.DoInstall(aInitialPackage: TInitialPackage; aVersion: TVers
 var
   DependentPackage: TDependentPackage;
 begin
-  FUINotifyProc(Format(#13#10 + 'Installing %s %s', [aInitialPackage.Name, aVersion.DisplayName]));
-
   DependentPackage := TDependentPackage.CreateByInitial(aInitialPackage);
   DependentPackage.Version := aVersion;
 
   AddPackageFiles(aInitialPackage, aVersion);
+
+  if aInitialPackage.PackageType = ptBplSource then
+    MakeBPL(aInitialPackage);
 
   GetProjectPackages.Add(DependentPackage);
 end;
@@ -311,9 +363,6 @@ procedure TDPMEngine.DoUninstall(aDependentPackage: TDependentPackage);
 var
   InitialPackage: TInitialPackage;
 begin
-  FUINotifyProc(Format(#13#10 + 'Uninstalling %s %s', [aDependentPackage.Name,
-    aDependentPackage.Version.DisplayName]));
-
   DeletePackagePath(aDependentPackage);
 
   InitialPackage := GetInitialPackage(aDependentPackage);
@@ -337,7 +386,7 @@ begin
   aVersion.Dependencies := [];
 
   for TreeNode in aVersion.RepoTree do
-    if TreeNode.Path.EndsWith(cProjectPackagesPath) then
+    if TreeNode.Path.EndsWith(cPathProjectPackages) then
     begin
       Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
       sJSON := TNetEncoding.Base64.Decode(Blob.Content);
@@ -358,16 +407,35 @@ begin
     end;
 end;
 
+procedure TDPMEngine.DPMClosed;
+begin
+  FreePackageLists;
+
+  if Assigned(FSettings) then
+    FreeAndNil(FSettings);
+end;
+
 procedure TDPMEngine.DPMMenuItemClick(Sender: TObject);
 begin
   DPMForm := TDPMForm.Create(Self);
   try
+    DPMOpened;
     FUINotifyProc := DPMForm.NotifyObserver;
     DPMForm.ShowModal;
   finally
     DPMForm.Free;
-    FreePackageLists;
+    DPMClosed;
   end;
+end;
+
+procedure TDPMEngine.DPMOpened;
+begin
+  if TFile.Exists(GetSettingsPath) then
+    FSettings := TSettings.Create(GetTextFromFile(GetSettingsPath))
+  else
+    FSettings := TSettings.Create;
+
+  ApplySettings;
 end;
 
 function TDPMEngine.GetInitialPackage(
@@ -513,7 +581,7 @@ end;
 
 function TDPMEngine.GetPrivatePackagesFolderPath: string;
 begin
-  Result := TPath.Combine(TPath.GetPublicPath, cPrivatePackagesFolderPath);
+  Result := TPath.Combine(TPath.GetPublicPath, cPathPrivatePackagesFolder);
 end;
 
 function TDPMEngine.GetProjectPackages: TDependentPackageList;
@@ -537,9 +605,14 @@ end;
 function TDPMEngine.GetProjectPackagesPath: string;
 begin
   if IsProjectOpened then
-    Result := TPath.Combine(GetActiveProjectPath, cProjectPackagesPath)
+    Result := TPath.Combine(GetActiveProjectPath, cPathProjectPackages)
   else
     Result := '';
+end;
+
+function TDPMEngine.GetSettingsPath: string;
+begin
+  Result := TPath.Combine(TPath.GetPublicPath, cPathSettings);
 end;
 
 function TDPMEngine.GetTextFromFile(const aPath: string): string;
@@ -578,9 +651,11 @@ begin
     Version := DefineVersion(aInitialPackage, aVersion);
     Result := [TPackageHandle.Create(paInstall, aInitialPackage, Version)];
 
+    FUINotifyProc(Format(#13#10'Installing %s %s', [aInitialPackage.Name, Version.DisplayName]));
+
     RequiredDependencies := LoadDependencies(aInitialPackage, Version);
     try
-      Result := Result + ProcessRequiredDependencies(Format('Installing package %s version conflict', [aInitialPackage.Name]),
+      Result := Result + ProcessRequiredDependencies(Format('Package %s version conflict', [aInitialPackage.Name]),
         RequiredDependencies);
     finally
       RequiredDependencies.Free;
@@ -596,7 +671,7 @@ begin
 
     SaveProjectPackages;
 
-    FUINotifyProc(#13#10'Success');
+    FUINotifyProc('Success');
   finally
     Result := PostProcessPackageHandles(Result);
   end;
@@ -809,6 +884,21 @@ begin
   end;
 end;
 
+procedure TDPMEngine.ApplyAndSaveSettings;
+var
+  Bytes: TBytes;
+begin
+  ApplySettings;
+
+  Bytes := TEncoding.ANSI.GetBytes(FSettings.GetJSONString);
+  WriteFile(GetSettingsPath, Bytes);
+end;
+
+procedure TDPMEngine.ApplySettings;
+begin
+  FGHAPI.SetGHPAToken(FSettings.GHPAToken);
+end;
+
 function TDPMEngine.ShowConflictForm(const aCaption: string;
   aVersionConflicts: TVersionConflicts): TVersionConflicts;
 var
@@ -837,6 +927,9 @@ begin
   DependentPackage := GetDependentPackage(aPackage);
   Result := [TPackageHandle.Create(paUninstall, DependentPackage, nil)];
 
+  FUINotifyProc(Format(#13#10 + 'Uninstalling %s %s', [DependentPackage.Name,
+    DependentPackage.Version.DisplayName]));
+
   Dependencies := LoadDependencies(DependentPackage);
   try
     for Dependency in Dependencies do
@@ -853,7 +946,7 @@ begin
 
   SaveProjectPackages;
 
-  FUINotifyProc(#13#10'Success');
+  FUINotifyProc('Success');
 end;
 
 function TDPMEngine.Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
@@ -871,10 +964,12 @@ begin
   DependentPackage := GetDependentPackage(aPackage);
   if DependentPackage.Version.SHA = Version.SHA then
   begin
-    FUINotifyProc(Format(#13#10 + 'Package %s %s already up to date.', [aPackage.Name, Version.DisplayName]));
+    FUINotifyProc(Format(#13#10'Package %s %s already up to date.', [aPackage.Name, Version.DisplayName]));
     Result := [TPackageHandle.Create(paInstall, aPackage, Version)];
     Exit;
   end;
+
+  FUINotifyProc(Format(#13#10'Updating %s %s', [DependentPackage.Name, DependentPackage.Version.DisplayName]));
 
   Result := [TPackageHandle.Create(paUninstall, DependentPackage, nil)];
   Result := Result + [GetInstallPackageHandle(DependentPackage, Version)];
@@ -904,7 +999,7 @@ begin
 
     SaveProjectPackages;
 
-    FUINotifyProc(#13#10'Success');
+    FUINotifyProc('Success');
   finally
     InstalledDependencies.Free;
     RequiredDependencies.Free;
@@ -921,6 +1016,16 @@ end;
 function TDPMEngine.SyncVersionCache(const aPackageID: string; aVersion: TVersion): TVersion;
 begin
   Result := GetVersionCacheList.SyncVersion(aPackageID, aVersion);
+end;
+
+procedure TDPMEngine.Test;
+var
+  PS: IOTAPAckageServices;
+begin
+  PS := BorlandIDEServices as IOTAPAckageServices;
+
+  //PS.InstallPackage('c:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl\DCEF_DX10.bpl');
+  PS.UninstallPackage('c:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl\DCEF_DX10.bpl');
 end;
 
 procedure TDPMEngine.WriteFile(const aPath: string; const aBytes: TBytes);

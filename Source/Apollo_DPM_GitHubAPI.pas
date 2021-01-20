@@ -34,6 +34,7 @@ type
     function GetRepoBlob(const aURL: string): TBlob;
     function GetRepoTags(const aRepoOwner, aRepoName: string): TArray<TTag>;
     function GetRepoTree(const aRepoOwner, aRepoName, aSHA: string): TTree;
+    procedure SetGHPAToken(const aToken: string);
     constructor Create;
     destructor Destroy; override;
   end;
@@ -160,6 +161,11 @@ begin
   finally
     jsnObj.Free;
   end;
+end;
+
+procedure TGHAPI.SetGHPAToken(const aToken: string);
+begin
+  FHTTP.SetCustomHeader('Authorization', Format(' token %s', [aToken]));
 end;
 
 end.

@@ -3,8 +3,8 @@ object PackageForm: TPackageForm
   Top = 0
   BorderStyle = bsDialog
   Caption = 'Package'
-  ClientHeight = 471
-  ClientWidth = 314
+  ClientHeight = 475
+  ClientWidth = 329
   Color = clWindow
   OldCreateOrder = False
   Position = poOwnerFormCenter
@@ -14,7 +14,7 @@ object PackageForm: TPackageForm
   TextHeight = 13
   object lblValidationMsg: TLabel
     Left = 6
-    Top = 422
+    Top = 428
     Width = 92
     Height = 13
     Caption = 'lblValidationMsg'
@@ -26,21 +26,28 @@ object PackageForm: TPackageForm
     Font.Style = [fsBold]
   end
   object lblFilterListType: TLabel
-    Left = 9
-    Top = 218
+    Left = 16
+    Top = 228
     Width = 70
     Height = 13
     Caption = 'Filter List Type'
   end
+  object lblPackageType: TLabel
+    Left = 19
+    Top = 159
+    Width = 67
+    Height = 13
+    Caption = 'Package Type'
+  end
   object grpVisibility: TGroupBox
     Left = 6
-    Top = 107
-    Width = 303
+    Top = 98
+    Width = 315
     Height = 50
     Caption = 'Visibility'
-    TabOrder = 0
+    TabOrder = 1
     object rbPrivate: TRadioButton
-      Left = 30
+      Left = 42
       Top = 18
       Width = 113
       Height = 17
@@ -48,7 +55,7 @@ object PackageForm: TPackageForm
       TabOrder = 0
     end
     object rbPublic: TRadioButton
-      Left = 158
+      Left = 170
       Top = 18
       Width = 113
       Height = 17
@@ -57,43 +64,43 @@ object PackageForm: TPackageForm
     end
   end
   object leName: TLabeledEdit
-    Left = 82
-    Top = 168
+    Left = 90
+    Top = 178
     Width = 222
     Height = 21
     EditLabel.Width = 27
     EditLabel.Height = 13
     EditLabel.Caption = 'Name'
     LabelPosition = lpLeft
-    TabOrder = 1
+    TabOrder = 3
   end
   object btnApply: TButton
-    Left = 153
-    Top = 440
+    Left = 168
+    Top = 445
     Width = 75
     Height = 25
     Caption = 'Apply'
-    TabOrder = 5
+    TabOrder = 7
     OnClick = btnApplyClick
   end
   object btnCancel: TButton
-    Left = 234
-    Top = 440
+    Left = 249
+    Top = 445
     Width = 75
     Height = 25
     Caption = 'Cancel'
     ModalResult = 2
-    TabOrder = 6
+    TabOrder = 8
   end
   object grpGitHub: TGroupBox
     Left = 6
     Top = 0
-    Width = 303
-    Height = 107
+    Width = 315
+    Height = 101
     Caption = 'GitHub Repository'
-    TabOrder = 7
+    TabOrder = 0
     object btnGoToURL: TSpeedButton
-      Left = 275
+      Left = 286
       Top = 19
       Width = 23
       Height = 22
@@ -105,7 +112,7 @@ object PackageForm: TPackageForm
     object leURL: TLabeledEdit
       Left = 45
       Top = 20
-      Width = 227
+      Width = 236
       Height = 21
       EditLabel.Width = 19
       EditLabel.Height = 13
@@ -116,7 +123,7 @@ object PackageForm: TPackageForm
     object leRepoOwner: TLabeledEdit
       Left = 45
       Top = 43
-      Width = 227
+      Width = 236
       Height = 21
       Color = clBtnFace
       EditLabel.Width = 32
@@ -124,12 +131,12 @@ object PackageForm: TPackageForm
       EditLabel.Caption = 'Owner'
       LabelPosition = lpLeft
       ReadOnly = True
-      TabOrder = 1
+      TabOrder = 2
     end
     object leRepoName: TLabeledEdit
       Left = 45
       Top = 66
-      Width = 227
+      Width = 236
       Height = 21
       Color = clBtnFace
       EditLabel.Width = 25
@@ -137,33 +144,33 @@ object PackageForm: TPackageForm
       EditLabel.Caption = 'Repo'
       LabelPosition = lpLeft
       ReadOnly = True
-      TabOrder = 2
+      TabOrder = 3
     end
     object aiRepoDataLoad: TActivityIndicator
-      Left = 274
+      Left = 285
       Top = 42
       IndicatorSize = aisSmall
       IndicatorType = aitRotatingSector
     end
   end
   object leDescription: TLabeledEdit
-    Left = 82
-    Top = 191
+    Left = 90
+    Top = 201
     Width = 222
     Height = 21
     EditLabel.Width = 53
     EditLabel.Height = 13
     EditLabel.Caption = 'Description'
     LabelPosition = lpLeft
-    TabOrder = 2
+    TabOrder = 4
   end
   object pcAdjustment: TPageControl
     Left = 6
-    Top = 248
-    Width = 303
+    Top = 254
+    Width = 315
     Height = 168
     ActivePage = tsFilterList
-    TabOrder = 4
+    TabOrder = 6
     object tsFilterList: TTabSheet
       Caption = 'Filter List'
       object btnNewFilterLine: TSpeedButton
@@ -199,7 +206,7 @@ object PackageForm: TPackageForm
       object lbFilterList: TListBox
         Left = 0
         Top = 27
-        Width = 295
+        Width = 307
         Height = 113
         Align = alBottom
         BevelInner = bvNone
@@ -246,7 +253,7 @@ object PackageForm: TPackageForm
       object lvPathMoves: TListView
         Left = 0
         Top = 27
-        Width = 295
+        Width = 307
         Height = 113
         Align = alBottom
         BevelOuter = bvNone
@@ -268,15 +275,48 @@ object PackageForm: TPackageForm
         OnClick = lvPathMovesClick
       end
     end
+    object tsBpl: TTabSheet
+      Caption = 'Bpl Options'
+      ImageIndex = 2
+      object leBplProjectFile: TLabeledEdit
+        Left = 18
+        Top = 29
+        Width = 271
+        Height = 21
+        EditLabel.Width = 110
+        EditLabel.Height = 13
+        EditLabel.Caption = 'Bpl Project File (.dproj)'
+        TabOrder = 0
+      end
+      object leBplBinaryFile: TLabeledEdit
+        Left = 18
+        Top = 77
+        Width = 271
+        Height = 21
+        EditLabel.Width = 95
+        EditLabel.Height = 13
+        EditLabel.Caption = 'Bpl Binary File (.bpl)'
+        TabOrder = 1
+      end
+    end
   end
   object cbFilterListType: TComboBox
-    Left = 82
-    Top = 214
+    Left = 90
+    Top = 224
     Width = 222
     Height = 22
     Style = csOwnerDrawFixed
-    TabOrder = 3
+    TabOrder = 5
     OnChange = cbFilterListTypeChange
+  end
+  object cbPackageType: TComboBox
+    Left = 90
+    Top = 154
+    Width = 222
+    Height = 22
+    Style = csOwnerDrawFixed
+    TabOrder = 2
+    OnChange = cbPackageTypeChange
   end
   object alActions: TActionList
     Images = ilIcons

@@ -8,6 +8,8 @@ object DPMForm: TDPMForm
   OldCreateOrder = False
   Position = poMainFormCenter
   OnClose = FormClose
+  Font.Name = 'Tahoma'
+  Font.Charset = DEFAULT_CHARSET
   PixelsPerInch = 96
   TextHeight = 13
   object pnlMainContainer: TPanel
@@ -46,6 +48,7 @@ object DPMForm: TDPMForm
       ScrollBars = ssVertical
       TabOrder = 1
       Zoom = 100
+      Font.Name = 'Tahoma'
       Font.Charset = RUSSIAN_CHARSET
     end
     object pnlMain: TPanel
@@ -83,7 +86,7 @@ object DPMForm: TDPMForm
         Indent = 19
         ReadOnly = True
         ShowLines = False
-        TabOrder = 0
+        TabOrder = 1
         ToolTips = False
         OnChange = tvNavigationChange
         OnCustomDrawItem = tvNavigationCustomDrawItem
@@ -96,7 +99,7 @@ object DPMForm: TDPMForm
         Align = alClient
         BevelOuter = bvNone
         Caption = 'pnlFrames'
-        TabOrder = 1
+        TabOrder = 0
         object sbFrames: TScrollBox
           Left = 0
           Top = 30

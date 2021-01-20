@@ -11,6 +11,7 @@ type
   TAsyncLoadProc = reference to procedure;
 
   TFrameActionType = (fatInstall, fatUpdate, fatUninstall, fatEditPackage);
+
   TFrameAllowActionFunc = function(const aFrameActionType: TFrameActionType;
     aPackage: TPackage; aVersion: TVersion): Boolean of object;
   TFrameActionProc = procedure(const aFrameActionType: TFrameActionType; aPackage: TPackage;

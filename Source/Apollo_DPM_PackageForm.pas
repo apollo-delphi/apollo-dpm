@@ -49,6 +49,11 @@ type
     actNewPathMove: TAction;
     actEditPathMove: TAction;
     actDeletePathMove: TAction;
+    cbPackageType: TComboBox;
+    lblPackageType: TLabel;
+    tsBpl: TTabSheet;
+    leBplProjectFile: TLabeledEdit;
+    leBplBinaryFile: TLabeledEdit;
     procedure btnApplyClick(Sender: TObject);
     procedure cbFilterListTypeChange(Sender: TObject);
     procedure lbFilterListClick(Sender: TObject);
@@ -60,14 +65,19 @@ type
     procedure lvPathMovesClick(Sender: TObject);
     procedure actEditPathMoveExecute(Sender: TObject);
     procedure actDeletePathMoveExecute(Sender: TObject);
+    procedure cbPackageTypeChange(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
     FPackage: TInitialPackage;
     FRepoDataLoadError: string;
+    function GetRepoRelativePath: string;
+    function GetSelectedPackageType: TPackageType;
     function GetSelectedVisibility: TVisibility;
+    function GetPackageRelativePath: string;
     function IsValid(const aValidationGroupName: string): Boolean;
     procedure FilterListItemSelected;
     procedure FilterListTypeChanged(const aFilterListType: TFilterListType);
+    procedure PackageTypeChanged(const aPackageType: TPackageType);
     procedure PathMoveSelected;
     procedure ReadFromControls;
     procedure RenderPathMoveItem(const aSource, aDestination: string);
@@ -88,20 +98,6 @@ uses
   Apollo_DPM_EditItemForm,
   Apollo_DPM_Form,
   Apollo_DPM_UIHelper;
-
-const
-  cLoadRepoDataValidation = 'LoadRepoDataValidation';
-  cOKClickValidation = 'OKClickValidation';
-
-  cFilterListTypeNames: array [TFilterListType] of string = (
-    'None',
-    'Black List',
-    'White List'
-  );
-
-  cPathOnGitHub = 'Path on GitHub';
-  cSource = 'Source';
-  cDestination = 'Destination';
 
 { TPackageForm }
 
@@ -132,10 +128,10 @@ var
   OutItems: TEditItems;
 begin
   if TItemEditForm.Open(Self, 'Edit Filter Line',
-    [TEditItem.Create(cPathOnGitHub, lbFilterList.Items[lbFilterList.ItemIndex])], OutItems)
+    [TEditItem.Create(GetRepoRelativePath, lbFilterList.Items[lbFilterList.ItemIndex])], OutItems)
   then
   begin
-    lbFilterList.Items[lbFilterList.ItemIndex] := OutItems.ValueByKey(cPathOnGitHub);
+    lbFilterList.Items[lbFilterList.ItemIndex] := OutItems.ValueByKey(GetRepoRelativePath);
   end;
 end;
 
@@ -144,13 +140,13 @@ var
   OutItems: TEditItems;
 begin
   if TItemEditForm.Open(Self, 'Edit Path Moving', [
-    TEditItem.Create(cSource, lvPathMoves.Selected.Caption),
-    TEditItem.Create(cDestination, lvPathMoves.Selected.SubItems[0])
+    TEditItem.Create(GetRepoRelativePath, lvPathMoves.Selected.Caption),
+    TEditItem.Create(GetPackageRelativePath, lvPathMoves.Selected.SubItems[0])
   ], OutItems)
   then
   begin
-    lvPathMoves.Selected.Caption := OutItems.ValueByKey(cSource);
-    lvPathMoves.Selected.SubItems[0] := OutItems.ValueByKey(cDestination);
+    lvPathMoves.Selected.Caption := OutItems.ValueByKey(GetRepoRelativePath);
+    lvPathMoves.Selected.SubItems[0] := OutItems.ValueByKey(GetPackageRelativePath);
   end;
 end;
 
@@ -176,7 +172,7 @@ begin
         leRepoName.Text := RepoName;
       end;
 
-      IsValid(cLoadRepoDataValidation);
+      IsValid(cValidationLoadRepoData);
       btnGoToURL.Enabled := True;
     end
   );
@@ -186,9 +182,9 @@ procedure TPackageForm.actNewFilterLineExecute(Sender: TObject);
 var
   OutItems: TEditItems;
 begin
-  if TItemEditForm.Open(Self, 'New Filter Line', [TEditItem.Create(cPathOnGitHub, '')], OutItems) then
+  if TItemEditForm.Open(Self, 'New Filter Line', [TEditItem.Create(GetRepoRelativePath, '')], OutItems) then
   begin
-    lbFilterList.Items.Add(OutItems.ValueByKey(cPathOnGitHub));
+    lbFilterList.Items.Add(OutItems.ValueByKey(GetRepoRelativePath));
   end;
 end;
 
@@ -197,16 +193,16 @@ var
   OutItems: TEditItems;
 begin
   if TItemEditForm.Open(Self, 'New Path Moving', [
-    TEditItem.Create(cSource, ''),
-    TEditItem.Create(cDestination, '')
+    TEditItem.Create(GetRepoRelativePath, ''),
+    TEditItem.Create(GetPackageRelativePath, '')
   ], OutItems)
   then
-    RenderPathMoveItem(OutItems.ValueByKey(cSource), OutItems.ValueByKey(cDestination));
+    RenderPathMoveItem(OutItems.ValueByKey(GetRepoRelativePath), OutItems.ValueByKey(GetPackageRelativePath));
 end;
 
 procedure TPackageForm.btnApplyClick(Sender: TObject);
 begin
-  if IsValid(cOKClickValidation) then
+  if IsValid(cValidationOKClick) then
   begin
     ReadFromControls;
     ModalResult := mrOk;
@@ -218,17 +214,20 @@ begin
   FilterListTypeChanged(TFilterListType(cbFilterListType.ItemIndex));
 end;
 
+procedure TPackageForm.cbPackageTypeChange(Sender: TObject);
+begin
+  PackageTypeChanged(GetSelectedPackageType);
+end;
+
 constructor TPackageForm.Create(aDPMEngine: TDPMEngine; aPackage: TInitialPackage);
-var
-  i: Integer;
 begin
   inherited Create(DPMForm);
 
   FDPMEngine := aDPMEngine;
   FPackage := aPackage;
 
-  for i := 0 to Length(cFilterListTypeNames) - 1 do
-    cbFilterListType.Items.Add(cFilterListTypeNames[TFilterListType(i)]);
+  FillComboBox(cbFilterListType, cFilterListTypeNames);
+  FillComboBox(cbPackageType, cPackageTypeNames);
 
   WriteToControls;
 end;
@@ -269,6 +268,21 @@ begin
   FilterListItemSelected;
 end;
 
+function TPackageForm.GetPackageRelativePath: string;
+begin
+  Result := leName.Text + '\';
+end;
+
+function TPackageForm.GetRepoRelativePath: string;
+begin
+  Result := leRepoName.Text + '/';
+end;
+
+function TPackageForm.GetSelectedPackageType: TPackageType;
+begin
+  Result := TPackageType(cbPackageType.ItemIndex);
+end;
+
 function TPackageForm.GetSelectedVisibility: TVisibility;
 begin
   if rbPrivate.Checked then
@@ -278,23 +292,35 @@ begin
 end;
 
 function TPackageForm.IsValid(const aValidationGroupName: string): Boolean;
+var
+  Value: string;
 begin
   Result := True;
   Validation.SetOutputLabel(lblValidationMsg);
   Validation.Start(Self);
 
-  Validation.Assert(aValidationGroupName = cLoadRepoDataValidation, leURL,
+  Validation.Assert(aValidationGroupName = cValidationLoadRepoData, leURL,
     FRepoDataLoadError = '', FRepoDataLoadError, Result);
 
-  Validation.Assert(aValidationGroupName = cOKClickValidation, leRepoName,
+  Validation.Assert(aValidationGroupName = cValidationOKClick, leRepoName,
     leRepoName.Text <> '', cStrARepositoryNameIsEmpty, Result);
 
-  Validation.Assert(aValidationGroupName = cOKClickValidation, leName,
+  Validation.Assert(aValidationGroupName = cValidationOKClick, leName,
     leName.Text <> '', cStrTheFieldCannotBeEmpty, Result);
 
-  Validation.Assert(aValidationGroupName = cOKClickValidation, leName,
+  Validation.Assert(aValidationGroupName = cValidationOKClick, leName,
     Validation.ValidatePackageNameUniq(FPackage.ID, leName.Text, GetSelectedVisibility),
     cStrAPackageWithThisNameAlreadyExists, Result);
+
+  Value := leBplProjectFile.Text;
+  Validation.Assert(aValidationGroupName = cValidationOKClick, leBplProjectFile,
+    (GetSelectedPackageType <> ptBplSource) or ((GetSelectedPackageType = ptBplSource) and Value.EndsWith('.dproj')),
+    cStrMustHaveDprojExtension, Result);
+
+  Value := leBplBinaryFile.Text;
+  Validation.Assert(aValidationGroupName = cValidationOKClick, leBplBinaryFile,
+    (GetSelectedPackageType <> ptBplBinary) or ((GetSelectedPackageType = ptBplBinary) and Value.EndsWith('.bpl')),
+    cStrMustHaveBplExtension, Result);
 end;
 
 procedure TPackageForm.lbFilterListClick(Sender: TObject);
@@ -305,6 +331,19 @@ end;
 procedure TPackageForm.lvPathMovesClick(Sender: TObject);
 begin
   PathMoveSelected;
+end;
+
+procedure TPackageForm.PackageTypeChanged(const aPackageType: TPackageType);
+begin
+  if aPackageType = ptBplSource then
+    leBplProjectFile.Enabled := True
+  else
+    leBplProjectFile.Enabled := False;
+
+  if aPackageType = ptBplBinary then
+    leBplBinaryFile.Enabled := True
+  else
+    leBplBinaryFile.Enabled := False;
 end;
 
 procedure TPackageForm.PathMoveSelected;
@@ -327,6 +366,7 @@ var
   i: Integer;
   PathMove: TPathMove;
 begin
+  FPackage.PackageType := TPackageType(cbPackageType.ItemIndex);
   FPackage.Name := leName.Text;
   FPackage.Description := leDescription.Text;
   FPackage.RepoOwner := leRepoOwner.Text;
@@ -345,6 +385,9 @@ begin
     PathMove.Destination := lvPathMoves.Items[i].SubItems[0];
     FPackage.PathMoves := FPackage.PathMoves + [PathMove];
   end;
+
+  FPackage.BplProjectFile := leBplProjectFile.Text;
+  FPackage.BplBinaryFile := leBplBinaryFile.Text;
 end;
 
 procedure TPackageForm.RenderPathMoveItem(const aSource, aDestination: string);
@@ -366,6 +409,8 @@ begin
     vPublic: rbPublic.Checked := True;
   end;
 
+  cbPackageType.ItemIndex := Ord(FPackage.PackageType);
+
   leName.Text := FPackage.Name;
   leDescription.Text := FPackage.Description;
   leRepoOwner.Text := FPackage.RepoOwner;
@@ -380,6 +425,10 @@ begin
   for PathMove in FPackage.PathMoves do
     RenderPathMoveItem(PathMove.Source, PathMove.Destination);
   PathMoveSelected;
+
+  leBplProjectFile.Text := FPackage.BplProjectFile;
+  leBplBinaryFile.Text := FPackage.BplBinaryFile;
+  PackageTypeChanged(FPackage.PackageType);
 end;
 
 end.

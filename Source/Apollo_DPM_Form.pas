@@ -10,8 +10,10 @@ uses
   Apollo_DPM_Engine,
   Apollo_DPM_PackageFrame,
   Apollo_DPM_Package,
+  Apollo_DPM_SettingsFrame,
   Apollo_DPM_Types,
-  Apollo_DPM_Version;
+  Apollo_DPM_Version,
+  Pipes;
 
 type
   TDPMForm = class(TForm)
@@ -42,7 +44,9 @@ type
     procedure tvNavigationChange(Sender: TObject; Node: TTreeNode);
   private
     FDPMEngine: TDPMEngine;
-    FFrames: TArray<TPackageFrame>;
+    FPackageFrames: TArray<TPackageFrame>;
+    FPipeConsole: TPipeConsole;
+    FSettingsFrame: TSettingsFrame;
     function GetFrame(const aPackageID: string): TPackageFrame;
     function GetFrameIndex(aFrame: TPackageFrame): Integer;
     function GetSelectedNavigation: string;
@@ -57,6 +61,8 @@ type
     procedure RenderPackageList(aPackageList: TDependentPackageList); overload;
     procedure RenderPackage(aPackage: TPackage; const aIndex: Integer);
     procedure RenderPackages;
+    procedure RenderSettings;
+    procedure RunConsole(const aCommand: string);
     procedure UpdateFrame(aFrame: TPackageFrame);
     procedure UpdateFrames(aPackageHandles: TPackageHandles);
   public
@@ -73,7 +79,8 @@ implementation
 
 uses
   Apollo_DPM_Consts,
-  Apollo_DPM_PackageForm;
+  Apollo_DPM_PackageForm,
+  Apollo_DPM_UIHelper;
 
 { TDPMForm }
 
@@ -95,10 +102,13 @@ procedure TDPMForm.ClearFrames;
 var
   Frame: TFrame;
 begin
-  for Frame in FFrames do
+  for Frame in FPackageFrames do
     Frame.Free;
 
-  FFrames := [];
+  FPackageFrames := [];
+
+  if Assigned(FSettingsFrame) then
+    FreeAndNil(FSettingsFrame);
 end;
 
 constructor TDPMForm.Create(aDPMEngine: TDPMEngine);
@@ -106,6 +116,7 @@ begin
   inherited Create(nil);
 
   FDPMEngine := aDPMEngine;
+  FPipeConsole := TPipeConsole.Create(Self);
 
   RenderNavigation;
 end;
@@ -118,11 +129,11 @@ begin
   if not Assigned(aFrame) then
     Exit;
 
-  Delete(FFrames, GetFrameIndex(aFrame), 1);
+  Delete(FPackageFrames, GetFrameIndex(aFrame), 1);
   Top := aFrame.Top;
   aFrame.Free;
 
-  for Frame in FFrames do
+  for Frame in FPackageFrames do
     if Frame.Top > Top then
       Frame.Top := Frame.Top - Frame.Height;
 end;
@@ -145,16 +156,34 @@ procedure TDPMForm.FrameAction(const aFrameActionType: TFrameActionType;
 var
   PackageHandles: TPackageHandles;
 begin
+  RunConsole('F:\Dev\apollo-delphi\apollo-dpm\Vendors\Compile.bat');{
+
   case aFrameActionType of
     fatInstall:
       begin
-        PackageHandles := FDPMEngine.Install(aPackage as TInitialPackage, aVersion);
-        UpdateFrames(PackageHandles);
+        AsyncLoad(nil,
+          procedure
+          begin
+            PackageHandles := FDPMEngine.Install(aPackage as TInitialPackage, aVersion);
+          end,
+          procedure
+          begin
+            UpdateFrames(PackageHandles);
+          end
+        );
       end;
     fatUpdate:
       begin
-        PackageHandles := FDPMEngine.Update(aPackage, aVersion);
-        UpdateFrames(PackageHandles);
+        AsyncLoad(nil,
+          procedure
+          begin
+            PackageHandles := FDPMEngine.Update(aPackage, aVersion);
+          end,
+          procedure
+          begin
+            UpdateFrames(PackageHandles);
+          end
+        );
       end;
     fatUninstall:
       begin
@@ -169,7 +198,7 @@ begin
         UpdateFrame(GetFrame(aPackage.ID));
       end;
     end;
-  end;
+  end;   }
 end;
 
 function TDPMForm.GetFrame(const aPackageID: string): TPackageFrame;
@@ -178,7 +207,7 @@ var
 begin
   Result := nil;
 
-  for Frame in FFrames do
+  for Frame in FPackageFrames do
     if Frame.IsShowingPackage(aPackageID) then
       Exit(Frame);
 end;
@@ -189,8 +218,8 @@ var
 begin
   Result := -1;
 
-  for i := 0 to Length(FFrames) - 1 do
-    if FFrames[i] = aFrame then
+  for i := 0 to Length(FPackageFrames) - 1 do
+    if FPackageFrames[i] = aFrame then
       Exit(i);
 end;
 
@@ -204,10 +233,12 @@ end;
 
 procedure TDPMForm.NotifyObserver(const aText: string);
 begin
-  reActionLog.Lines.Add(aText);
-
-  reActionLog.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-  Application.ProcessMessages;
+  TThread.Synchronize(nil, procedure()
+    begin
+      reActionLog.Lines.Add(aText);
+      reActionLog.Perform(WM_VSCROLL, SB_BOTTOM, 0);
+    end
+  );
 end;
 
 procedure TDPMForm.pnlDetailsSwitcherClick(Sender: TObject);
@@ -218,6 +249,7 @@ end;
 procedure TDPMForm.RenderNavigation;
 begin
   tvNavigation.Items.Add(nil, cNavProjectDependencies);
+  tvNavigation.Items.Add(nil, cNavInstalledToIDE);
   tvNavigation.Items.Add(nil, cNavPrivatePackages);
   tvNavigation.Items.Add(nil, cNavSettings);
 end;
@@ -245,7 +277,7 @@ begin
 
   PackageFrame.RenderPackage(aPackage);
 
-  FFrames := FFrames + [PackageFrame];
+  FPackageFrames := FPackageFrames + [PackageFrame];
 end;
 
 procedure TDPMForm.RenderPackageList(aPackageList: TDependentPackageList);
@@ -270,6 +302,41 @@ begin
   else
   if GetSelectedNavigation = cNavProjectDependencies then
     RenderPackageList(FDPMEngine.GetProjectPackages);
+end;
+
+procedure TDPMForm.RenderSettings;
+begin
+  ClearFrames;
+
+  FSettingsFrame := TSettingsFrame.Create(sbFrames, FDPMEngine);
+  FSettingsFrame.Parent := sbFrames;
+  FSettingsFrame.Align := alClient;
+end;
+
+procedure TDPMForm.RunConsole(const aCommand: string);
+var
+  ErrorStream: TBytesStream;
+  LastError: DWORD;
+  OutputStream: TBytesStream;
+  ProcessExitCode: DWORD;
+  ProcessID: DWORD;
+  sOutput: string;
+begin
+  ErrorStream := TBytesStream.Create;
+  OutputStream := TBytesStream.Create;
+  try
+    LastError := FPipeConsole.Execute(aCommand, '', OutputStream,
+      ErrorStream, ProcessExitCode, ProcessID, nil);
+      if LastError <> 0 then
+        RaiseLastOSError;
+
+    sOutput := TEncoding.ANSI.GetString(OutputStream.Bytes).Trim;
+    reActionLog.Lines.Add(sOutput);
+      //reActionLog.Lines.Add(TEncoding.ANSI.GetString(ErrorStream.Bytes));
+  finally
+    ErrorStream.Free;
+    OutputStream.Free;
+  end;
 end;
 
 function TDPMForm.ShowPackageForm(aPackage: TInitialPackage): Boolean;
@@ -297,7 +364,10 @@ end;
 
 procedure TDPMForm.tvNavigationChange(Sender: TObject; Node: TTreeNode);
 begin
-  RenderPackages;
+  if GetSelectedNavigation = cNavSettings then
+    RenderSettings
+  else
+    RenderPackages;
 end;
 
 procedure TDPMForm.tvNavigationCustomDrawItem(Sender: TCustomTreeView;
@@ -343,7 +413,7 @@ begin
     if not Assigned(Frame) then
     begin
       if GetSelectedNavigation = cNavProjectDependencies then
-        RenderPackage(FDPMEngine.GetProjectPackages.GetByID(PackageHandle.PackageID), Length(FFrames));
+        RenderPackage(FDPMEngine.GetProjectPackages.GetByID(PackageHandle.PackageID), Length(FPackageFrames));
 
       Continue;
     end;

@@ -4,14 +4,17 @@ interface
 
 uses
   Apollo_DPM_Types,
+  Vcl.ComCtrls,
   Vcl.Controls,
   Vcl.Forms,
+  Vcl.StdCtrls,
   Vcl.WinXCtrls;
 
 type
   TFormHelper = class helper for TForm
     procedure AsyncLoad(aIndicator: TActivityIndicator; aLoadProc: TAsyncLoadProc;
       aCallBack: TAsyncLoadCallBack);
+    procedure FillComboBox(aComboBox: TComboBox; const aValArr: array of string);
     procedure SetControlsEnable(const aEnable: Boolean; const aControls: TArray<TControl>);
   end;
 
@@ -24,7 +27,8 @@ implementation
 
 uses
   System.Classes,
-  System.Threading;
+  System.Threading,
+  WinAPI.Windows;
 
 procedure AsyncLoadCommon(aIndicator: TActivityIndicator; aLoadProc: TAsyncLoadProc;
       aCallBack: TAsyncLoadCallBack);
@@ -57,6 +61,15 @@ procedure TFormHelper.AsyncLoad(aIndicator: TActivityIndicator;
   aLoadProc: TAsyncLoadProc; aCallBack: TAsyncLoadCallBack);
 begin
   AsyncLoadCommon(aIndicator, aLoadProc, aCallBack);
+end;
+
+procedure TFormHelper.FillComboBox(aComboBox: TComboBox;
+  const aValArr: array of string);
+var
+  i: Integer;
+begin
+  for i := 0 to Length(aValArr) - 1 do
+    aComboBox.Items.Add(aValArr[i]);
 end;
 
 procedure TFormHelper.SetControlsEnable(const aEnable: Boolean;
