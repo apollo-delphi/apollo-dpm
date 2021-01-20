@@ -749,9 +749,7 @@ begin
   FUINotifyProc(Format('installing %s', [TPath.GetFileName(aBplPath)]));
 
   PackageServices := BorlandIDEServices as IOTAPackageServices;
-
-  PackageServices.InstallPackage('C:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl\PipesDesignTime.bpl');
-  //PackageServices.InstallPackage(aBplPath);
+  PackageServices.InstallPackage(aBplPath);
 end;
 
 function TDPMEngine.IsProjectOpened: Boolean;
