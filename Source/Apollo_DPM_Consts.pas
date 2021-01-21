@@ -61,11 +61,11 @@ const
   cStrCantLoadTheRepositoryURL = 'Can`t load the repository URL!';
   cStrLatestVersionOrCommit = 'the latest version or commit';
   cStrLatestCommit = 'the latest commit';
-  cStrMustHaveBplExtension = 'Bpl package file name must have .bpl extension';
-  cStrMustHaveDprojExtension = 'Bpl project file name must have .dproj extension';
-  cStrPackage = 'Package file name (.bpl)';
-  cStrProject = 'Project file name (.droj)';
-  cStrTheFieldCannotBeEmpty = 'The field cannot be empty!';
+  cStrMustHaveBplExtension = 'Package file name must have .bpl extension';
+  cStrMustHaveDprojExtension = 'Project file name must have .dproj extension';
+  cStrPackage = 'File name (.bpl)';
+  cStrProject = 'File name (.droj)';
+  cStrTheFieldCantBeEmpty = 'The field can`t be empty!';
   cStrTheGitHubRepositoryUrlIsInvalid = 'The GitHub repository URL is invalid!';
   cStrVersionNotSelected = 'Version not selected!';
 

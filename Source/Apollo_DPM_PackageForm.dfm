@@ -338,19 +338,19 @@ object PackageForm: TPackageForm
         ParentShowHint = False
         ShowHint = True
       end
-      object lblBplProjects: TLabel
+      object lblBplProjectRefs: TLabel
         Left = 6
         Top = 28
-        Width = 96
+        Width = 134
         Height = 13
-        Caption = 'Bpl Projects (.dproj)'
+        Caption = 'Project Referencies (.dproj)'
       end
       object lblBplBinaries: TLabel
         Left = 153
         Top = 28
-        Width = 85
+        Width = 123
         Height = 13
-        Caption = 'Bpl Packags (.bpl)'
+        Caption = 'Packag Referencies (.bpl)'
       end
       object lbBplProjects: TListBox
         Left = -1

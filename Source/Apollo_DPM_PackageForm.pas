@@ -61,7 +61,7 @@ type
     btnNewBplPrjFile: TSpeedButton;
     btnEditBplPrjFile: TSpeedButton;
     btnDeleteBplPrjFile: TSpeedButton;
-    lblBplProjects: TLabel;
+    lblBplProjectRefs: TLabel;
     lblBplBinaries: TLabel;
     actNewBplPrjFile: TAction;
     actEditBplPrjFile: TAction;
@@ -438,7 +438,7 @@ begin
     leRepoName.Text <> '', cStrARepositoryNameIsEmpty, Result);
 
   Validation.Assert(aValidationGroupName = cValidationOKClick, leName,
-    leName.Text <> '', cStrTheFieldCannotBeEmpty, Result);
+    leName.Text <> '', cStrTheFieldCantBeEmpty, Result);
 
   Validation.Assert(aValidationGroupName = cValidationOKClick, leName,
     Validation.ValidatePackageNameUniq(FPackage.ID, leName.Text, GetSelectedVisibility),
