@@ -23,6 +23,10 @@ type
       aCallBack: TAsyncLoadCallBack);
   end;
 
+  TListBoxHelper = class helper for TListBox
+    function GetSelectedText: string;
+  end;
+
 implementation
 
 uses
@@ -87,6 +91,13 @@ procedure TFrameHelper.AsyncLoad(aIndicator: TActivityIndicator;
   aLoadProc: TAsyncLoadProc; aCallBack: TAsyncLoadCallBack);
 begin
   AsyncLoadCommon(aIndicator, aLoadProc, aCallBack);
+end;
+
+{ TListBoxHelper }
+
+function TListBoxHelper.GetSelectedText: string;
+begin
+  Result := Self.Items[Self.ItemIndex];
 end;
 
 end.

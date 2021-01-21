@@ -82,6 +82,7 @@ type
 
   TDependentPackage = class(TPackage)
   private
+    FBplFile: string;
     FVersion: TVersion;
   protected
     function GetJSON: TJSONObject; override;
@@ -91,6 +92,7 @@ type
       aVersionCacheSyncFunc: TVersionCacheSyncFunc); reintroduce;
     constructor CreateByInitial(aInitialPackage: TInitialPackage;
      const aOwnes: Boolean = True);
+    property BplFile: string read FBplFile write FBplFile;
     property Version: TVersion read FVersion write FVersion;
   end;
 
@@ -175,6 +177,7 @@ begin
   Description := aPackage.Description;
   RepoOwner := aPackage.RepoOwner;
   RepoName := aPackage.RepoName;
+  PackageType := aPackage.PackageType;
 end;
 
 function TPackage.GetID: string;
@@ -506,11 +509,15 @@ end;
 procedure TDependentPackage.SetJSON(aJSONObj: TJSONObject);
 var
   jsnVersion: TJSONObject;
+  Value: string;
 begin
   inherited;
 
   jsnVersion := aJSONObj.GetValue(cKeyVersion) as TJSONObject;
   Version := TVersion.Create(jsnVersion);
+
+  if aJSONObj.TryGetValue(cKeyBplFile, Value) then
+    BplFile := Value;
 end;
 
 constructor TDependentPackage.Create(const aJSONString: string;
@@ -525,6 +532,7 @@ begin
   Result := inherited GetJSON;
 
   Result.AddPair(cKeyVersion, Version.GetJSON);
+  Result.AddPair(cKeyBplFile, BplFile);
 end;
 
 end.

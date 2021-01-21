@@ -7,6 +7,7 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Buttons,
   System.Actions, Vcl.ActnList, Vcl.WinXCtrls, System.ImageList, Vcl.ImgList,
   Vcl.ComCtrls,
+  Apollo_DPM_EditItemForm,
   Apollo_DPM_Engine,
   Apollo_DPM_Package,
   Apollo_DPM_Validation;
@@ -52,8 +53,22 @@ type
     cbPackageType: TComboBox;
     lblPackageType: TLabel;
     tsBpl: TTabSheet;
-    leBplProjectFile: TLabeledEdit;
-    leBplBinaryFile: TLabeledEdit;
+    lbBplProjects: TListBox;
+    lbBplBinaries: TListBox;
+    btnNewBplBinFile: TSpeedButton;
+    btnEditBplBinFile: TSpeedButton;
+    btnDeleteBplBinFile: TSpeedButton;
+    btnNewBplPrjFile: TSpeedButton;
+    btnEditBplPrjFile: TSpeedButton;
+    btnDeleteBplPrjFile: TSpeedButton;
+    lblBplProjects: TLabel;
+    lblBplBinaries: TLabel;
+    actNewBplPrjFile: TAction;
+    actEditBplPrjFile: TAction;
+    actDeleteBplPrjFile: TAction;
+    actNewBplBinFile: TAction;
+    actEditBplBinFile: TAction;
+    actDeleteBplBinFile: TAction;
     procedure btnApplyClick(Sender: TObject);
     procedure cbFilterListTypeChange(Sender: TObject);
     procedure lbFilterListClick(Sender: TObject);
@@ -66,6 +81,14 @@ type
     procedure actEditPathMoveExecute(Sender: TObject);
     procedure actDeletePathMoveExecute(Sender: TObject);
     procedure cbPackageTypeChange(Sender: TObject);
+    procedure actNewBplPrjFileExecute(Sender: TObject);
+    procedure lbBplProjectsClick(Sender: TObject);
+    procedure actEditBplPrjFileExecute(Sender: TObject);
+    procedure actDeleteBplPrjFileExecute(Sender: TObject);
+    procedure lbBplBinariesClick(Sender: TObject);
+    procedure actNewBplBinFileExecute(Sender: TObject);
+    procedure actEditBplBinFileExecute(Sender: TObject);
+    procedure actDeleteBplBinFileExecute(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
     FPackage: TInitialPackage;
@@ -74,9 +97,17 @@ type
     function GetSelectedPackageType: TPackageType;
     function GetSelectedVisibility: TVisibility;
     function GetPackageRelativePath: string;
+    function IsBplPkgValid(const aOutItems: TEditItems; aOutput: TLabel): Boolean;
+    function IsBplPrjValid(const aOutItems: TEditItems; aOutput: TLabel): Boolean;
     function IsValid(const aValidationGroupName: string): Boolean;
+    procedure BplBinaryFileSelected;
+    procedure BplProjectFileSelected;
+    procedure EditLine(aControl: TListBox; const aCaption: string;
+      const aEditItems: TEditItems; aValidFunc: TItemEditValidFunc);
     procedure FilterListItemSelected;
     procedure FilterListTypeChanged(const aFilterListType: TFilterListType);
+    procedure NewLine(aControl: TListBox; const aCaption: string;
+      const aEditItems: TEditItems; aValidFunc: TItemEditValidFunc);
     procedure PackageTypeChanged(const aPackageType: TPackageType);
     procedure PathMoveSelected;
     procedure ReadFromControls;
@@ -95,11 +126,32 @@ implementation
 
 uses
   Apollo_DPM_Consts,
-  Apollo_DPM_EditItemForm,
   Apollo_DPM_Form,
   Apollo_DPM_UIHelper;
 
 { TPackageForm }
+
+procedure TPackageForm.actDeleteBplBinFileExecute(Sender: TObject);
+begin
+  if MessageDlg('The bpl package reference will be deleted. Continue?', mtConfirmation,
+    [mbYes, mbCancel], 0) = mrYes
+  then
+  begin
+    lbBplBinaries.Items.Delete(lbBplBinaries.ItemIndex);
+    BplBinaryFileSelected;
+  end;
+end;
+
+procedure TPackageForm.actDeleteBplPrjFileExecute(Sender: TObject);
+begin
+  if MessageDlg('The bpl project reference will be deleted. Continue?', mtConfirmation,
+    [mbYes, mbCancel], 0) = mrYes
+  then
+  begin
+    lbBplProjects.Items.Delete(lbBplProjects.ItemIndex);
+    BplProjectFileSelected;
+  end;
+end;
 
 procedure TPackageForm.actDeleteFilterLineExecute(Sender: TObject);
 begin
@@ -123,16 +175,22 @@ begin
   end;
 end;
 
-procedure TPackageForm.actEditFilterLineExecute(Sender: TObject);
-var
-  OutItems: TEditItems;
+procedure TPackageForm.actEditBplBinFileExecute(Sender: TObject);
 begin
-  if TItemEditForm.Open(Self, 'Edit Filter Line',
-    [TEditItem.Create(GetRepoRelativePath, lbFilterList.Items[lbFilterList.ItemIndex])], OutItems)
-  then
-  begin
-    lbFilterList.Items[lbFilterList.ItemIndex] := OutItems.ValueByKey(GetRepoRelativePath);
-  end;
+  EditLine(lbBplBinaries, 'Edit Bpl Package Reference',
+    [TEditItem.Create(cStrPackage, lbBplBinaries.GetSelectedText)], IsBplPkgValid);
+end;
+
+procedure TPackageForm.actEditBplPrjFileExecute(Sender: TObject);
+begin
+  EditLine(lbBplProjects, 'Edit Bpl Project Reference',
+    [TEditItem.Create(cStrProject, lbBplProjects.GetSelectedText)], IsBplPrjValid);
+end;
+
+procedure TPackageForm.actEditFilterLineExecute(Sender: TObject);
+begin
+  EditLine(lbFilterList, 'Edit Filter Line',
+    [TEditItem.Create(GetRepoRelativePath, lbFilterList.GetSelectedText)], nil);
 end;
 
 procedure TPackageForm.actEditPathMoveExecute(Sender: TObject);
@@ -142,7 +200,7 @@ begin
   if TItemEditForm.Open(Self, 'Edit Path Moving', [
     TEditItem.Create(GetRepoRelativePath, lvPathMoves.Selected.Caption),
     TEditItem.Create(GetPackageRelativePath, lvPathMoves.Selected.SubItems[0])
-  ], OutItems)
+  ], nil, OutItems)
   then
   begin
     lvPathMoves.Selected.Caption := OutItems.ValueByKey(GetRepoRelativePath);
@@ -178,14 +236,21 @@ begin
   );
 end;
 
-procedure TPackageForm.actNewFilterLineExecute(Sender: TObject);
-var
-  OutItems: TEditItems;
+procedure TPackageForm.actNewBplBinFileExecute(Sender: TObject);
 begin
-  if TItemEditForm.Open(Self, 'New Filter Line', [TEditItem.Create(GetRepoRelativePath, '')], OutItems) then
-  begin
-    lbFilterList.Items.Add(OutItems.ValueByKey(GetRepoRelativePath));
-  end;
+  NewLine(lbBplBinaries, 'New Bpl Package Reference',
+    [TEditItem.Create(cStrPackage, '')], IsBplPkgValid);
+end;
+
+procedure TPackageForm.actNewBplPrjFileExecute(Sender: TObject);
+begin
+  NewLine(lbBplProjects, 'New Bpl Project Reference',
+    [TEditItem.Create(cStrProject, '')], IsBplPrjValid);
+end;
+
+procedure TPackageForm.actNewFilterLineExecute(Sender: TObject);
+begin
+  NewLine(lbFilterList, 'New Filter Line', [TEditItem.Create(GetRepoRelativePath, '')], nil);
 end;
 
 procedure TPackageForm.actNewPathMoveExecute(Sender: TObject);
@@ -195,9 +260,39 @@ begin
   if TItemEditForm.Open(Self, 'New Path Moving', [
     TEditItem.Create(GetRepoRelativePath, ''),
     TEditItem.Create(GetPackageRelativePath, '')
-  ], OutItems)
+  ], nil, OutItems)
   then
     RenderPathMoveItem(OutItems.ValueByKey(GetRepoRelativePath), OutItems.ValueByKey(GetPackageRelativePath));
+end;
+
+procedure TPackageForm.BplBinaryFileSelected;
+var
+  bEnable: Boolean;
+begin
+  if lbBplBinaries.Enabled and (lbBplBinaries.ItemIndex > -1) then
+    bEnable := True
+  else
+    bEnable := False;
+
+  SetControlsEnable(bEnable, [
+    btnEditBplBinFile,
+    btnDeleteBplBinFile
+  ]);
+end;
+
+procedure TPackageForm.BplProjectFileSelected;
+var
+  bEnable: Boolean;
+begin
+  if lbBplProjects.Enabled and (lbBplProjects.ItemIndex > -1) then
+    bEnable := True
+  else
+    bEnable := False;
+
+  SetControlsEnable(bEnable, [
+    btnEditBplPrjFile,
+    btnDeleteBplPrjFile
+  ]);
 end;
 
 procedure TPackageForm.btnApplyClick(Sender: TObject);
@@ -232,16 +327,30 @@ begin
   WriteToControls;
 end;
 
+procedure TPackageForm.EditLine(aControl: TListBox; const aCaption: string;
+  const aEditItems: TEditItems; aValidFunc: TItemEditValidFunc);
+var
+  EditItem: TEditItem;
+  OutItems: TEditItems;
+begin
+  if TItemEditForm.Open(Self, aCaption, aEditItems, aValidFunc, OutItems)
+  then
+  begin
+    for EditItem in OutItems do
+      aControl.Items[aControl.ItemIndex] := EditItem.Value;
+  end;
+end;
+
 procedure TPackageForm.FilterListItemSelected;
 var
-  Enable: Boolean;
+  bEnable: Boolean;
 begin
   if lbFilterList.Enabled and (lbFilterList.ItemIndex > -1) then
-    Enable := True
+    bEnable := True
   else
-    Enable := False;
+    bEnable := False;
 
-  SetControlsEnable(Enable, [
+  SetControlsEnable(bEnable, [
     btnEditFilterLine,
     btnDeleteFilterLine
   ]);
@@ -250,17 +359,17 @@ end;
 procedure TPackageForm.FilterListTypeChanged(
   const aFilterListType: TFilterListType);
 var
-  Enable: Boolean;
+  bEnable: Boolean;
 begin
   if aFilterListType = fltNone then
   begin
     lbFilterList.ItemIndex := -1;
-    Enable := False
+    bEnable := False
   end
   else
-    Enable := True;
+    bEnable := True;
 
-  SetControlsEnable(Enable, [
+  SetControlsEnable(bEnable, [
     btnNewFilterLine,
     lbFilterList
   ]);
@@ -291,9 +400,32 @@ begin
     Result := vPublic;
 end;
 
-function TPackageForm.IsValid(const aValidationGroupName: string): Boolean;
+function TPackageForm.IsBplPkgValid(const aOutItems: TEditItems;
+  aOutput: TLabel): Boolean;
 var
   Value: string;
+begin
+  Result := True;
+  Validation.SetOutputLabel(aOutput);
+  Validation.Start(Self);
+
+  Value := aOutItems.ValueByKey(cStrPackage);
+  Validation.Assert(True, nil, Value.EndsWith('.bpl'), cStrMustHaveBplExtension, Result);
+end;
+
+function TPackageForm.IsBplPrjValid(const aOutItems: TEditItems; aOutput: TLabel): Boolean;
+var
+  Value: string;
+begin
+  Result := True;
+  Validation.SetOutputLabel(aOutput);
+  Validation.Start(Self);
+
+  Value := aOutItems.ValueByKey(cStrProject);
+  Validation.Assert(True, nil, Value.EndsWith('.dproj'), cStrMustHaveDprojExtension, Result);
+end;
+
+function TPackageForm.IsValid(const aValidationGroupName: string): Boolean;
 begin
   Result := True;
   Validation.SetOutputLabel(lblValidationMsg);
@@ -312,15 +444,23 @@ begin
     Validation.ValidatePackageNameUniq(FPackage.ID, leName.Text, GetSelectedVisibility),
     cStrAPackageWithThisNameAlreadyExists, Result);
 
-  Value := leBplProjectFile.Text;
-  Validation.Assert(aValidationGroupName = cValidationOKClick, leBplProjectFile,
-    (GetSelectedPackageType <> ptBplSource) or ((GetSelectedPackageType = ptBplSource) and Value.EndsWith('.dproj')),
-    cStrMustHaveDprojExtension, Result);
+  Validation.Assert(aValidationGroupName = cValidationOKClick, lbBplProjects,
+    (GetSelectedPackageType <> ptBplSource) or ((GetSelectedPackageType = ptBplSource) and (lbBplProjects.Count > 0)),
+    cStrAtLeastOneProjectShouldBeAdded, Result);
 
-  Value := leBplBinaryFile.Text;
-  Validation.Assert(aValidationGroupName = cValidationOKClick, leBplBinaryFile,
-    (GetSelectedPackageType <> ptBplBinary) or ((GetSelectedPackageType = ptBplBinary) and Value.EndsWith('.bpl')),
-    cStrMustHaveBplExtension, Result);
+  Validation.Assert(aValidationGroupName = cValidationOKClick, lbBplBinaries,
+    (GetSelectedPackageType <> ptBplBinary) or ((GetSelectedPackageType = ptBplBinary) and (lbBplBinaries.Count > 0)),
+    cStrAtLeastOnePackageShouldBeAdded, Result);
+end;
+
+procedure TPackageForm.lbBplBinariesClick(Sender: TObject);
+begin
+  BplBinaryFileSelected;
+end;
+
+procedure TPackageForm.lbBplProjectsClick(Sender: TObject);
+begin
+  BplProjectFileSelected;
 end;
 
 procedure TPackageForm.lbFilterListClick(Sender: TObject);
@@ -333,29 +473,48 @@ begin
   PathMoveSelected;
 end;
 
+procedure TPackageForm.NewLine(aControl: TListBox; const aCaption: string;
+  const aEditItems: TEditItems; aValidFunc: TItemEditValidFunc);
+var
+  EditItem: TEditItem;
+  OutItems: TEditItems;
+begin
+  if TItemEditForm.Open(Self, aCaption, aEditItems, aValidFunc, OutItems) then
+  begin
+    for EditItem in OutItems do
+      aControl.Items.Add(EditItem.Value);
+  end;
+end;
+
 procedure TPackageForm.PackageTypeChanged(const aPackageType: TPackageType);
+var
+  bEnable: Boolean;
 begin
   if aPackageType = ptBplSource then
-    leBplProjectFile.Enabled := True
+    bEnable := True
   else
-    leBplProjectFile.Enabled := False;
+    bEnable := False;
+  SetControlsEnable(bEnable, [lbBplProjects, btnNewBplPrjFile]);
+  BplProjectFileSelected;
 
   if aPackageType = ptBplBinary then
-    leBplBinaryFile.Enabled := True
+    bEnable := True
   else
-    leBplBinaryFile.Enabled := False;
+    bEnable := False;
+  SetControlsEnable(bEnable, [lbBplBinaries, btnNewBplBinFile]);
+  BplBinaryFileSelected;
 end;
 
 procedure TPackageForm.PathMoveSelected;
 var
-  Enable: Boolean;
+  bEnable: Boolean;
 begin
   if lvPathMoves.Selected <> nil then
-    Enable := True
+    bEnable := True
   else
-    Enable := False;
+    bEnable := False;
 
-  SetControlsEnable(Enable, [
+  SetControlsEnable(bEnable, [
     btnEditPathMove,
     btnDeletePathMove
   ]);
@@ -386,8 +545,8 @@ begin
     FPackage.PathMoves := FPackage.PathMoves + [PathMove];
   end;
 
-  FPackage.BplProjectFile := leBplProjectFile.Text;
-  FPackage.BplBinaryFile := leBplBinaryFile.Text;
+  //FPackage.BplProjectFile := leBplProjectFile.Text;
+  //FPackage.BplBinaryFile := leBplBinaryFile.Text;
 end;
 
 procedure TPackageForm.RenderPathMoveItem(const aSource, aDestination: string);
@@ -426,8 +585,8 @@ begin
     RenderPathMoveItem(PathMove.Source, PathMove.Destination);
   PathMoveSelected;
 
-  leBplProjectFile.Text := FPackage.BplProjectFile;
-  leBplBinaryFile.Text := FPackage.BplBinaryFile;
+  //leBplProjectFile.Text := FPackage.BplProjectFile;
+  //leBplBinaryFile.Text := FPackage.BplBinaryFile;
   PackageTypeChanged(FPackage.PackageType);
 end;
 

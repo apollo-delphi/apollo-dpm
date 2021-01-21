@@ -169,7 +169,7 @@ object PackageForm: TPackageForm
     Top = 254
     Width = 315
     Height = 168
-    ActivePage = tsFilterList
+    ActivePage = tsBpl
     TabOrder = 6
     object tsFilterList: TTabSheet
       Caption = 'Filter List'
@@ -278,25 +278,103 @@ object PackageForm: TPackageForm
     object tsBpl: TTabSheet
       Caption = 'Bpl Options'
       ImageIndex = 2
-      object leBplProjectFile: TLabeledEdit
-        Left = 18
-        Top = 29
-        Width = 271
-        Height = 21
-        EditLabel.Width = 110
-        EditLabel.Height = 13
-        EditLabel.Caption = 'Bpl Project File (.dproj)'
-        TabOrder = 0
+      object btnNewBplBinFile: TSpeedButton
+        Left = 153
+        Top = 3
+        Width = 23
+        Height = 22
+        Action = actNewBplBinFile
+        Flat = True
+        ParentShowHint = False
+        ShowHint = True
       end
-      object leBplBinaryFile: TLabeledEdit
-        Left = 18
-        Top = 77
-        Width = 271
-        Height = 21
-        EditLabel.Width = 95
-        EditLabel.Height = 13
-        EditLabel.Caption = 'Bpl Binary File (.bpl)'
+      object btnEditBplBinFile: TSpeedButton
+        Left = 180
+        Top = 3
+        Width = 23
+        Height = 22
+        Action = actEditBplBinFile
+        Flat = True
+        ParentShowHint = False
+        ShowHint = True
+      end
+      object btnDeleteBplBinFile: TSpeedButton
+        Left = 207
+        Top = 3
+        Width = 23
+        Height = 22
+        Action = actDeleteBplBinFile
+        Flat = True
+        ParentShowHint = False
+        ShowHint = True
+      end
+      object btnNewBplPrjFile: TSpeedButton
+        Left = 2
+        Top = 3
+        Width = 23
+        Height = 22
+        Action = actNewBplPrjFile
+        Flat = True
+        ParentShowHint = False
+        ShowHint = True
+      end
+      object btnEditBplPrjFile: TSpeedButton
+        Left = 29
+        Top = 3
+        Width = 23
+        Height = 22
+        Action = actEditBplPrjFile
+        Flat = True
+        ParentShowHint = False
+        ShowHint = True
+      end
+      object btnDeleteBplPrjFile: TSpeedButton
+        Left = 53
+        Top = 3
+        Width = 23
+        Height = 22
+        Action = actDeleteBplPrjFile
+        Flat = True
+        ParentShowHint = False
+        ShowHint = True
+      end
+      object lblBplProjects: TLabel
+        Left = 6
+        Top = 28
+        Width = 96
+        Height = 13
+        Caption = 'Bpl Projects (.dproj)'
+      end
+      object lblBplBinaries: TLabel
+        Left = 153
+        Top = 28
+        Width = 85
+        Height = 13
+        Caption = 'Bpl Packags (.bpl)'
+      end
+      object lbBplProjects: TListBox
+        Left = -1
+        Top = 45
+        Width = 150
+        Height = 97
+        BevelInner = bvNone
+        BevelOuter = bvNone
+        BorderStyle = bsNone
+        ItemHeight = 13
+        TabOrder = 0
+        OnClick = lbBplProjectsClick
+      end
+      object lbBplBinaries: TListBox
+        Left = 158
+        Top = 45
+        Width = 150
+        Height = 97
+        BevelInner = bvNone
+        BevelOuter = bvNone
+        BorderStyle = bsNone
+        ItemHeight = 13
         TabOrder = 1
+        OnClick = lbBplBinariesClick
       end
     end
   end
@@ -356,6 +434,35 @@ object PackageForm: TPackageForm
       Hint = 'Delete path moving'
       ImageIndex = 3
       OnExecute = actDeletePathMoveExecute
+    end
+    object actNewBplPrjFile: TAction
+      ImageIndex = 1
+      OnExecute = actNewBplPrjFileExecute
+    end
+    object actEditBplPrjFile: TAction
+      Hint = 'Edit bpl project file'
+      ImageIndex = 2
+      OnExecute = actEditBplPrjFileExecute
+    end
+    object actDeleteBplPrjFile: TAction
+      Hint = 'Delete bpl project file'
+      ImageIndex = 3
+      OnExecute = actDeleteBplPrjFileExecute
+    end
+    object actNewBplBinFile: TAction
+      Hint = 'New bpl package file'
+      ImageIndex = 1
+      OnExecute = actNewBplBinFileExecute
+    end
+    object actEditBplBinFile: TAction
+      Hint = 'Edit bpl package file'
+      ImageIndex = 2
+      OnExecute = actEditBplBinFileExecute
+    end
+    object actDeleteBplBinFile: TAction
+      Hint = 'Delete bpl package file'
+      ImageIndex = 3
+      OnExecute = actDeleteBplBinFileExecute
     end
   end
   object ilIcons: TImageList

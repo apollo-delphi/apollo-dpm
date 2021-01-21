@@ -71,6 +71,7 @@ type
     procedure InstallBpl(const aBplPath: string);
     procedure LoadRepoVersions(aPackage: TPackage);
     procedure SaveProjectPackages;
+    procedure UninstallBpl(const aBplPath: string);
     procedure WriteFile(const aPath: string; const aBytes: TBytes);
   public
     function AreVersionsLoaded(const aPackageID: string): Boolean;
@@ -339,7 +340,7 @@ var
 begin
   Path := GetPackagePath(aPackage);
 
-  FUINotifyProc('Deleting ' + Path);
+  FUINotifyProc('deleting ' + Path);
 
   TDirectory.Delete(Path, True);
 
@@ -374,6 +375,7 @@ begin
   begin
     BplPath := MakeBPL(aInitialPackage);
     InstallBpl(BplPath);
+    DependentPackage.BplFile := BplPath;
   end;
 
   GetProjectPackages.Add(DependentPackage);
@@ -405,6 +407,12 @@ begin
   InitialPackage := GetInitialPackage(aDependentPackage);
   if Assigned(InitialPackage) then
     InitialPackage.DependentPackage := nil;
+
+  if aDependentPackage.PackageType = ptBplSource then
+  begin
+    UninstallBpl(aDependentPackage.BplFile);
+    TFile.Delete(aDependentPackage.BplFile);
+  end;
 
   GetProjectPackages.RemoveByID(aDependentPackage.ID);
 end;
@@ -709,7 +717,7 @@ begin
     Version := DefineVersion(aInitialPackage, aVersion);
     Result := [TPackageHandle.Create(paInstall, aInitialPackage, Version)];
 
-    FUINotifyProc(Format(#13#10'Installing %s %s', [aInitialPackage.Name, Version.DisplayName]));
+    FUINotifyProc(Format(#13#10'installing %s %s', [aInitialPackage.Name, Version.DisplayName]));
 
     RequiredDependencies := LoadDependencies(aInitialPackage, Version);
     try
@@ -728,12 +736,12 @@ begin
         if PackageHandle.PackageAction = paInstall then
           DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version);
 
-      FUINotifyProc('Succeeded');
+      FUINotifyProc('succeeded');
     except
       on E: Exception do
       begin
         FUINotifyProc(E.Message);
-        FUINotifyProc('Installation failed');
+        FUINotifyProc('installation failed');
       end;
     end;
   finally
@@ -953,7 +961,7 @@ begin
 
   WriteFile(Result, Bytes);
 
-  FUINotifyProc('Writing ' + Result);
+  FUINotifyProc('writing ' + Result);
 end;
 
 procedure TDPMEngine.SaveProjectPackages;
@@ -1012,7 +1020,7 @@ begin
   DependentPackage := GetDependentPackage(aPackage);
   Result := [TPackageHandle.Create(paUninstall, DependentPackage, nil)];
 
-  FUINotifyProc(Format(#13#10 + 'Uninstalling %s %s', [DependentPackage.Name,
+  FUINotifyProc(Format(#13#10 + 'uninstalling %s %s', [DependentPackage.Name,
     DependentPackage.Version.DisplayName]));
 
   Dependencies := LoadDependencies(DependentPackage);
@@ -1031,7 +1039,17 @@ begin
 
   SaveProjectPackages;
 
-  FUINotifyProc('Success');
+  FUINotifyProc('succeeded');
+end;
+
+procedure TDPMEngine.UninstallBpl(const aBplPath: string);
+var
+  PackageServices: IOTAPackageServices;
+begin
+  FUINotifyProc(Format('uninstalling %s', [TPath.GetFileName(aBplPath)]));
+
+  PackageServices := BorlandIDEServices as IOTAPackageServices;
+  PackageServices.UninstallPackage(aBplPath);
 end;
 
 function TDPMEngine.Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;

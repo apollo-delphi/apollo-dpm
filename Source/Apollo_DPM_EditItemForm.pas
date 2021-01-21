@@ -20,18 +20,24 @@ type
     function ValueByKey(const aKey: string): string;
   end;
 
+  TItemEditValidFunc = function(const aOutItems: TEditItems; aOutput: TLabel): Boolean of object;
+
   TItemEditForm = class(TForm)
     leTemplate: TLabeledEdit;
     btnApply: TButton;
     btnCancel: TButton;
+    lblValidationMsg: TLabel;
+    procedure btnApplyClick(Sender: TObject);
   private
     FControls: TArray<TLabeledEdit>;
     FInItems: TEditItems;
+    FValidFunc: TItemEditValidFunc;
     function GetOutItems: TEditItems;
     procedure Init(const aInItems: TEditItems);
   public
     class function Open(aOwner: TComponent; const aCaption: string;
-      const aInItems: TEditItems; out aOutItems: TEditItems): Boolean;
+      const aInItems: TEditItems; aValidFunc: TItemEditValidFunc;
+      out aOutItems: TEditItems): Boolean;
   end;
 
 var
@@ -42,6 +48,14 @@ implementation
 {$R *.dfm}
 
 { TItemEditForm }
+
+procedure TItemEditForm.btnApplyClick(Sender: TObject);
+begin
+  if (not Assigned(FValidFunc)) or
+     (FValidFunc(GetOutItems, lblValidationMsg))
+  then
+    ModalResult := mrOk;
+end;
 
 function TItemEditForm.GetOutItems: TEditItems;
 var
@@ -92,12 +106,14 @@ begin
 end;
 
 class function TItemEditForm.Open(aOwner: TComponent; const aCaption: string;
-  const aInItems: TEditItems; out aOutItems: TEditItems): Boolean;
+  const aInItems: TEditItems; aValidFunc: TItemEditValidFunc;
+  out aOutItems: TEditItems): Boolean;
 begin
   ItemEditForm := TItemEditForm.Create(aOwner);
   try
     ItemEditForm.Caption := aCaption;
     ItemEditForm.Init(aInItems);
+    ItemEditForm.FValidFunc := aValidFunc;
     Result := ItemEditForm.ShowModal = mrOk;
     if Result then
       aOutItems := ItemEditForm.GetOutItems;

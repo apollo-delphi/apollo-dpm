@@ -138,6 +138,8 @@ begin
   else
   if aControl is TFrame then
     TFrame(aControl).Color := aColor;
+  if aControl is TListBox then
+    TListBox(aControl).Color := aColor;
 end;
 
 procedure TValidation.SetOutputLabel(aLabel: TLabel);
@@ -182,7 +184,10 @@ begin
     OrigColor := TLabeledEdit(aControl).Color
   else
   if aControl is TFrame then
-    OrigColor := TFrame(aControl).Color;
+    OrigColor := TFrame(aControl).Color
+  else
+  if aControl is TListBox then
+    OrigColor := TListBox(aControl).Color;
 end;
 
 procedure TValidationItem.Init;

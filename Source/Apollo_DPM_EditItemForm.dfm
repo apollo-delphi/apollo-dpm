@@ -3,15 +3,28 @@ object ItemEditForm: TItemEditForm
   Top = 0
   BorderStyle = bsDialog
   Caption = 'ItemEditForm'
-  ClientHeight = 71
-  ClientWidth = 337
+  ClientHeight = 80
+  ClientWidth = 359
   Color = clBtnFace
   OldCreateOrder = False
   Position = poOwnerFormCenter
   PixelsPerInch = 96
   TextHeight = 13
+  object lblValidationMsg: TLabel
+    Left = 6
+    Top = 34
+    Width = 92
+    Height = 13
+    Caption = 'lblValidationMsg'
+    ParentFont = False
+    Visible = False
+    Font.Name = 'Tahoma'
+    Font.Color = clRed
+    Font.Charset = DEFAULT_CHARSET
+    Font.Style = [fsBold]
+  end
   object leTemplate: TLabeledEdit
-    Left = 88
+    Left = 111
     Top = 8
     Width = 244
     Height = 21
@@ -23,17 +36,17 @@ object ItemEditForm: TItemEditForm
     Visible = False
   end
   object btnApply: TButton
-    Left = 176
-    Top = 42
+    Left = 200
+    Top = 50
     Width = 75
     Height = 25
     Caption = 'Apply'
-    ModalResult = 1
     TabOrder = 1
+    OnClick = btnApplyClick
   end
   object btnCancel: TButton
-    Left = 257
-    Top = 42
+    Left = 280
+    Top = 50
     Width = 75
     Height = 25
     Caption = 'Cancel'
