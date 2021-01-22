@@ -169,7 +169,7 @@ object PackageForm: TPackageForm
     Top = 254
     Width = 315
     Height = 168
-    ActivePage = tsBpl
+    ActivePage = tsFilterList
     TabOrder = 6
     object tsFilterList: TTabSheet
       Caption = 'Filter List'
@@ -348,9 +348,9 @@ object PackageForm: TPackageForm
       object lblBplBinaries: TLabel
         Left = 153
         Top = 28
-        Width = 123
+        Width = 129
         Height = 13
-        Caption = 'Packag Referencies (.bpl)'
+        Caption = 'Package Referencies (.bpl)'
       end
       object lbBplProjects: TListBox
         Left = -1

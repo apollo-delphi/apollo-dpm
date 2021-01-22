@@ -133,7 +133,7 @@ uses
 
 procedure TPackageForm.actDeleteBplBinFileExecute(Sender: TObject);
 begin
-  if MessageDlg('The bpl package reference will be deleted. Continue?', mtConfirmation,
+  if MessageDlg('The package reference will be deleted. Continue?', mtConfirmation,
     [mbYes, mbCancel], 0) = mrYes
   then
   begin
@@ -144,7 +144,7 @@ end;
 
 procedure TPackageForm.actDeleteBplPrjFileExecute(Sender: TObject);
 begin
-  if MessageDlg('The bpl project reference will be deleted. Continue?', mtConfirmation,
+  if MessageDlg('The project reference will be deleted. Continue?', mtConfirmation,
     [mbYes, mbCancel], 0) = mrYes
   then
   begin
@@ -177,13 +177,13 @@ end;
 
 procedure TPackageForm.actEditBplBinFileExecute(Sender: TObject);
 begin
-  EditLine(lbBplBinaries, 'Edit Bpl Package Reference',
+  EditLine(lbBplBinaries, 'Edit Package Reference',
     [TEditItem.Create(cStrPackage, lbBplBinaries.GetSelectedText)], IsBplPkgValid);
 end;
 
 procedure TPackageForm.actEditBplPrjFileExecute(Sender: TObject);
 begin
-  EditLine(lbBplProjects, 'Edit Bpl Project Reference',
+  EditLine(lbBplProjects, 'Edit Project Reference',
     [TEditItem.Create(cStrProject, lbBplProjects.GetSelectedText)], IsBplPrjValid);
 end;
 
@@ -238,13 +238,13 @@ end;
 
 procedure TPackageForm.actNewBplBinFileExecute(Sender: TObject);
 begin
-  NewLine(lbBplBinaries, 'New Bpl Package Reference',
+  NewLine(lbBplBinaries, 'New Package Reference',
     [TEditItem.Create(cStrPackage, '')], IsBplPkgValid);
 end;
 
 procedure TPackageForm.actNewBplPrjFileExecute(Sender: TObject);
 begin
-  NewLine(lbBplProjects, 'New Bpl Project Reference',
+  NewLine(lbBplProjects, 'New Project Reference',
     [TEditItem.Create(cStrProject, '')], IsBplPrjValid);
 end;
 
@@ -545,8 +545,13 @@ begin
     FPackage.PathMoves := FPackage.PathMoves + [PathMove];
   end;
 
-  //FPackage.BplProjectFile := leBplProjectFile.Text;
-  //FPackage.BplBinaryFile := leBplBinaryFile.Text;
+  FPackage.ProjectFileRefs := [];
+  for i := 0 to lbBplProjects.Items.Count - 1 do
+    FPackage.ProjectFileRefs := FPackage.ProjectFileRefs + [lbBplProjects.Items[i]];
+
+  FPackage.BinaryFileRefs := [];
+  for i := 0 to lbBplBinaries.Items.Count - 1 do
+    FPackage.BinaryFileRefs := FPackage.BinaryFileRefs + [lbBplBinaries.Items[i]];
 end;
 
 procedure TPackageForm.RenderPathMoveItem(const aSource, aDestination: string);
@@ -560,8 +565,8 @@ end;
 
 procedure TPackageForm.WriteToControls;
 var
-  FilterItem: string;
   PathMove: TPathMove;
+  Value: string;
 begin
   case FPackage.Visibility of
     vPrivate: rbPrivate.Checked := True;
@@ -578,15 +583,17 @@ begin
   cbFilterListType.ItemIndex := Ord(FPackage.FilterListType);
   FilterListTypeChanged(FPackage.FilterListType);
 
-  for FilterItem in FPackage.FilterList do
-    lbFilterList.Items.Add(FilterItem);
+  for Value in FPackage.FilterList do
+    lbFilterList.Items.Add(Value);
 
   for PathMove in FPackage.PathMoves do
     RenderPathMoveItem(PathMove.Source, PathMove.Destination);
   PathMoveSelected;
 
-  //leBplProjectFile.Text := FPackage.BplProjectFile;
-  //leBplBinaryFile.Text := FPackage.BplBinaryFile;
+  for Value in FPackage.ProjectFileRefs do
+    lbBplProjects.Items.Add(Value);
+  for Value in FPackage.BinaryFileRefs do
+    lbBplBinaries.Items.Add(Value);
   PackageTypeChanged(FPackage.PackageType);
 end;
 

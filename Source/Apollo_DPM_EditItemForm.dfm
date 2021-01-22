@@ -35,14 +35,14 @@ object ItemEditForm: TItemEditForm
     TabOrder = 0
     Visible = False
   end
-  object btnApply: TButton
+  object btnOK: TButton
     Left = 200
     Top = 50
     Width = 75
     Height = 25
-    Caption = 'Apply'
+    Caption = 'OK'
     TabOrder = 1
-    OnClick = btnApplyClick
+    OnClick = btnOKClick
   end
   object btnCancel: TButton
     Left = 280

@@ -43,7 +43,7 @@ type
     function LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList; overload;
     function LoadDependencies(aDependentPackage: TDependentPackage): TDependentPackageList; overload;
     function LoadRepoTree(aPackage: TPackage; aVersion: TVersion): TTree;
-    function MakeBPL(aPackage: TInitialPackage): string;
+    function MakeBPL(const aProjectFileName, aPackagePath: string): string;
     function PostProcessPackageHandles(const aPackageHandles: TPackageHandles): TPackageHandles;
     function ProcessRequiredDependencies(const aCaption: string;
       aRequiredDependencies: TDependentPackageList): TPackageHandles;
@@ -229,39 +229,39 @@ begin
   Result := GetVersionCacheList.ContainsLoadedPackageID(aPackageID);
 end;
 
-function TDPMEngine.MakeBPL(aPackage: TInitialPackage): string;
+function TDPMEngine.MakeBPL(const aProjectFileName, aPackagePath: string): string;
 var
-  BplOutputFile: string;
-  BplOutputPath: string;
-  BplProjectPath: string;
   ConsoleOutput: string;
   FileItem: string;
   Files: TArray<string>;
   FrameworkDir: string;
   MSBuildPath: string;
+  OutputFile: string;
+  OutputPath: string;
+  ProjectFilePath: string;
   RsVarsPath: string;
   StringList: TStringList;
   XmlFile: IXMLDocument;
   XmlNode: IXMLNode;
 begin
-  FUINotifyProc(Format('compiling %s', [aPackage.BplProjectFile]));
+  FUINotifyProc(Format('compiling %s', [aProjectFileName]));
 
-  BplProjectPath := '';
-  Files := TDirectory.GetFiles(GetPackagePath(aPackage), '*', TSearchOption.soAllDirectories);
+  ProjectFilePath := '';
+  Files := TDirectory.GetFiles(aPackagePath, '*', TSearchOption.soAllDirectories);
   for FileItem in Files do
-      if FileItem.EndsWith(aPackage.BplProjectFile) then
+      if FileItem.EndsWith(aProjectFileName) then
     begin
-      BplProjectPath := FileItem;
+      ProjectFilePath := FileItem;
       Break;
     end;
 
-  if BplProjectPath.IsEmpty then
-    raise Exception.CreateFmt('Making bpl: %s was not found.', [aPackage.BplProjectFile]);
+  if ProjectFilePath.IsEmpty then
+    raise Exception.CreateFmt('compiling bpl: %s was not found.', [aProjectFileName]);
 
   RsVarsPath := TPath.Combine((BorlandIDEServices as IOTAServices).ExpandRootMacro('$(BDSBIN)'), 'rsvars.bat');
 
   if not TFile.Exists(RsVarsPath) then
-    raise Exception.Create('Making bpl: can`t find rsvars.bat');
+    raise Exception.Create('compiling bpl: can`t find rsvars.bat');
 
   StringList := TStringList.Create;
   try
@@ -272,29 +272,29 @@ begin
   end;
 
   if FrameworkDir.IsEmpty then
-    raise Exception.Create('Making bpl: can`t find .NET FrameworkDir');
+    raise Exception.Create('compiling bpl: can`t find .NET FrameworkDir');
 
   MSBuildPath := TPath.Combine(FrameworkDir, 'MSBuild.exe');
-  ConsoleOutput := RunConsole(Format('%s "%s" /t:Make', [MSBuildPath, BplProjectPath]));
+  ConsoleOutput := RunConsole(Format('%s "%s" /t:Make', [MSBuildPath, ProjectFilePath]));
 
   //FUINotifyProc(ConsoleOutput);
 
-  XmlFile := LoadXMLDocument(BplProjectPath);
+  XmlFile := LoadXMLDocument(ProjectFilePath);
 
   XmlNode := FindXmlNode(XmlFile.Node, 'DCC_BplOutput');
   if Assigned(XmlNode) and not XmlNode.Text.IsEmpty then
-    BplOutputPath := XmlNode.Text
+    OutputPath := XmlNode.Text
   else
-    BplOutputPath := '$(BDSCOMMONDIR)\Bpl';
-  BplOutputPath := (BorlandIDEServices as IOTAServices).ExpandRootMacro(BplOutputPath);
+    OutputPath := '$(BDSCOMMONDIR)\Bpl';
+  OutputPath := (BorlandIDEServices as IOTAServices).ExpandRootMacro(OutputPath);
 
-  BplOutputFile := FindXmlNode(XmlFile.Node, 'MainSource').Text;
-  BplOutputFile := BplOutputFile.Remove(BplOutputFile.LastIndexOf('.'));
-  BplOutputFile := BplOutputFile + '.bpl';
+  OutputFile := FindXmlNode(XmlFile.Node, 'MainSource').Text;
+  OutputFile := OutputFile.Remove(OutputFile.LastIndexOf('.'));
+  OutputFile := OutputFile + '.bpl';
 
-  Result := TPath.Combine(BplOutputPath, BplOutputFile);
+  Result := TPath.Combine(OutputPath, OutputFile);
   if not TFile.Exists(Result) then
-    raise Exception.CreateFmt('Making bpl: %s was not found.', [Result]);
+    raise Exception.CreateFmt('compiling bpl: %s was not found.', [Result]);
 end;
 
 procedure TDPMEngine.BuildMenu;
@@ -364,7 +364,9 @@ end;
 procedure TDPMEngine.DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion);
 var
   BplPath: string;
+  BplPaths: TArray<string>;
   DependentPackage: TDependentPackage;
+  ProjectFileName: string;
 begin
   DependentPackage := TDependentPackage.CreateByInitial(aInitialPackage);
   DependentPackage.Version := aVersion;
@@ -373,9 +375,15 @@ begin
 
   if aInitialPackage.PackageType = ptBplSource then
   begin
-    BplPath := MakeBPL(aInitialPackage);
-    InstallBpl(BplPath);
-    DependentPackage.BplFile := BplPath;
+    BplPaths := [];
+    for ProjectFileName in aInitialPackage.ProjectFileRefs do
+    begin
+      BplPath := MakeBPL(ProjectFileName, GetPackagePath(aInitialPackage));
+      DependentPackage.BplFileRefs := DependentPackage.BplFileRefs + [BplPath];
+    end;
+
+    for BplPath in DependentPackage.BplFileRefs do
+      InstallBpl(BplPath);
   end;
 
   GetProjectPackages.Add(DependentPackage);
@@ -400,6 +408,7 @@ end;
 
 procedure TDPMEngine.DoUninstall(aDependentPackage: TDependentPackage);
 var
+  BplFile: string;
   InitialPackage: TInitialPackage;
 begin
   DeletePackagePath(aDependentPackage);
@@ -409,10 +418,11 @@ begin
     InitialPackage.DependentPackage := nil;
 
   if aDependentPackage.PackageType = ptBplSource then
-  begin
-    UninstallBpl(aDependentPackage.BplFile);
-    TFile.Delete(aDependentPackage.BplFile);
-  end;
+    for BplFile in aDependentPackage.BplFileRefs do
+    begin
+      UninstallBpl(BplFile);
+      TFile.Delete(BplFile);
+    end;
 
   GetProjectPackages.RemoveByID(aDependentPackage.ID);
 end;
@@ -752,12 +762,24 @@ end;
 
 procedure TDPMEngine.InstallBpl(const aBplPath: string);
 var
+  FileName: string;
   PackageServices: IOTAPackageServices;
 begin
-  FUINotifyProc(Format('installing %s', [TPath.GetFileName(aBplPath)]));
+  FileName := TPath.GetFileName(aBplPath);
+  FUINotifyProc(Format('installing %s', [FileName]));
 
   PackageServices := BorlandIDEServices as IOTAPackageServices;
-  PackageServices.InstallPackage(aBplPath);
+  try
+    PackageServices.InstallPackage(aBplPath);
+  except
+    on E: Exception do
+    begin
+      if E.Message.Contains(cStrNotDesignTimePackage) then
+        FUINotifyProc(Format('%s is not design time package, continue..', [FileName]))
+      else
+        raise;
+    end;
+  end;
 end;
 
 function TDPMEngine.IsProjectOpened: Boolean;

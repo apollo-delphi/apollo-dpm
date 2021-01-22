@@ -26,6 +26,7 @@ type
     procedure FreeJSON;
   protected
     function GetJSON: TJSONObject; virtual;
+    procedure AddStringArrToJSON(aJSONObj: TJSONObject; aStrArr: TArray<string>; const aKey: string);
     procedure Init; virtual;
     procedure SetJSON(aJSONObj: TJSONObject); virtual;
   public
@@ -55,12 +56,12 @@ type
 
   TInitialPackage = class(TPackage)
   private
-    FBplBinaryFile: string;
-    FBplProjectFile: string;
+    FBinaryFileRefs: TArray<string>;
     FDependentPackage: TDependentPackage;
     FFilterList: TArray<string>;
     FFilterListType: TFilterListType;
     FPathMoves: TArray<TPathMove>;
+    FProjectFileRefs: TArray<string>;
     function AllowByBlackList(const aPath: string): Boolean;
     function AllowByWhiteList(const aPath: string): Boolean;
   protected
@@ -72,17 +73,17 @@ type
     function ApplyPathMoves(const aPath: string): string;
     function IsInstalled: Boolean;
     constructor Create; overload;
-    property BplBinaryFile: string read FBplBinaryFile write FBplBinaryFile;
-    property BplProjectFile: string read FBplProjectFile write FBplProjectFile;
+    property BinaryFileRefs: TArray<string> read FBinaryFileRefs write FBinaryFileRefs;
     property DependentPackage: TDependentPackage read FDependentPackage write FDependentPackage;
     property FilterList: TArray<string> read FFilterList write FFilterList;
     property FilterListType: TFilterListType read FFilterListType write FFilterListType;
     property PathMoves: TArray<TPathMove> read FPathMoves write FPathMoves;
+    property ProjectFileRefs: TArray<string> read FProjectFileRefs write FProjectFileRefs;
   end;
 
   TDependentPackage = class(TPackage)
   private
-    FBplFile: string;
+    FBplFileRefs: TArray<string>;
     FVersion: TVersion;
   protected
     function GetJSON: TJSONObject; override;
@@ -92,7 +93,7 @@ type
       aVersionCacheSyncFunc: TVersionCacheSyncFunc); reintroduce;
     constructor CreateByInitial(aInitialPackage: TInitialPackage;
      const aOwnes: Boolean = True);
-    property BplFile: string read FBplFile write FBplFile;
+    property BplFileRefs: TArray<string> read FBplFileRefs write FBplFileRefs;
     property Version: TVersion read FVersion write FVersion;
   end;
 
@@ -168,6 +169,18 @@ begin
   FreeJSON;
 
   inherited;
+end;
+
+procedure TPackage.AddStringArrToJSON(aJSONObj: TJSONObject;
+  aStrArr: TArray<string>; const aKey: string);
+var
+  jsnArr: TJSONArray;
+  Value: string;
+begin
+  jsnArr := TJSONArray.Create;
+  for Value in aStrArr do
+    jsnArr.Add(Value);
+  aJSONObj.AddPair(aKey, jsnArr)
 end;
 
 procedure TPackage.Assign(aPackage: TPackage);
@@ -280,11 +293,12 @@ end;
 procedure TInitialPackage.SetJSON(aJSONObj: TJSONObject);
 var
   iFilterListType: Integer;
+  jsnPkgFileRefs: TJSONArray;
+  jsnPrjFileRefs: TJSONArray;
   jsnFilterList: TJSONArray;
   jsnPathMoves: TJSONArray;
   jsnVal: TJSONValue;
   PathMove: TPathMove;
-  Value: string;
 begin
   inherited;
 
@@ -306,18 +320,18 @@ begin
       PathMoves := PathMoves + [PathMove];
     end;
 
-  if aJSONObj.TryGetValue(cKeyBplProjectFile, Value) then
-    BplProjectFile := Value;
+  if aJSONObj.TryGetValue(cKeyProjectFileRefs, jsnPrjFileRefs) then
+    for jsnVal in jsnPrjFileRefs do
+      ProjectFileRefs := ProjectFileRefs + [jsnVal.Value];
 
-  if aJSONObj.TryGetValue(cKeyBplBinaryFile, Value) then
-    BplBinaryFile := Value;
+  if aJSONObj.TryGetValue(cKeyBinaryFileRefs, jsnPkgFileRefs) then
+    for jsnVal in jsnPkgFileRefs do
+      BinaryFileRefs := BinaryFileRefs + [jsnVal.Value];
 end;
 
 function TInitialPackage.GetJSON: TJSONObject;
 var
-  FilterListItem: string;
   PathMove: TPathMove;
-  jsnFilterList: TJSONArray;
   jsnPathMove: TJSONObject;
   jsnPathMoves: TJSONArray;
 begin
@@ -326,14 +340,7 @@ begin
   Result.AddPair(cKeyFilterListType, TJSONNumber.Create(Ord(FilterListType)));
 
   if (FilterListType <> fltNone) and (Length(FilterList) > 0) then
-  begin
-    jsnFilterList := TJSONArray.Create;
-
-    for FilterListItem in FilterList do
-      jsnFilterList.Add(FilterListItem);
-
-    Result.AddPair(cKeyFilterList, jsnFilterList);
-  end
+    AddStringArrToJSON(Result, FilterList, cKeyFilterList)
   else
     FilterList := [];
 
@@ -353,15 +360,15 @@ begin
     Result.AddPair(cKeyPathMoves, jsnPathMoves);
   end;
 
-  if PackageType = ptBplSource then
-    Result.AddPair(cKeyBplProjectFile, BplProjectFile)
+  if (PackageType = ptBplSource) and (Length(ProjectFileRefs) > 0) then
+    AddStringArrToJSON(Result, ProjectFileRefs, cKeyProjectFileRefs)
   else
-    BplProjectFile := '';
+    ProjectFileRefs := [];
 
-  if PackageType = ptBplBinary then
-    Result.AddPair(cKeyBplBinaryFile, BplBinaryFile)
+  if (PackageType = ptBplSource) and (Length(BinaryFileRefs) > 0) then
+    AddStringArrToJSON(Result, BinaryFileRefs, cKeyBinaryFileRefs)
   else
-    BplBinaryFile := '';
+    BinaryFileRefs := [];
 end;
 
 procedure TInitialPackage.Init;
@@ -508,16 +515,18 @@ end;
 
 procedure TDependentPackage.SetJSON(aJSONObj: TJSONObject);
 var
+  jsnArr: TJSONArray;
+  jsnVal: TJSONValue;
   jsnVersion: TJSONObject;
-  Value: string;
 begin
   inherited;
 
   jsnVersion := aJSONObj.GetValue(cKeyVersion) as TJSONObject;
   Version := TVersion.Create(jsnVersion);
 
-  if aJSONObj.TryGetValue(cKeyBplFile, Value) then
-    BplFile := Value;
+  if aJSONObj.TryGetValue(cKeyBplFileRef, jsnArr) then
+    for jsnVal in jsnArr do
+      BplFileRefs := BplFileRefs + [jsnVal.Value];
 end;
 
 constructor TDependentPackage.Create(const aJSONString: string;
@@ -532,7 +541,9 @@ begin
   Result := inherited GetJSON;
 
   Result.AddPair(cKeyVersion, Version.GetJSON);
-  Result.AddPair(cKeyBplFile, BplFile);
+
+  if Length(BplFileRefs) > 0 then
+    AddStringArrToJSON(Result, BplFileRefs, cKeyBplFileRef);
 end;
 
 end.

@@ -24,10 +24,10 @@ type
 
   TItemEditForm = class(TForm)
     leTemplate: TLabeledEdit;
-    btnApply: TButton;
+    btnOK: TButton;
     btnCancel: TButton;
     lblValidationMsg: TLabel;
-    procedure btnApplyClick(Sender: TObject);
+    procedure btnOKClick(Sender: TObject);
   private
     FControls: TArray<TLabeledEdit>;
     FInItems: TEditItems;
@@ -49,7 +49,7 @@ implementation
 
 { TItemEditForm }
 
-procedure TItemEditForm.btnApplyClick(Sender: TObject);
+procedure TItemEditForm.btnOKClick(Sender: TObject);
 begin
   if (not Assigned(FValidFunc)) or
      (FValidFunc(GetOutItems, lblValidationMsg))
@@ -101,7 +101,7 @@ begin
   end;
 
   Height := Height + Shift;
-  btnApply.Top := btnApply.Top + Shift;
+  btnOK.Top := btnOK.Top + Shift;
   btnCancel.Top := btnCancel.Top + Shift;
 end;
 

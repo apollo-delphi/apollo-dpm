@@ -25,9 +25,8 @@ const
   );
 
   cKeyAdjustment = 'adjustment';
-  cKeyBplBinaryFile = 'bplBinaryFile';
-  cKeyBplFile = 'bplFile';
-  cKeyBplProjectFile = 'bplProjectFile';
+  cKeyBinaryFileRefs = 'binaryFileRefs';
+  cKeyBplFileRef = 'bplFileRef';
   cKeyDependencies = 'dependencies';
   cKeyDescription = 'description';
   cKeyDestination = 'destination';
@@ -38,6 +37,7 @@ const
   cKeyName = 'name';
   cKeyPackageType = 'packageType';
   cKeyPathMoves = 'pathMoves';
+  cKeyProjectFileRefs = 'projectFileRefs';
   cKeyRepoName = 'repoName';
   cKeyRepoOwner = 'repoOwner';
   cKeySource = 'source';
@@ -56,16 +56,17 @@ const
 
   cStrAPackageWithThisNameAlreadyExists = 'A package with this name already exists!';
   cStrARepositoryNameIsEmpty = 'A repository name is empty. Please go to GitHub URL!';
-  cStrAtLeastOnePackageShouldBeAdded = 'Bpl Options: At least one package reference should be added!';
-  cStrAtLeastOneProjectShouldBeAdded = 'Bpl Options: At least one project reference should be added!';
+  cStrAtLeastOnePackageShouldBeAdded = 'At least one package reference should be added!';
+  cStrAtLeastOneProjectShouldBeAdded = 'At least one project reference should be added!';
   cStrCantLoadTheRepositoryURL = 'Can`t load the repository URL!';
   cStrLatestVersionOrCommit = 'the latest version or commit';
   cStrLatestCommit = 'the latest commit';
   cStrMustHaveBplExtension = 'Package file name must have .bpl extension';
   cStrMustHaveDprojExtension = 'Project file name must have .dproj extension';
+  cStrNotDesignTimePackage = 'can''t be installed because it is not a design time package';
   cStrPackage = 'File name (.bpl)';
   cStrProject = 'File name (.droj)';
-  cStrTheFieldCantBeEmpty = 'The field can`t be empty!';
+  cStrTheFieldCantBeEmpty = 'The field can''t be empty!';
   cStrTheGitHubRepositoryUrlIsInvalid = 'The GitHub repository URL is invalid!';
   cStrVersionNotSelected = 'Version not selected!';
 
