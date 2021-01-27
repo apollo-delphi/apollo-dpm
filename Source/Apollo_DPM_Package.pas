@@ -124,6 +124,7 @@ type
   public
     function GetByID(const aID: string): TPrivatePackage;
     function GetByName(const aPackageName: string): TPrivatePackage;
+    procedure SetDependentPackageRef(aDependentPackageList: TDependentPackageList);
     constructor Create(const aPrivatePackageFiles: TArray<TPrivatePackageFile>); reintroduce;
   end;
 
@@ -423,6 +424,20 @@ begin
   for Package in Self do
     if Package.Name = aPackageName then
       Exit(Package);
+end;
+
+procedure TPrivatePackageList.SetDependentPackageRef(
+  aDependentPackageList: TDependentPackageList);
+var
+  DependentPackage: TDependentPackage;
+  PrivatePackage: TPrivatePackage;
+begin
+  for PrivatePackage in Self do
+  begin
+    DependentPackage := aDependentPackageList.GetByID(PrivatePackage.ID);
+    if Assigned(DependentPackage) and not Assigned(PrivatePackage.DependentPackage) then
+      PrivatePackage.DependentPackage := DependentPackage;
+  end;
 end;
 
 { TDependentPackageList }

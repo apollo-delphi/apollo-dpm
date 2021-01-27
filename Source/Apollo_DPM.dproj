@@ -79,7 +79,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_DcuOutput>..\DCU\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_Description>Apollo Delphi Package Manager</DCC_Description>
-        <Debugger_HostApplication>C:\Program Files (x86)\Embarcadero\Studio\20.0\bin\bds.exe</Debugger_HostApplication>
+        <Debugger_HostApplication>C:\Program Files (x86)\Embarcadero\Studio\21.0\bin\bds.exe</Debugger_HostApplication>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>

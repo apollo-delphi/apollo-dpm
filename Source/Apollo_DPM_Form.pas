@@ -295,7 +295,10 @@ begin
     RenderPackageList(FDPMEngine.GetPrivatePackages)
   else
   if GetSelectedNavigation = cNavProjectDependencies then
-    RenderPackageList(FDPMEngine.GetProjectPackages);
+    RenderPackageList(FDPMEngine.GetProjectPackages)
+  else
+  if GetSelectedNavigation = cNavInstalledToIDE then
+    RenderPackageList(FDPMEngine.GetIDEPackages);
 end;
 
 procedure TDPMForm.RenderSettings;
@@ -400,20 +403,8 @@ begin
   end;
 end;
 
-{
-    procedure tvNavigationChange(Sender: TObject; Node: TTreeNode);
-    procedure SaveLayout(const aControls: TArray<TWinControl>);
+{procedure SaveLayout(const aControls: TArray<TWinControl>);
 
-procedure TDPMForm.RenderSettings;
-var
-  SettingsFrame: TfrmSettings;
-begin
-  SettingsFrame := TfrmSettings.Create(Self);
-  SettingsFrame.Parent := sbFrames;
-  SettingsFrame.Align := alClient;
-
-  FFrames := FFrames + [SettingsFrame];
-end;
 
 procedure TDPMForm.SaveLayout(const aControls: TArray<TWinControl>);
 begin
