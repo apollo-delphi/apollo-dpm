@@ -72,6 +72,7 @@ type
     procedure FreeVersionCacheList;
     procedure InstallBpl(const aBplPath: string);
     procedure LoadRepoVersions(aPackage: TPackage);
+    procedure SavePackageList(const aPath: string; aPackageList: TDependentPackageList);
     procedure SavePackages;
     procedure UninstallBpl(const aBplPath: string);
     procedure WriteFile(const aPath: string; const aBytes: TBytes);
@@ -1028,28 +1029,26 @@ begin
   FUINotifyProc('writing ' + Result);
 end;
 
-procedure TDPMEngine.SavePackages;
+procedure TDPMEngine.SavePackageList(const aPath: string;
+  aPackageList: TDependentPackageList);
 var
   Bytes: TBytes;
 begin
-  if IsProjectOpened then
-  begin
-    if GetProjectPackages.Count = 0 then
-      TFile.Delete(GetProjectPackagesPath)
-    else
-    begin
-      Bytes := TEncoding.ANSI.GetBytes(GetProjectPackages.GetJSONString);
-      WriteFile(GetProjectPackagesPath, Bytes);
-    end;
-  end;
-
-  if GetIDEPackages.Count = 0 then
-    TFile.Delete(GetIDEPackagesPath)
+  if (aPackageList.Count = 0) and TFile.Exists(aPath) then
+    TFile.Delete(aPath)
   else
   begin
-    Bytes := TEncoding.ANSI.GetBytes(GetIDEPackages.GetJSONString);
-    WriteFile(GetIDEPackagesPath, Bytes);
+    Bytes := TEncoding.ANSI.GetBytes(aPackageList.GetJSONString);
+    WriteFile(aPath, Bytes);
   end;
+end;
+
+procedure TDPMEngine.SavePackages;
+begin
+  if IsProjectOpened then
+    SavePackageList(GetProjectPackagesPath, GetProjectPackages);
+
+  SavePackageList(GetIDEPackagesPath, GetIDEPackages);
 end;
 
 procedure TDPMEngine.ApplyAndSaveSettings;
