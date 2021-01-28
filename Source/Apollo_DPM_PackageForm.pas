@@ -69,6 +69,18 @@ type
     actNewBplBinFile: TAction;
     actEditBplBinFile: TAction;
     actDeleteBplBinFile: TAction;
+    tsProjectOptions: TTabSheet;
+    rbAddAllUnits: TRadioButton;
+    rbAddNothing: TRadioButton;
+    rbAddSpecified: TRadioButton;
+    chkAddSearchPath: TCheckBox;
+    lbAddingUnitRefs: TListBox;
+    btnNewAddingUnit: TSpeedButton;
+    btnEditAddingUnit: TSpeedButton;
+    btnDeleteAddingUnit: TSpeedButton;
+    actNewAddingUnit: TAction;
+    actEditAddingUnit: TAction;
+    actDeleteAddingUnit: TAction;
     procedure btnApplyClick(Sender: TObject);
     procedure cbFilterListTypeChange(Sender: TObject);
     procedure lbFilterListClick(Sender: TObject);
@@ -89,6 +101,13 @@ type
     procedure actNewBplBinFileExecute(Sender: TObject);
     procedure actEditBplBinFileExecute(Sender: TObject);
     procedure actDeleteBplBinFileExecute(Sender: TObject);
+    procedure rbAddAllUnitsClick(Sender: TObject);
+    procedure rbAddSpecifiedClick(Sender: TObject);
+    procedure rbAddNothingClick(Sender: TObject);
+    procedure actNewAddingUnitExecute(Sender: TObject);
+    procedure actEditAddingUnitExecute(Sender: TObject);
+    procedure lbAddingUnitRefsClick(Sender: TObject);
+    procedure actDeleteAddingUnitExecute(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
     FPackage: TInitialPackage;
@@ -100,6 +119,8 @@ type
     function IsBplPkgValid(const aOutItems: TEditItems; aOutput: TLabel): Boolean;
     function IsBplPrjValid(const aOutItems: TEditItems; aOutput: TLabel): Boolean;
     function IsValid(const aValidationGroupName: string): Boolean;
+    procedure AddingUnitSelected;
+    procedure AddUnitsOptionChanged(Sender: TRadioButton);
     procedure BplBinaryFileSelected;
     procedure BplProjectFileSelected;
     procedure EditLine(aControl: TListBox; const aCaption: string;
@@ -130,6 +151,17 @@ uses
   Apollo_DPM_UIHelper;
 
 { TPackageForm }
+
+procedure TPackageForm.actDeleteAddingUnitExecute(Sender: TObject);
+begin
+  if MessageDlg('The unit reference will be deleted. Continue?', mtConfirmation,
+    [mbYes, mbCancel], 0) = mrYes
+  then
+  begin
+    lbAddingUnitRefs.Items.Delete(lbAddingUnitRefs.ItemIndex);
+    AddingUnitSelected;
+  end;
+end;
 
 procedure TPackageForm.actDeleteBplBinFileExecute(Sender: TObject);
 begin
@@ -173,6 +205,12 @@ begin
     lvPathMoves.Selected.Delete;
     PathMoveSelected;
   end;
+end;
+
+procedure TPackageForm.actEditAddingUnitExecute(Sender: TObject);
+begin
+  EditLine(lbAddingUnitRefs, 'Edit Unit Reference',
+    [TEditItem.Create(GetRepoRelativePath, lbAddingUnitRefs.GetSelectedText)], nil);
 end;
 
 procedure TPackageForm.actEditBplBinFileExecute(Sender: TObject);
@@ -236,6 +274,12 @@ begin
   );
 end;
 
+procedure TPackageForm.actNewAddingUnitExecute(Sender: TObject);
+begin
+  NewLine(lbAddingUnitRefs, 'New Unit Reference',
+    [TEditItem.Create(GetRepoRelativePath, '')], nil);
+end;
+
 procedure TPackageForm.actNewBplBinFileExecute(Sender: TObject);
 begin
   NewLine(lbBplBinaries, 'New Package Reference',
@@ -265,14 +309,39 @@ begin
     RenderPathMoveItem(OutItems.ValueByKey(GetRepoRelativePath), OutItems.ValueByKey(GetPackageRelativePath));
 end;
 
+procedure TPackageForm.AddingUnitSelected;
+var
+  bEnable: Boolean;
+begin
+  bEnable := lbAddingUnitRefs.Enabled and (lbAddingUnitRefs.ItemIndex > -1);
+
+  SetControlsEnable(bEnable, [
+    btnEditAddingUnit,
+    btnDeleteAddingUnit
+  ]);
+end;
+
+procedure TPackageForm.AddUnitsOptionChanged(Sender: TRadioButton);
+var
+  bEnable: Boolean;
+begin
+  if Sender = rbAddAllUnits then
+    chkAddSearchPath.Checked := not rbAddAllUnits.Checked;
+
+  bEnable := not rbAddAllUnits.Checked and rbAddAllUnits.Enabled;
+  SetControlsEnable(bEnable, [chkAddSearchPath]);
+
+  bEnable := rbAddSpecified.Checked and rbAddAllUnits.Enabled;
+  SetControlsEnable(bEnable, [btnNewAddingUnit, lbAddingUnitRefs]);
+
+  AddingUnitSelected;
+end;
+
 procedure TPackageForm.BplBinaryFileSelected;
 var
   bEnable: Boolean;
 begin
-  if lbBplBinaries.Enabled and (lbBplBinaries.ItemIndex > -1) then
-    bEnable := True
-  else
-    bEnable := False;
+  bEnable := lbBplBinaries.Enabled and (lbBplBinaries.ItemIndex > -1);
 
   SetControlsEnable(bEnable, [
     btnEditBplBinFile,
@@ -284,10 +353,7 @@ procedure TPackageForm.BplProjectFileSelected;
 var
   bEnable: Boolean;
 begin
-  if lbBplProjects.Enabled and (lbBplProjects.ItemIndex > -1) then
-    bEnable := True
-  else
-    bEnable := False;
+  bEnable := lbBplProjects.Enabled and (lbBplProjects.ItemIndex > -1);
 
   SetControlsEnable(bEnable, [
     btnEditBplPrjFile,
@@ -345,10 +411,7 @@ procedure TPackageForm.FilterListItemSelected;
 var
   bEnable: Boolean;
 begin
-  if lbFilterList.Enabled and (lbFilterList.ItemIndex > -1) then
-    bEnable := True
-  else
-    bEnable := False;
+  bEnable := lbFilterList.Enabled and (lbFilterList.ItemIndex > -1);
 
   SetControlsEnable(bEnable, [
     btnEditFilterLine,
@@ -453,6 +516,11 @@ begin
     cStrAtLeastOnePackageShouldBeAdded, Result);
 end;
 
+procedure TPackageForm.lbAddingUnitRefsClick(Sender: TObject);
+begin
+  AddingUnitSelected;
+end;
+
 procedure TPackageForm.lbBplBinariesClick(Sender: TObject);
 begin
   BplBinaryFileSelected;
@@ -490,18 +558,16 @@ procedure TPackageForm.PackageTypeChanged(const aPackageType: TPackageType);
 var
   bEnable: Boolean;
 begin
-  if aPackageType = ptBplSource then
-    bEnable := True
-  else
-    bEnable := False;
-  SetControlsEnable(bEnable, [lbBplProjects, btnNewBplPrjFile]);
+  bEnable := aPackageType = ptCodeSource;
+  SetControlsEnable(bEnable, [rbAddAllUnits, rbAddSpecified, rbAddNothing, chkAddSearchPath]);
+  AddUnitsOptionChanged(nil);
+
+  bEnable := aPackageType = ptBplSource;
+  SetControlsEnable(bEnable, [lbBplProjects, btnNewBplPrjFile, lblBplProjectRefs]);
   BplProjectFileSelected;
 
-  if aPackageType = ptBplBinary then
-    bEnable := True
-  else
-    bEnable := False;
-  SetControlsEnable(bEnable, [lbBplBinaries, btnNewBplBinFile]);
+  bEnable := aPackageType = ptBplBinary;
+  SetControlsEnable(bEnable, [lbBplBinaries, btnNewBplBinFile, lblBplBinaries]);
   BplBinaryFileSelected;
 end;
 
@@ -518,6 +584,21 @@ begin
     btnEditPathMove,
     btnDeletePathMove
   ]);
+end;
+
+procedure TPackageForm.rbAddAllUnitsClick(Sender: TObject);
+begin
+  AddUnitsOptionChanged(Sender as TRadioButton);
+end;
+
+procedure TPackageForm.rbAddNothingClick(Sender: TObject);
+begin
+  AddUnitsOptionChanged(Sender as TRadioButton);
+end;
+
+procedure TPackageForm.rbAddSpecifiedClick(Sender: TObject);
+begin
+  AddUnitsOptionChanged(Sender as TRadioButton);
 end;
 
 procedure TPackageForm.ReadFromControls;
@@ -552,6 +633,21 @@ begin
   FPackage.BinaryFileRefs := [];
   for i := 0 to lbBplBinaries.Items.Count - 1 do
     FPackage.BinaryFileRefs := FPackage.BinaryFileRefs + [lbBplBinaries.Items[i]];
+
+  if rbAddAllUnits.Checked then
+    FPackage.AddingUnitsOption := auAll
+  else
+  if rbAddSpecified.Checked then
+    FPackage.AddingUnitsOption := auSpecified
+  else
+  if rbAddNothing.Checked then
+    FPackage.AddingUnitsOption := auNothing;
+
+  FPackage.AddSearchPath := chkAddSearchPath.Checked;
+
+  FPackage.AddingUnitRefs := [];
+  for i := 0 to lbAddingUnitRefs.Items.Count - 1 do
+    FPackage.AddingUnitRefs := FPackage.AddingUnitRefs +[lbAddingUnitRefs.Items[i]];
 end;
 
 procedure TPackageForm.RenderPathMoveItem(const aSource, aDestination: string);
@@ -590,11 +686,21 @@ begin
     RenderPathMoveItem(PathMove.Source, PathMove.Destination);
   PathMoveSelected;
 
+  case FPackage.AddingUnitsOption of
+    auAll: rbAddAllUnits.Checked := True;
+    auSpecified: rbAddSpecified.Checked := True;
+    auNothing: rbAddNothing.Checked := True;
+  end;
+  chkAddSearchPath.Checked := FPackage.AddSearchPath;
+
   for Value in FPackage.ProjectFileRefs do
     lbBplProjects.Items.Add(Value);
   for Value in FPackage.BinaryFileRefs do
     lbBplBinaries.Items.Add(Value);
   PackageTypeChanged(FPackage.PackageType);
+
+  for Value in FPackage.AddingUnitRefs do
+    lbAddingUnitRefs.Items.Add(Value);
 end;
 
 end.

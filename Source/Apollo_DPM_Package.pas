@@ -51,11 +51,15 @@ type
   end;
 
   TFilterListType = (fltNone, fltBlack, fltWhite);
+  TAddingUnitsOption = (auAll, auSpecified, auNothing);
 
   TDependentPackage = class;
 
   TInitialPackage = class(TPackage)
   private
+    FAddingUnitRefs: TArray<string>;
+    FAddingUnitsOption: TAddingUnitsOption;
+    FAddSearchPath: Boolean;
     FBinaryFileRefs: TArray<string>;
     FDependentPackage: TDependentPackage;
     FFilterList: TArray<string>;
@@ -73,6 +77,9 @@ type
     function ApplyPathMoves(const aPath: string): string;
     function IsInstalled: Boolean;
     constructor Create; overload;
+    property AddingUnitRefs: TArray<string> read FAddingUnitRefs write FAddingUnitRefs;
+    property AddingUnitsOption: TAddingUnitsOption read FAddingUnitsOption write FAddingUnitsOption;
+    property AddSearchPath: Boolean read FAddSearchPath write FAddSearchPath;
     property BinaryFileRefs: TArray<string> read FBinaryFileRefs write FBinaryFileRefs;
     property DependentPackage: TDependentPackage read FDependentPackage write FDependentPackage;
     property FilterList: TArray<string> read FFilterList write FFilterList;
@@ -255,12 +262,12 @@ end;
 
 function TInitialPackage.AllowByWhiteList(const aPath: string): Boolean;
 var
-  FilteItem: string;
+  FilterItem: string;
 begin
   Result := False;
 
-  for FilteItem in FFilterList do
-    if aPath.StartsWith(FilteItem) then
+  for FilterItem in FFilterList do
+    if aPath.StartsWith(FilterItem) then
       Exit(True);
 end;
 
@@ -293,7 +300,9 @@ end;
 
 procedure TInitialPackage.SetJSON(aJSONObj: TJSONObject);
 var
-  iFilterListType: Integer;
+  bValue: Boolean;
+  iValue: Integer;
+  jsnAddingUnitRefs: TJSONArray;
   jsnPkgFileRefs: TJSONArray;
   jsnPrjFileRefs: TJSONArray;
   jsnFilterList: TJSONArray;
@@ -303,8 +312,8 @@ var
 begin
   inherited;
 
-  if aJSONObj.TryGetValue<Integer>(cKeyFilterListType, iFilterListType) then
-    FilterListType := TFilterListType(iFilterListType);
+  if aJSONObj.TryGetValue<Integer>(cKeyFilterListType, iValue) then
+    FilterListType := TFilterListType(iValue);
 
   FilterList := [];
   if aJSONObj.TryGetValue(cKeyFilterList, jsnFilterList) then
@@ -328,6 +337,16 @@ begin
   if aJSONObj.TryGetValue(cKeyBinaryFileRefs, jsnPkgFileRefs) then
     for jsnVal in jsnPkgFileRefs do
       BinaryFileRefs := BinaryFileRefs + [jsnVal.Value];
+
+  if aJSONObj.TryGetValue<Integer>(cKeyAddingUnitsOption, iValue) then
+    AddingUnitsOption := TAddingUnitsOption(iValue);
+
+  if aJSONObj.TryGetValue<Boolean>(cKeyAddSearchPath, bValue) then
+    AddSearchPath := bValue;
+
+  if aJSONObj.TryGetValue(cKeyAddingUnitRefs, jsnAddingUnitRefs) then
+    for jsnVal in jsnAddingUnitRefs do
+      AddingUnitRefs := AddingUnitRefs + [jsnVal.Value];
 end;
 
 function TInitialPackage.GetJSON: TJSONObject;
@@ -370,6 +389,20 @@ begin
     AddStringArrToJSON(Result, BinaryFileRefs, cKeyBinaryFileRefs)
   else
     BinaryFileRefs := [];
+
+  if PackageType = ptCodeSource then
+  begin
+    Result.AddPair(cKeyAddingUnitsOption, TJSONNumber.Create(Ord(AddingUnitsOption)));
+    Result.AddPair(cKeyAddSearchPath, TJSONBool.Create(AddSearchPath));
+
+    if AddingUnitsOption = auSpecified then
+    begin
+      if Length(AddingUnitRefs) > 0 then
+        AddStringArrToJSON(Result, AddingUnitRefs, cKeyAddingUnitRefs)
+    end
+    else
+      AddingUnitRefs := [];
+  end;
 end;
 
 procedure TInitialPackage.Init;
@@ -377,11 +410,13 @@ begin
   inherited;
 
   FFilterListType := fltBlack;
-
   FFilterList := [
     '.gitignore',
     'README.md'
   ];
+  FPathMoves := [];
+  FAddingUnitsOption := auNothing;
+  FAddSearchPath := True;
 end;
 
 function TInitialPackage.IsInstalled: Boolean;

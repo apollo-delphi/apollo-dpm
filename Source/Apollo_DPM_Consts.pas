@@ -24,6 +24,9 @@ const
     'Project Template'
   );
 
+  cKeyAddingUnitsOption = 'addingUnitsOption';
+  cKeyAddingUnitRefs = 'addingUnitRefs';
+  cKeyAddSearchPath = 'addSearchPath';
   cKeyAdjustment = 'adjustment';
   cKeyBinaryFileRefs = 'binaryFileRefs';
   cKeyBplFileRef = 'bplFileRef';

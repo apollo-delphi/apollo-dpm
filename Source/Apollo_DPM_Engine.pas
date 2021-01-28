@@ -28,8 +28,9 @@ type
     function GetActiveProject: IOTAProject;
     function GetActiveProjectPath: string;
     function GetApolloMenuItem: TMenuItem;
-    function GetIDEMainMenu: TMainMenu;
+    function GetFiles(const aDirectoryPath: string): TArray<string>;
     function GetDependentPackage(aPackage: TPackage): TDependentPackage;
+    function GetIDEMainMenu: TMainMenu;
     function GetIDEPackagesPath: string;
     function GetInitialPackage(aDependentPackage: TDependentPackage): TInitialPackage;
     function GetInstallPackageHandle(aDependentPackage: TDependentPackage;
@@ -49,14 +50,16 @@ type
     function PostProcessPackageHandles(const aPackageHandles: TPackageHandles): TPackageHandles;
     function ProcessRequiredDependencies(const aCaption: string;
       aRequiredDependencies: TDependentPackageList): TPackageHandles;
+    function RepoPathToFilePath(const aRepoPath: string): string;
     function RunConsole(const aCommand: string): string;
     function SaveAsPrivatePackage(aPackage: TInitialPackage): string;
-    function SaveContent(const aPackagePath, aSourcePath, aContent: string): string;
+    function SaveContent(const aPackagePath, aRepoPath, aContent: string): string;
     function ShowConflictForm(const aCaption: string; aVersionConflicts: TVersionConflicts): TVersionConflicts;
     function SyncVersionCache(const aPackageID: string; aVersion: TVersion): TVersion;
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
     procedure AddPackageFiles(aInitialPackage: TInitialPackage; aVersion: TVersion);
+    procedure AddUnitsToProject(aInitialPackage: TInitialPackage);
     procedure ApplySettings;
     procedure BuildMenu;
     procedure DeletePackagePath(aPackage: TPackage);
@@ -72,6 +75,7 @@ type
     procedure FreeVersionCacheList;
     procedure InstallBpl(const aBplPath: string);
     procedure LoadRepoVersions(aPackage: TPackage);
+    procedure RemoveUnitsFromProject(const aPackagePath: string);
     procedure SavePackageList(const aPath: string; aPackageList: TDependentPackageList);
     procedure SavePackages;
     procedure UninstallBpl(const aBplPath: string);
@@ -169,6 +173,48 @@ begin
   end;
 end;
 
+procedure TDPMEngine.AddUnitsToProject(aInitialPackage: TInitialPackage);
+var
+  Allow: Boolean;
+  FileItem: string;
+  Files: TArray<string>;
+  FileUnitPath: string;
+  RepoUnitPath: string;
+begin
+  Files := GetFiles(GetPackagePath(aInitialPackage));
+
+  for FileItem in Files do
+  begin
+    if TPath.GetExtension(FileItem).ToLower <> '.pas' then
+      Continue;
+
+    Allow := False;
+    case aInitialPackage.AddingUnitsOption of
+      auAll: Allow := True;
+      auNothing: Allow := False;
+      auSpecified:
+        begin
+          for RepoUnitPath in aInitialPackage.AddingUnitRefs do
+          begin
+            FileUnitPath := RepoPathToFilePath((aInitialPackage.ApplyPathMoves(RepoUnitPath)));
+
+            if FileItem.EndsWith(FileUnitPath) then
+            begin
+              Allow := True;
+              Break;
+            end;
+          end;
+        end;
+    end;
+
+    if Allow then
+    begin
+      FUINotifyProc(Format('adding to project %s', [FileItem]));
+      GetActiveProject.AddFile(FileItem, True);
+    end;
+  end;
+end;
+
 function TDPMEngine.AllowAction(const aFrameActionType: TFrameActionType;
   aPackage: TPackage; aVersion: TVersion): Boolean;
 var
@@ -257,9 +303,9 @@ begin
   FUINotifyProc(Format('compiling %s', [aProjectFileName]));
 
   ProjectFilePath := '';
-  Files := TDirectory.GetFiles(aPackagePath, '*', TSearchOption.soAllDirectories);
+  Files := GetFiles(aPackagePath);
   for FileItem in Files do
-      if FileItem.EndsWith(aProjectFileName) then
+    if FileItem.EndsWith(aProjectFileName) then
     begin
       ProjectFilePath := FileItem;
       Break;
@@ -379,11 +425,25 @@ var
   BplPaths: TArray<string>;
   DependentPackage: TDependentPackage;
   ProjectFileName: string;
+
+  n:TOTAOptionNameArray;
+  s:string;
 begin
   DependentPackage := TDependentPackage.CreateByInitial(aInitialPackage);
   DependentPackage.Version := aVersion;
 
   AddPackageFiles(aInitialPackage, aVersion);
+
+  case aInitialPackage.PackageType of
+    ptCodeSource:
+      begin
+        AddUnitsToProject(aInitialPackage);
+
+        n:=GetActiveProject.ProjectOptions.GetOptionNames;
+        s:=GetActiveProject.ProjectOptions.Values['SrcDir'];
+        //AddSearchPath;
+      end;
+  end;
 
   if aInitialPackage.PackageType = ptBplSource then
   begin
@@ -428,6 +488,10 @@ var
   PackageID: string;
 begin
   PackageID := aDependentPackage.ID;
+
+  if aDependentPackage.PackageType = ptCodeSource then
+    RemoveUnitsFromProject(GetPackagePath(aDependentPackage));
+
   DeletePackagePath(aDependentPackage);
 
   InitialPackage := GetInitialPackage(aDependentPackage);
@@ -609,6 +673,11 @@ begin
     raise Exception.Create('unknown package type');
 end;
 
+function TDPMEngine.GetFiles(const aDirectoryPath: string): TArray<string>;
+begin
+  Result := TDirectory.GetFiles(aDirectoryPath, '*', TSearchOption.soAllDirectories);
+end;
+
 function TDPMEngine.GetIDEMainMenu: TMainMenu;
 begin
   Result := (BorlandIDEServices as INTAServices).MainMenu;
@@ -788,6 +857,9 @@ begin
       for PackageHandle in Result do
         if PackageHandle.PackageAction = paInstall then
           DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version);
+
+      if IsProjectOpened then
+        GetActiveProject.Save(False, True);
 
       FUINotifyProc('succeeded');
     except
@@ -989,6 +1061,33 @@ begin
   end;
 end;
 
+procedure TDPMEngine.RemoveUnitsFromProject(const aPackagePath: string);
+var
+  FileItem: string;
+  Files: TArray<string>;
+begin
+  Files := GetFiles(aPackagePath);
+
+  for FileItem in Files do
+    if GetActiveProject.FindModuleInfo(FileItem) <> nil then
+    begin
+      FUINotifyProc(Format('removing from project %s', [FileItem]));
+      GetActiveProject.RemoveFile(FileItem);
+    end;
+end;
+
+function TDPMEngine.RepoPathToFilePath(const aRepoPath: string): string;
+var
+  RepoPathPart: string;
+  RepoPathParts: TArray<string>;
+begin
+  Result := '';
+  RepoPathParts := aRepoPath.Split(['/']);
+
+  for RepoPathPart in RepoPathParts do
+    Result := TPath.Combine(Result, RepoPathPart);
+end;
+
 function TDPMEngine.RunConsole(const aCommand: string): string;
 begin
   try
@@ -1009,19 +1108,12 @@ begin
   WriteFile(Result, Bytes);
 end;
 
-function TDPMEngine.SaveContent(const aPackagePath, aSourcePath,
+function TDPMEngine.SaveContent(const aPackagePath, aRepoPath,
   aContent: string): string;
 var
   Bytes: TBytes;
-  RepoPathPart: string;
-  RepoPathParts: TArray<string>;
 begin
-  Result := aPackagePath;
-  RepoPathParts := aSourcePath.Split(['/']);
-
-  for RepoPathPart in RepoPathParts do
-    Result := Result + '\' + RepoPathPart;
-
+  Result := TPath.Combine(aPackagePath, RepoPathToFilePath(aRepoPath));
   Bytes := TNetEncoding.Base64.DecodeStringToBytes(aContent);
 
   WriteFile(Result, Bytes);
@@ -1111,6 +1203,9 @@ begin
       DoUninstall(PackageHandle.Package as TDependentPackage);
 
     SavePackages;
+
+    if IsProjectOpened then
+      GetActiveProject.Save(False, True);
 
     FUINotifyProc('succeeded');
   except

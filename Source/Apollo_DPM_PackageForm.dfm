@@ -275,6 +275,87 @@ object PackageForm: TPackageForm
         OnClick = lvPathMovesClick
       end
     end
+    object tsProjectOptions: TTabSheet
+      Caption = 'Project Options'
+      ImageIndex = 3
+      object btnNewAddingUnit: TSpeedButton
+        Left = 217
+        Top = 3
+        Width = 23
+        Height = 22
+        Action = actNewAddingUnit
+        Flat = True
+        ParentShowHint = False
+        ShowHint = True
+      end
+      object btnEditAddingUnit: TSpeedButton
+        Left = 244
+        Top = 3
+        Width = 23
+        Height = 22
+        Action = actEditAddingUnit
+        Flat = True
+        ParentShowHint = False
+        ShowHint = True
+      end
+      object btnDeleteAddingUnit: TSpeedButton
+        Left = 271
+        Top = 3
+        Width = 23
+        Height = 22
+        Action = actDeleteAddingUnit
+        Flat = True
+        ParentShowHint = False
+        ShowHint = True
+      end
+      object rbAddAllUnits: TRadioButton
+        Left = 3
+        Top = 37
+        Width = 145
+        Height = 17
+        Caption = 'Add all units'
+        TabOrder = 2
+        OnClick = rbAddAllUnitsClick
+      end
+      object rbAddNothing: TRadioButton
+        Left = 3
+        Top = 79
+        Width = 113
+        Height = 17
+        Caption = 'Add nothing'
+        TabOrder = 4
+        OnClick = rbAddNothingClick
+      end
+      object rbAddSpecified: TRadioButton
+        Left = 3
+        Top = 58
+        Width = 113
+        Height = 17
+        Caption = 'Add specified units'
+        TabOrder = 3
+        OnClick = rbAddSpecifiedClick
+      end
+      object chkAddSearchPath: TCheckBox
+        Left = 3
+        Top = 9
+        Width = 145
+        Height = 17
+        Caption = 'Add folders to search path'
+        TabOrder = 0
+      end
+      object lbAddingUnitRefs: TListBox
+        Left = 154
+        Top = 31
+        Width = 153
+        Height = 109
+        BevelInner = bvNone
+        BevelOuter = bvNone
+        BorderStyle = bsNone
+        ItemHeight = 13
+        TabOrder = 1
+        OnClick = lbAddingUnitRefsClick
+      end
+    end
     object tsBpl: TTabSheet
       Caption = 'Bpl Options'
       ImageIndex = 2
@@ -463,6 +544,21 @@ object PackageForm: TPackageForm
       Hint = 'Delete bpl package file'
       ImageIndex = 3
       OnExecute = actDeleteBplBinFileExecute
+    end
+    object actNewAddingUnit: TAction
+      Hint = 'New reference to unit'
+      ImageIndex = 1
+      OnExecute = actNewAddingUnitExecute
+    end
+    object actEditAddingUnit: TAction
+      Hint = 'Edit reference to unit'
+      ImageIndex = 2
+      OnExecute = actEditAddingUnitExecute
+    end
+    object actDeleteAddingUnit: TAction
+      Hint = 'Delete reference to unit'
+      ImageIndex = 3
+      OnExecute = actDeleteAddingUnitExecute
     end
   end
   object ilIcons: TImageList
