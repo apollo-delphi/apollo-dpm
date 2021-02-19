@@ -37,12 +37,14 @@ const
   cKeyFilterListType = 'filterListType';
   cKeyGHPAToken = 'GHPAToken';
   cKeyId = 'id';
+  cKeyIsDirect = 'isDirect';
   cKeyName = 'name';
   cKeyPackageType = 'packageType';
   cKeyPathMoves = 'pathMoves';
   cKeyProjectFileRefs = 'projectFileRefs';
   cKeyRepoName = 'repoName';
   cKeyRepoOwner = 'repoOwner';
+  cKeyShowIndirectPkgs = 'showIndirectPkgs';
   cKeySource = 'source';
   cKeyVersion = 'version';
   cKeyVersionName = 'name';

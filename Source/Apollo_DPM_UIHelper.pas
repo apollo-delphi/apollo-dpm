@@ -21,6 +21,7 @@ type
   TFrameHelper = class helper for TFrame
     procedure AsyncLoad(aIndicator: TActivityIndicator; aLoadProc: TAsyncLoadProc;
       aCallBack: TAsyncLoadCallBack);
+    procedure SetControlsEnable(const aEnable: Boolean; const aControls: TArray<TControl>);
   end;
 
   TListBoxHelper = class helper for TListBox
@@ -35,7 +36,7 @@ uses
   WinAPI.Windows;
 
 procedure AsyncLoadCommon(aIndicator: TActivityIndicator; aLoadProc: TAsyncLoadProc;
-      aCallBack: TAsyncLoadCallBack);
+  aCallBack: TAsyncLoadCallBack);
 var
   AsyncTask: ITask;
 begin
@@ -43,7 +44,7 @@ begin
     begin
       aLoadProc;
 
-      TThread.Synchronize(nil, procedure()
+      TThread.Queue(TThread.Current, procedure()
         begin
           if Assigned(aCallBack) then
             aCallBack;
@@ -91,6 +92,15 @@ procedure TFrameHelper.AsyncLoad(aIndicator: TActivityIndicator;
   aLoadProc: TAsyncLoadProc; aCallBack: TAsyncLoadCallBack);
 begin
   AsyncLoadCommon(aIndicator, aLoadProc, aCallBack);
+end;
+
+procedure TFrameHelper.SetControlsEnable(const aEnable: Boolean;
+  const aControls: TArray<TControl>);
+var
+  Control: TControl;
+begin
+  for Control in aControls do
+    Control.Enabled := aEnable;
 end;
 
 { TListBoxHelper }

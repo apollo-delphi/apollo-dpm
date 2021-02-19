@@ -21,13 +21,15 @@ type
 
   TPackageHandle = record
   public
+    IsDirect: Boolean;
     NeedToFree: Boolean;
     Package: TPackage;
     PackageAction: TPackageAction;
     PackageID: string;
     Version: TVersion;
-    constructor Create(const aPackageAction: TPackageAction; aPackage: TPackage;
-      aVersion: TVersion; aNeedToFree: Boolean = False);
+    constructor CreateInstallHandle(aPackage: TPackage; aVersion: TVersion;
+      const aIsDirect: Boolean; aNeedToFree: Boolean);
+    constructor CreateUninstallHandle(aPackage: TPackage);
   end;
 
   TPackageHandles = TArray<TPackageHandle>;
@@ -55,14 +57,25 @@ implementation
 
 { TPackageHandle }
 
-constructor TPackageHandle.Create(const aPackageAction: TPackageAction;
-  aPackage: TPackage; aVersion: TVersion; aNeedToFree: Boolean = False);
+constructor TPackageHandle.CreateInstallHandle(aPackage: TPackage; aVersion: TVersion;
+  const aIsDirect: Boolean; aNeedToFree: Boolean);
 begin
-  PackageAction := aPackageAction;
+  PackageAction := paInstall;
   Package := aPackage;
   PackageID := Package.ID;
   Version := aVersion;
+  IsDirect := aIsDirect;
   NeedToFree := aNeedToFree;
+end;
+
+constructor TPackageHandle.CreateUninstallHandle(aPackage: TPackage);
+begin
+  PackageAction := paUninstall;
+  Package := aPackage;
+  PackageID := Package.ID;
+  Version := nil;
+  IsDirect := False;
+  NeedToFree := False;
 end;
 
 { TPackageHandlesHelper }

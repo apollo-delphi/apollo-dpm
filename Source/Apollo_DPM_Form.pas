@@ -281,8 +281,12 @@ var
 begin
   Packages := [];
 
-  for Package in aPackageList do
-    Packages := Packages + [Package];
+  if FDPMEngine.Settings.ShowIndirectPackages then
+    for Package in aPackageList do
+      Packages := Packages + [Package]
+  else
+    for Package in aPackageList.GetDirectPackages do
+      Packages := Packages + [Package];
 
   DoRenderPackageList(Packages);
 end;
@@ -383,7 +387,7 @@ begin
 
     if not Assigned(Frame) then
     begin
-      if GetSelectedNavigation = cNavProjectDependencies then
+      if (PackageHandle.PackageAction = paInstall) and (GetSelectedNavigation = cNavProjectDependencies) then
         RenderPackage(FDPMEngine.GetProjectPackages.GetByID(PackageHandle.PackageID), Length(FPackageFrames));
 
       Continue;

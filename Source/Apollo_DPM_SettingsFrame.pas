@@ -16,13 +16,16 @@ type
     alActions: TActionList;
     actApply: TAction;
     actCancel: TAction;
+    chkShowIndirectPkg: TCheckBox;
+    btnUpdate: TButton;
     procedure actApplyExecute(Sender: TObject);
-    procedure actApplyUpdate(Sender: TObject);
     procedure actCancelExecute(Sender: TObject);
-    procedure actCancelUpdate(Sender: TObject);
+    procedure btnUpdateClick(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
-    procedure ClearModified;
+    FEditableControls: TArray<TControl>;
+    procedure DisenableEdit;
+    procedure EnableEdit;
     procedure ReadFromControls;
     procedure WriteToControls;
   public
@@ -33,38 +36,27 @@ implementation
 
 {$R *.dfm}
 
+uses
+  Apollo_DPM_UIHelper;
+
 { TSettingsFrame }
 
 procedure TSettingsFrame.actApplyExecute(Sender: TObject);
 begin
   ReadFromControls;
   FDPMEngine.ApplyAndSaveSettings;
-  ClearModified;
-end;
-
-procedure TSettingsFrame.actApplyUpdate(Sender: TObject);
-begin
-  actApply.Enabled := leGHPAToken.Modified;
+  DisenableEdit;
 end;
 
 procedure TSettingsFrame.actCancelExecute(Sender: TObject);
 begin
   WriteToControls;
-  ClearModified;
+  DisenableEdit;
 end;
 
-procedure TSettingsFrame.actCancelUpdate(Sender: TObject);
+procedure TSettingsFrame.btnUpdateClick(Sender: TObject);
 begin
-  actCancel.Enabled := actApply.Enabled;
-end;
-
-procedure TSettingsFrame.ClearModified;
-var
-  i: Integer;
-begin
-  for i := 0 to ComponentCount - 1 do
-    if Components[i] is TCustomEdit then
-      TCustomEdit(Components[i]).Modified := False;
+  EnableEdit;
 end;
 
 constructor TSettingsFrame.Create(aOwner: TComponent; aDPMEngine: TDPMEngine);
@@ -73,16 +65,35 @@ begin
 
   FDPMEngine := aDPMEngine;
   WriteToControls;
+
+  FEditableControls := [leGHPAToken, chkShowIndirectPkg];
+  DisenableEdit;
+end;
+
+procedure TSettingsFrame.DisenableEdit;
+begin
+  SetControlsEnable(False, FEditableControls);
+  SetControlsEnable(False, [btnApply, btnCancel]);
+  SetControlsEnable(True, [btnUpdate]);
+end;
+
+procedure TSettingsFrame.EnableEdit;
+begin
+  SetControlsEnable(True, FEditableControls);
+  SetControlsEnable(True, [btnApply, btnCancel]);
+  SetControlsEnable(False, [btnUpdate]);
 end;
 
 procedure TSettingsFrame.ReadFromControls;
 begin
   FDPMEngine.Settings.GHPAToken := leGHPAToken.Text;
+  FDPMEngine.Settings.ShowIndirectPackages := chkShowIndirectPkg.Checked;
 end;
 
 procedure TSettingsFrame.WriteToControls;
 begin
   leGHPAToken.Text := FDPMEngine.Settings.GHPAToken;
+  chkShowIndirectPkg.Checked := FDPMEngine.Settings.ShowIndirectPackages;
 end;
 
 end.

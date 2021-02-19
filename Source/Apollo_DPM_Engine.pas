@@ -63,7 +63,7 @@ type
     procedure ApplySettings;
     procedure BuildMenu;
     procedure DeletePackagePath(aPackage: TPackage);
-    procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion);
+    procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean);
     procedure DoLoadDependencies(aDependentPackage: TDependentPackage; aVersion: TVersion;
       aResult: TDependentPackageList); overload;
     procedure DoLoadDependencies(aDependentPackage: TDependentPackage; aResult: TDependentPackageList); overload;
@@ -76,6 +76,7 @@ type
     procedure InstallBpl(const aBplPath: string);
     procedure LoadRepoVersions(aPackage: TPackage);
     procedure RemoveUnitsFromProject(const aPackagePath: string);
+    procedure SaveActiveProject;
     procedure SavePackageList(const aPath: string; aPackageList: TDependentPackageList);
     procedure SavePackages;
     procedure UninstallBpl(const aBplPath: string);
@@ -210,7 +211,12 @@ begin
     if Allow then
     begin
       FUINotifyProc(Format('adding to project %s', [FileItem]));
-      GetActiveProject.AddFile(FileItem, True);
+
+      TThread.Queue(TThread.Current, procedure()
+        begin
+          GetActiveProject.AddFile(FileItem, True);
+        end
+      );
     end;
   end;
 end;
@@ -419,7 +425,7 @@ begin
   inherited;
 end;
 
-procedure TDPMEngine.DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion);
+procedure TDPMEngine.DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean);
 var
   BplPath: string;
   BplPaths: TArray<string>;
@@ -431,6 +437,7 @@ var
 begin
   DependentPackage := TDependentPackage.CreateByInitial(aInitialPackage);
   DependentPackage.Version := aVersion;
+  DependentPackage.IsDirect := aIsDirect;
 
   AddPackageFiles(aInitialPackage, aVersion);
 
@@ -729,7 +736,7 @@ begin
     InitialPackage.Assign(aDependentPackage);
     NeedToFree := True;
   end;
-  Result := TPackageHandle.Create(paInstall, InitialPackage, aVersion, NeedToFree);
+  Result := TPackageHandle.CreateInstallHandle(InitialPackage, aVersion, False{IsDirect}, NeedToFree);
 end;
 
 function TDPMEngine.GetPackagePath(aPackage: TPackage): string;
@@ -844,7 +851,7 @@ var
 begin
   try
     Version := DefineVersion(aInitialPackage, aVersion);
-    Result := [TPackageHandle.Create(paInstall, aInitialPackage, Version)];
+    Result := [TPackageHandle.CreateInstallHandle(aInitialPackage, Version, True{IsDirect}, False{NeedToFree})];
 
     FUINotifyProc(Format(#13#10'installing %s %s', [aInitialPackage.Name, Version.DisplayName]));
 
@@ -863,10 +870,10 @@ begin
 
       for PackageHandle in Result do
         if PackageHandle.PackageAction = paInstall then
-          DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version);
+          DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
 
       if IsProjectOpened then
-        GetActiveProject.Save(False, True);
+        SaveActiveProject;
 
       FUINotifyProc('succeeded');
     except
@@ -1060,7 +1067,7 @@ begin
       if VersionConflict.Selection = VersionConflict.RequiredVersion then
       begin
         InstalledDependency := GetProjectPackages.GetByID(VersionConflict.DependentPackage.ID);
-        Result := Result + [TPackageHandle.Create(paUninstall, InstalledDependency, nil)];
+        Result := Result + [TPackageHandle.CreateUninstallHandle(InstalledDependency)];
 
         Result := Result + [GetInstallPackageHandle(VersionConflict.DependentPackage, VersionConflict.Selection)];
       end;
@@ -1079,7 +1086,12 @@ begin
     if GetActiveProject.FindModuleInfo(FileItem) <> nil then
     begin
       FUINotifyProc(Format('removing from project %s', [FileItem]));
-      GetActiveProject.RemoveFile(FileItem);
+
+      TThread.Queue(TThread.Current, procedure()
+        begin
+          GetActiveProject.RemoveFile(FileItem);
+        end
+      );
     end;
 end;
 
@@ -1103,6 +1115,15 @@ begin
     on E: Exception do
       raise Exception.CreateFmt('RunConsole: %s '#13#10'%s', [aCommand, E.Message]);
   end;
+end;
+
+procedure TDPMEngine.SaveActiveProject;
+begin
+  TThread.Queue(TThread.Current, procedure()
+    begin
+      GetActiveProject.Save(False, True);
+    end
+  );
 end;
 
 function TDPMEngine.SaveAsPrivatePackage(aPackage: TInitialPackage): string;
@@ -1192,7 +1213,7 @@ var
 begin
   try
     DependentPackage := GetDependentPackage(aPackage);
-    Result := [TPackageHandle.Create(paUninstall, DependentPackage, nil)];
+    Result := [TPackageHandle.CreateUninstallHandle(DependentPackage)];
 
     FUINotifyProc(Format(#13#10 + 'uninstalling %s %s', [DependentPackage.Name,
       DependentPackage.Version.DisplayName]));
@@ -1200,8 +1221,10 @@ begin
     Dependencies := LoadDependencies(DependentPackage);
     try
       for Dependency in Dependencies do
-        if not GetProjectPackages.IsUsingDependenceExceptOwner(Dependency.ID, DependentPackage.ID) then
-          Result := Result + [TPackageHandle.Create(paUninstall, Dependency, nil)];
+        if not Dependency.IsDirect and
+           not GetProjectPackages.IsUsingDependenceExceptOwner(Dependency.ID, DependentPackage.ID)
+        then
+          Result := Result + [TPackageHandle.CreateUninstallHandle(Dependency)];
     finally
       Dependencies.Free;
     end;
@@ -1212,7 +1235,7 @@ begin
     SavePackages;
 
     if IsProjectOpened then
-      GetActiveProject.Save(False, True);
+      SaveActiveProject;
 
     FUINotifyProc('succeeded');
   except
@@ -1250,13 +1273,13 @@ begin
   if DependentPackage.Version.SHA = Version.SHA then
   begin
     FUINotifyProc(Format(#13#10'Package %s %s already up to date.', [aPackage.Name, Version.DisplayName]));
-    Result := [TPackageHandle.Create(paInstall, aPackage, Version)];
+    Result := [TPackageHandle.CreateInstallHandle(aPackage, Version, True{IsDirect}, False{NeedToFree})];
     Exit;
   end;
 
   FUINotifyProc(Format(#13#10'Updating %s %s', [DependentPackage.Name, DependentPackage.Version.DisplayName]));
 
-  Result := [TPackageHandle.Create(paUninstall, DependentPackage, nil)];
+  Result := [TPackageHandle.CreateUninstallHandle(DependentPackage)];
   Result := Result + [GetInstallPackageHandle(DependentPackage, Version)];
 
   InstalledDependencies := LoadDependencies(DependentPackage);
@@ -1268,7 +1291,7 @@ begin
       if (not Assigned(RequiredDependency)) and
          (not GetProjectPackages.IsUsingDependenceExceptOwner(InstalledDependency.ID, DependentPackage.ID))
       then
-        Result := Result + [TPackageHandle.Create(paUninstall, InstalledDependency, nil)];
+        Result := Result + [TPackageHandle.CreateUninstallHandle(InstalledDependency)];
     end;
 
     Result := Result + ProcessRequiredDependencies(Format('Updating package %s version conflict', [DependentPackage.Name]),
@@ -1280,9 +1303,12 @@ begin
 
     for PackageHandle in Result do
       if PackageHandle.PackageAction = paInstall then
-        DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version);
+        DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
 
     SavePackages;
+
+    if IsProjectOpened then
+      SaveActiveProject;
 
     FUINotifyProc('Success');
   finally

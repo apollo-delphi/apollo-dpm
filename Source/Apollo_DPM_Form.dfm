@@ -5,17 +5,11 @@ object DPMForm: TDPMForm
   ClientHeight = 441
   ClientWidth = 624
   Color = clBtnFace
-  Font.Charset = DEFAULT_CHARSET
-  Font.Color = clWindowText
-  Font.Height = -11
-  Font.Name = 'Tahoma'
-  Font.Style = []
   OldCreateOrder = False
   Position = poMainFormCenter
   OnClose = FormClose
-  DesignSize = (
-    624
-    441)
+  Font.Name = 'Tahoma'
+  Font.Charset = DEFAULT_CHARSET
   PixelsPerInch = 96
   TextHeight = 13
   object pnlMainContainer: TPanel
@@ -49,16 +43,13 @@ object DPMForm: TDPMForm
       BevelInner = bvNone
       BevelOuter = bvNone
       BorderStyle = bsNone
-      Font.Charset = RUSSIAN_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'Tahoma'
-      Font.Style = []
       ParentFont = False
       ReadOnly = True
       ScrollBars = ssVertical
       TabOrder = 1
       Zoom = 100
+      Font.Name = 'Tahoma'
+      Font.Charset = RUSSIAN_CHARSET
     end
     object pnlMain: TPanel
       Left = 0
@@ -134,9 +125,6 @@ object DPMForm: TDPMForm
           ParentBackground = False
           ShowCaption = False
           TabOrder = 0
-          DesignSize = (
-            447
-            30)
           object btnNewPackage: TSpeedButton
             Left = 397
             Top = 4
@@ -179,9 +167,6 @@ object DPMForm: TDPMForm
       ShowCaption = False
       TabOrder = 0
       OnClick = pnlDetailsSwitcherClick
-      DesignSize = (
-        16
-        441)
       object btnSwitcher: TSpeedButton
         Left = 0
         Top = 213

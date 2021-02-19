@@ -91,6 +91,7 @@ type
   TDependentPackage = class(TPackage)
   private
     FBplFileRefs: TArray<string>;
+    FIsDirect: Boolean;
     FVersion: TVersion;
   protected
     function GetJSON: TJSONObject; override;
@@ -101,12 +102,14 @@ type
     constructor CreateByInitial(aInitialPackage: TInitialPackage;
      const aOwnes: Boolean = True);
     property BplFileRefs: TArray<string> read FBplFileRefs write FBplFileRefs;
+    property IsDirect: Boolean read FIsDirect write FIsDirect;
     property Version: TVersion read FVersion write FVersion;
   end;
 
   TDependentPackageList = class(TObjectList<TDependentPackage>)
   public
     function GetByID(const aID: string): TDependentPackage;
+    function GetDirectPackages: TArray<TDependentPackage>;
     function GetJSONString: string;
     function IsUsingDependenceExceptOwner(const aID, aOwnerID: string): Boolean;
     procedure RemoveByID(const aID: string);
@@ -139,6 +142,7 @@ implementation
 
 uses
   Apollo_DPM_Consts,
+  System.Hash,
   System.SysUtils;
 
 { TPackage }
@@ -202,14 +206,9 @@ begin
 end;
 
 function TPackage.GetID: string;
-var
-  GUID: TGUID;
 begin
   if FID.IsEmpty then
-  begin
-    CreateGUID(GUID);
-    FID := GUID.ToString;
-  end;
+    FID := THashMD5.GetHashString(FRepoOwner + FRepoName).ToUpper;
 
   Result := FID;
 end;
@@ -520,6 +519,17 @@ begin
       Exit(Package);
 end;
 
+function TDependentPackageList.GetDirectPackages: TArray<TDependentPackage>;
+var
+ Package: TDependentPackage;
+begin
+  Result := [];
+
+  for Package in Self do
+    if Package.IsDirect then
+      Result := Result + [Package];
+end;
+
 function TDependentPackageList.GetJSONString: string;
 var
   jsnArr: TJSONArray;
@@ -565,6 +575,7 @@ end;
 
 procedure TDependentPackage.SetJSON(aJSONObj: TJSONObject);
 var
+  bVal: Boolean;
   jsnArr: TJSONArray;
   jsnVal: TJSONValue;
   jsnVersion: TJSONObject;
@@ -577,6 +588,9 @@ begin
   if aJSONObj.TryGetValue(cKeyBplFileRef, jsnArr) then
     for jsnVal in jsnArr do
       BplFileRefs := BplFileRefs + [jsnVal.Value];
+
+  if aJSONObj.TryGetValue<Boolean>(cKeyIsDirect, bVal) then
+    FIsDirect := bVal;
 end;
 
 constructor TDependentPackage.Create(const aJSONString: string;
@@ -594,6 +608,8 @@ begin
 
   if Length(BplFileRefs) > 0 then
     AddStringArrToJSON(Result, BplFileRefs, cKeyBplFileRef);
+
+  Result.AddPair(cKeyIsDirect, TJSONBool.Create(FIsDirect));
 end;
 
 end.

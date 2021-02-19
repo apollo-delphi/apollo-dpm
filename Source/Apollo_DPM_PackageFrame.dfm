@@ -52,7 +52,7 @@ object PackageFrame: TPackageFrame
     Width = 167
     Height = 22
     Style = csOwnerDrawFixed
-    TabOrder = 0
+    TabOrder = 2
     OnChange = cbVersionsChange
     OnCloseUp = cbVersionsCloseUp
     OnDrawItem = cbVersionsDrawItem
@@ -72,7 +72,7 @@ object PackageFrame: TPackageFrame
     Anchors = [akTop, akRight]
     BevelOuter = bvNone
     ShowCaption = False
-    TabOrder = 2
+    TabOrder = 0
     object btnAction: TSpeedButton
       Left = 0
       Top = 0

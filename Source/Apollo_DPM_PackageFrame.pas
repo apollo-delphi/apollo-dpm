@@ -63,6 +63,7 @@ type
     procedure FillVersionsCombo;
     procedure SetActionBtnMenuItem(aMenuItem: TMenuItem);
     procedure SetAllowedActions;
+    procedure SetupInstalledLabel(aDependentPackage: TDependentPackage);
   public
     function IsShowingPackage(const aPackageID: string): Boolean;
     procedure RenderPackage(aPackage: TPackage);
@@ -204,6 +205,22 @@ begin
       Exit(MenuItem);
 end;
 
+procedure TPackageFrame.SetupInstalledLabel(aDependentPackage: TDependentPackage);
+begin
+  if aDependentPackage.IsDirect then
+  begin
+    lblInstalled.Caption := 'installed';
+    lblInstalled.Font.Color := clGreen;
+  end
+  else
+  begin
+    lblInstalled.Caption := 'indirect';
+    lblInstalled.Font.Color := clMaroon;
+  end;
+
+  lblInstalled.Visible := True;
+end;
+
 function TPackageFrame.GetSelectedVersion: TVersion;
 var
   VersionComboItem: TVersionComboItem;
@@ -245,29 +262,30 @@ begin
 
   lblName.Caption := aPackage.Name;
   lblDescription.Caption := aPackage.Description;
+  lblInstalled.Visible := False;
 
   FillVersionsCombo;
 
   FInstalledVersion := nil;
   if FPackage is TDependentPackage then
-    FInstalledVersion := (FPackage as TDependentPackage).Version
+  begin
+    FInstalledVersion := (FPackage as TDependentPackage).Version;
+    SetupInstalledLabel((FPackage as TDependentPackage));
+  end
   else
   if FPackage is TInitialPackage then
   begin
     if Assigned((FPackage as TInitialPackage).DependentPackage) then
+    begin
       FInstalledVersion := (FPackage as TInitialPackage).DependentPackage.Version;
+      SetupInstalledLabel((FPackage as TInitialPackage).DependentPackage);
+    end;
   end;
 
   if Assigned(FInstalledVersion) then
-  begin
-    cbVersions.ItemIndex := GetVersionIndex(FInstalledVersion);
-    lblInstalled.Visible := True;
-  end
+    cbVersions.ItemIndex := GetVersionIndex(FInstalledVersion)
   else
-  begin
     cbVersions.ItemIndex := 0;
-    lblInstalled.Visible := False;
-  end;
 
   SetAllowedActions;
   SetActionBtnMenuItem(GetFirstActionMenuItem);
