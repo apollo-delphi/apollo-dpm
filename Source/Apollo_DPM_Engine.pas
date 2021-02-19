@@ -28,7 +28,7 @@ type
     function GetActiveProject: IOTAProject;
     function GetActiveProjectPath: string;
     function GetApolloMenuItem: TMenuItem;
-    function GetFiles(const aDirectoryPath: string): TArray<string>;
+    function GetFiles(const aDirectoryPath, aNamePattern: string): TArray<string>;
     function GetDependentPackage(aPackage: TPackage): TDependentPackage;
     function GetIDEMainMenu: TMainMenu;
     function GetIDEPackagesPath: string;
@@ -181,7 +181,7 @@ var
   FileUnitPath: string;
   RepoUnitPath: string;
 begin
-  Files := GetFiles(GetPackagePath(aInitialPackage));
+  Files := GetFiles(GetPackagePath(aInitialPackage), '*');
 
   for FileItem in Files do
   begin
@@ -303,7 +303,7 @@ begin
   FUINotifyProc(Format('compiling %s', [aProjectFileName]));
 
   ProjectFilePath := '';
-  Files := GetFiles(aPackagePath);
+  Files := GetFiles(aPackagePath, '*');
   for FileItem in Files do
     if FileItem.EndsWith(aProjectFileName) then
     begin
@@ -535,7 +535,8 @@ begin
       try
         for i := PackageList.Count - 1 downto 0 do
         begin
-          Package := PackageList.ExtractAt(i);
+          //Package := PackageList.ExtractAt(i);
+          Package := PackageList.Extract(PackageList[i]);
           aResult.Add(Package);
           aVersion.Dependencies := aVersion.Dependencies + [Package.ID];
 
@@ -673,9 +674,15 @@ begin
     raise Exception.Create('unknown package type');
 end;
 
-function TDPMEngine.GetFiles(const aDirectoryPath: string): TArray<string>;
+function TDPMEngine.GetFiles(const aDirectoryPath, aNamePattern: string): TArray<string>;
+var
+  Files: TStringDynArray;
+  i: Integer;
 begin
-  Result := TDirectory.GetFiles(aDirectoryPath, '*', TSearchOption.soAllDirectories);
+  Files := TDirectory.GetFiles(aDirectoryPath, aNamePattern, TSearchOption.soAllDirectories);
+  Result := [];
+  for i := 0 to Length(Files) - 1 do
+    Result := Result + [Files[i]];
 end;
 
 function TDPMEngine.GetIDEMainMenu: TMainMenu;
@@ -744,7 +751,7 @@ begin
   begin
     if TDirectory.Exists(GetPrivatePackagesFolderPath) then
     begin
-      FileArr := TDirectory.GetFiles(GetPrivatePackagesFolderPath, '*.json');
+      FileArr := GetFiles(GetPrivatePackagesFolderPath, '*.json');
       PrivatePackageFiles := [];
       for FileItem in FileArr do
       begin
@@ -1066,7 +1073,7 @@ var
   FileItem: string;
   Files: TArray<string>;
 begin
-  Files := GetFiles(aPackagePath);
+  Files := GetFiles(aPackagePath, '*');
 
   for FileItem in Files do
     if GetActiveProject.FindModuleInfo(FileItem) <> nil then
