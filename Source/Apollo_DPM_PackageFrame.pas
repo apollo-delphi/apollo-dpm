@@ -13,16 +13,6 @@ uses
   Apollo_DPM_Version;
 
 type
-  TVersionComboItem = class
-  private
-    FVersion: TVersion;
-    FIsOption: Boolean;
-  public
-    constructor Create(aVersion: TVersion); overload;
-    constructor Create(const aGetVersionOption: string); overload;
-    destructor Destroy; override;
-  end;
-
   TPackageFrame = class(TFrame)
     lblName: TLabel;
     lblDescription: TLabel;
@@ -48,22 +38,31 @@ type
     procedure cbVersionsDrawItem(Control: TWinControl; Index: Integer;
       Rect: TRect; State: TOwnerDrawState);
     procedure mniUpdateClick(Sender: TObject);
+    procedure FrameResize(Sender: TObject);
+    procedure FrameClick(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
     FInstalledVersion: TVersion;
     FOnAction: TFrameActionProc;
     FOnAllowAction: TFrameAllowActionFunc;
+    FOnSelected: TFrameSelectedProc;
     FPackage: TPackage;
     FPackageID: string;
     FPackageClass: TPackageClass;
+    FSelected: Boolean;
     function GetFirstActionMenuItem: TMenuItem;
     function GetSelectedVersion: TVersion;
     function GetVersionIndex(const aVersion: TVersion): Integer;
+    procedure ActionWrapper(const aFrameActionType: TFrameActionType; aPackage: TPackage;
+      aVersion: TVersion);
     procedure ClearVersionsCombo;
+    procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
+    procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
     procedure FillVersionsCombo;
     procedure SetActionBtnMenuItem(aMenuItem: TMenuItem);
     procedure SetAllowedActions;
     procedure SetupInstalledLabel(aDependentPackage: TDependentPackage);
+    procedure SetSelected(const aValue: Boolean);
   public
     function IsShowingPackage(const aPackageID: string): Boolean;
     procedure RenderPackage(aPackage: TPackage);
@@ -74,23 +73,45 @@ type
     property PackageClass: TPackageClass read FPackageClass;
     property OnAction: TFrameActionProc read FOnAction write FOnAction;
     property OnAllowAction: TFrameAllowActionFunc read FOnAllowAction write FOnAllowAction;
+    property OnSelected: TFrameSelectedProc read FOnSelected write FOnSelected;
+    property Selected: Boolean read FSelected write SetSelected;
   end;
 
 implementation
+
+{$R *.dfm}
 
 uses
   Apollo_DPM_Consts,
   Apollo_DPM_UIHelper,
   System.Math;
 
-{$R *.dfm}
+type
+  TVersionComboItem = class
+  private
+    FVersion: TVersion;
+    FIsOption: Boolean;
+  public
+    constructor Create(aVersion: TVersion); overload;
+    constructor Create(const aGetVersionOption: string); overload;
+    destructor Destroy; override;
+  end;
 
 { TfrmPackage }
+
+procedure TPackageFrame.ActionWrapper(const aFrameActionType: TFrameActionType;
+  aPackage: TPackage; aVersion: TVersion);
+begin
+  OnSelected(Self);
+  FOnAction(aFrameActionType, aPackage, aVersion);
+end;
 
 procedure TPackageFrame.btnActionDropDownClick(Sender: TObject);
 var
   LowerLeft: TPoint;
 begin
+  OnSelected(Self);
+
   LowerLeft := Point(btnAction.Left, btnAction.Top + btnAction.Height + 2);
   LowerLeft := pnlActions.ClientToScreen(LowerLeft);
   pmActions.Popup(LowerLeft.X, LowerLeft.Y);
@@ -129,6 +150,8 @@ end;
 
 procedure TPackageFrame.cbVersionsDropDown(Sender: TObject);
 begin
+  OnSelected(Self);
+
   AsyncLoad(aiVersionLoad,
     procedure
     begin
@@ -155,19 +178,26 @@ begin
   cbVersions.Items.Clear;
 end;
 
+procedure TPackageFrame.CMMouseEnter(var Message: TMessage);
+begin
+  Color := clGradientInactiveCaption;
+end;
+
+procedure TPackageFrame.CMMouseLeave(var Message: TMessage);
+begin
+  if not FSelected then
+    Color := clWindow;
+end;
+
 constructor TPackageFrame.Create(aOwner: TWinControl; aDPMEngine: TDPMEngine;
   const aIndex: Integer);
 begin
   inherited Create(aOwner);
+  Parent := aOwner;
 
   Name := Format('PackageFrame%d', [aIndex]);
-  Parent := aOwner;
   Left := 0;
-  Width := aOwner.Width - 15;
-
   Top := (Height + 2) * aIndex;
-  if not Odd(aIndex) then
-    Color := clBtnFace;
 
   FDPMEngine := aDPMEngine;
 end;
@@ -193,6 +223,17 @@ begin
   Versions := FDPMEngine.GetVersions(FPackage, True);
   for Version in Versions do
     cbVersions.Items.AddObject(Version.DisplayName, TVersionComboItem.Create(Version));
+end;
+
+procedure TPackageFrame.FrameClick(Sender: TObject);
+begin
+  OnSelected(Self);
+end;
+
+procedure TPackageFrame.FrameResize(Sender: TObject);
+begin
+  if Assigned(Parent) then
+    Width := Parent.Width;
 end;
 
 function TPackageFrame.GetFirstActionMenuItem: TMenuItem;
@@ -299,25 +340,25 @@ end;
 procedure TPackageFrame.mniEditPackageClick(Sender: TObject);
 begin
   SetActionBtnMenuItem(mniEditPackage);
-  FOnAction(fatEditPackage, FPackage, GetSelectedVersion);
+  ActionWrapper(fatEditPackage, FPackage, GetSelectedVersion);
 end;
 
 procedure TPackageFrame.mniInstallClick(Sender: TObject);
 begin
   SetActionBtnMenuItem(mniInstall);
-  FOnAction(fatInstall, FPackage, GetSelectedVersion);
+  ActionWrapper(fatInstall, FPackage, GetSelectedVersion);
 end;
 
 procedure TPackageFrame.mniUninstallClick(Sender: TObject);
 begin
   SetActionBtnMenuItem(mniUninstall);
-  FOnAction(fatUninstall, FPackage, GetSelectedVersion);
+  ActionWrapper(fatUninstall, FPackage, GetSelectedVersion);
 end;
 
 procedure TPackageFrame.mniUpdateClick(Sender: TObject);
 begin
   SetActionBtnMenuItem(mniUpdate);
-  FOnAction(fatUpdate, FPackage, GetSelectedVersion);
+  ActionWrapper(fatUpdate, FPackage, GetSelectedVersion);
 end;
 
 procedure TPackageFrame.SetActionBtnMenuItem(aMenuItem: TMenuItem);
@@ -332,6 +373,16 @@ begin
   mniUpdate.Visible := FOnAllowAction(fatUpdate, FPackage, GetSelectedVersion);
   mniUninstall.Visible := FOnAllowAction(fatUninstall, FPackage, GetSelectedVersion);
   mniEditPackage.Visible := FOnAllowAction(fatEditPackage, FPackage, nil);
+end;
+
+procedure TPackageFrame.SetSelected(const aValue: Boolean);
+begin
+  if aValue then
+    Color := clGradientInactiveCaption
+  else
+    Color := clWindow;
+
+  FSelected := aValue;
 end;
 
 { TVersionComboItem }

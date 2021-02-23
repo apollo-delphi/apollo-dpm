@@ -1,72 +1,66 @@
 object PackageFrame: TPackageFrame
   Left = 0
   Top = 0
-  Width = 370
-  Height = 70
+  Width = 385
+  Height = 97
+  Margins.Left = 0
+  Margins.Top = 0
+  Margins.Right = 0
+  Margins.Bottom = 0
   Anchors = [akLeft, akTop, akRight]
+  Constraints.MinWidth = 370
   Color = clWindow
+  Padding.Right = 15
   ParentBackground = False
   ParentColor = False
   TabOrder = 0
+  OnClick = FrameClick
+  OnResize = FrameResize
+  object lblVersion: TLabel
+    Left = 16
+    Top = 61
+    Width = 35
+    Height = 13
+    Caption = 'Version'
+    Transparent = True
+  end
   object lblName: TLabel
     Left = 16
-    Top = 3
+    Top = 16
     Width = 45
     Height = 13
     Caption = 'lblName'
     ParentFont = False
+    Transparent = True
     Font.Name = 'Tahoma'
     Font.Charset = DEFAULT_CHARSET
     Font.Style = [fsBold]
   end
-  object lblDescription: TLabel
-    Left = 16
-    Top = 22
-    Width = 63
-    Height = 13
-    Caption = 'lblDescription'
-  end
-  object lblVersion: TLabel
-    Left = 16
-    Top = 48
-    Width = 35
-    Height = 13
-    Caption = 'Version'
-  end
   object lblInstalled: TLabel
     Left = 325
-    Top = 3
+    Top = 16
     Width = 41
     Height = 13
     Anchors = [akTop, akRight]
     Caption = 'Installed'
     ParentFont = False
+    Transparent = True
     Visible = False
     Font.Name = 'Tahoma'
     Font.Color = clGreen
     Font.Charset = DEFAULT_CHARSET
   end
-  object cbVersions: TComboBox
-    Left = 58
-    Top = 44
-    Width = 167
-    Height = 22
-    Style = csOwnerDrawFixed
-    TabOrder = 2
-    OnChange = cbVersionsChange
-    OnCloseUp = cbVersionsCloseUp
-    OnDrawItem = cbVersionsDrawItem
-    OnDropDown = cbVersionsDropDown
-  end
-  object aiVersionLoad: TActivityIndicator
-    Left = 231
-    Top = 43
-    IndicatorSize = aisSmall
-    IndicatorType = aitRotatingSector
+  object lblDescription: TLabel
+    Left = 16
+    Top = 35
+    Width = 63
+    Height = 13
+    Caption = 'lblDescription'
+    Transparent = True
   end
   object pnlActions: TPanel
     Left = 260
-    Top = 41
+    Top = 54
     Width = 106
     Height = 27
     Anchors = [akTop, akRight]
@@ -79,6 +73,7 @@ object PackageFrame: TPackageFrame
       Width = 90
       Height = 27
       Align = alLeft
+      Anchors = []
       Caption = 'Action'
       Flat = True
     end
@@ -88,6 +83,7 @@ object PackageFrame: TPackageFrame
       Width = 17
       Height = 27
       Align = alRight
+      Anchors = []
       Flat = True
       Glyph.Data = {
         36040000424D3604000000000000360000002800000010000000100000000100
@@ -127,9 +123,28 @@ object PackageFrame: TPackageFrame
       OnClick = btnActionDropDownClick
     end
   end
+  object aiVersionLoad: TActivityIndicator
+    Left = 231
+    Top = 56
+    IndicatorSize = aisSmall
+    IndicatorType = aitRotatingSector
+  end
+  object cbVersions: TComboBox
+    Left = 58
+    Top = 57
+    Width = 167
+    Height = 22
+    Style = csOwnerDrawFixed
+    TabOrder = 2
+    OnChange = cbVersionsChange
+    OnCloseUp = cbVersionsCloseUp
+    OnDrawItem = cbVersionsDrawItem
+    OnDropDown = cbVersionsDropDown
+  end
   object pmActions: TPopupMenu
     AutoHotkeys = maManual
-    Left = 288
+    Left = 136
+    Top = 8
     object mniInstall: TMenuItem
       Caption = 'Install'
       OnClick = mniInstallClick

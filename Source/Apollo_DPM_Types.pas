@@ -4,7 +4,8 @@ interface
 
 uses
   Apollo_DPM_Package,
-  Apollo_DPM_Version;
+  Apollo_DPM_Version,
+  Vcl.Forms;
 
 type
   TAsyncLoadCallBack = reference to procedure;
@@ -16,6 +17,7 @@ type
     aPackage: TPackage; aVersion: TVersion): Boolean of object;
   TFrameActionProc = procedure(const aFrameActionType: TFrameActionType; aPackage: TPackage;
     aVersion: TVersion) of object;
+  TFrameSelectedProc = procedure(aFrame: TFrame) of object;
 
   TPackageAction = (paInstall, paUninstall);
 

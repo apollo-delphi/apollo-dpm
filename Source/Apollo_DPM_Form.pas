@@ -41,6 +41,11 @@ type
       Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure actNewInitialPackageExecute(Sender: TObject);
     procedure tvNavigationChange(Sender: TObject; Node: TTreeNode);
+    procedure sbFramesMouseWheelDown(Sender: TObject; Shift: TShiftState;
+      MousePos: TPoint; var Handled: Boolean);
+    procedure sbFramesMouseWheelUp(Sender: TObject; Shift: TShiftState;
+      MousePos: TPoint; var Handled: Boolean);
+    procedure FormResize(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
     FPackageFrames: TArray<TPackageFrame>;
@@ -54,6 +59,7 @@ type
     procedure DoRenderPackageList(aPackages: TArray<TPackage>);
     procedure FrameAction(const aFrameActionType: TFrameActionType; aPackage: TPackage;
       aVersion: TVersion);
+    procedure FrameSelected(aFrame: TFrame);
     procedure RenderNavigation;
     procedure RenderPackageList(aPackageList: TPrivatePackageList); overload;
     procedure RenderPackageList(aPackageList: TDependentPackageList); overload;
@@ -147,6 +153,11 @@ begin
  //SaveLayout([Self, splHorizontal, splVertical, swPackageDetail]);
 end;
 
+procedure TDPMForm.FormResize(Sender: TObject);
+begin
+  Refresh;
+end;
+
 procedure TDPMForm.FrameAction(const aFrameActionType: TFrameActionType;
   aPackage: TPackage; aVersion: TVersion);
 var
@@ -193,6 +204,17 @@ begin
       end;
     end;
   end;
+end;
+
+procedure TDPMForm.FrameSelected(aFrame: TFrame);
+var
+  Frame: TPackageFrame;
+begin
+  TPackageFrame(aFrame).Selected := True;
+
+  for Frame in FPackageFrames do
+    if Frame <> aFrame then
+      Frame.Selected := False;
 end;
 
 function TDPMForm.GetFrame(const aPackageID: string): TPackageFrame;
@@ -268,6 +290,7 @@ begin
   PackageFrame := TPackageFrame.Create(sbFrames, FDPMEngine, aIndex);
   PackageFrame.OnAction := FrameAction;
   PackageFrame.OnAllowAction := FDPMEngine.AllowAction;
+  PackageFrame.OnSelected := FrameSelected;
 
   PackageFrame.RenderPackage(aPackage);
 
@@ -312,6 +335,18 @@ begin
   FSettingsFrame := TSettingsFrame.Create(sbFrames, FDPMEngine);
   FSettingsFrame.Parent := sbFrames;
   FSettingsFrame.Align := alClient;
+end;
+
+procedure TDPMForm.sbFramesMouseWheelDown(Sender: TObject; Shift: TShiftState;
+  MousePos: TPoint; var Handled: Boolean);
+begin
+  sbFrames.VertScrollBar.Position := sbFrames.VertScrollBar.Position + 8;
+end;
+
+procedure TDPMForm.sbFramesMouseWheelUp(Sender: TObject; Shift: TShiftState;
+  MousePos: TPoint; var Handled: Boolean);
+begin
+  sbFrames.VertScrollBar.Position := sbFrames.VertScrollBar.Position - 8;
 end;
 
 function TDPMForm.ShowPackageForm(aPackage: TInitialPackage): Boolean;

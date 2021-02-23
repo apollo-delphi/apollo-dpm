@@ -8,6 +8,7 @@ object DPMForm: TDPMForm
   OldCreateOrder = False
   Position = poMainFormCenter
   OnClose = FormClose
+  OnResize = FormResize
   Font.Name = 'Tahoma'
   Font.Charset = DEFAULT_CHARSET
   PixelsPerInch = 96
@@ -52,10 +53,15 @@ object DPMForm: TDPMForm
       Font.Charset = RUSSIAN_CHARSET
     end
     object pnlMain: TPanel
+      AlignWithMargins = True
       Left = 0
       Top = 0
-      Width = 619
+      Width = 606
       Height = 333
+      Margins.Left = 0
+      Margins.Top = 0
+      Margins.Right = 13
+      Margins.Bottom = 0
       Align = alClient
       BevelOuter = bvNone
       Caption = 'pnlMain'
@@ -94,7 +100,7 @@ object DPMForm: TDPMForm
       object pnlFrames: TPanel
         Left = 172
         Top = 0
-        Width = 447
+        Width = 434
         Height = 333
         Align = alClient
         BevelOuter = bvNone
@@ -103,7 +109,7 @@ object DPMForm: TDPMForm
         object sbFrames: TScrollBox
           Left = 0
           Top = 30
-          Width = 447
+          Width = 434
           Height = 303
           Align = alClient
           BevelInner = bvNone
@@ -112,11 +118,13 @@ object DPMForm: TDPMForm
           Color = clWindow
           ParentColor = False
           TabOrder = 1
+          OnMouseWheelDown = sbFramesMouseWheelDown
+          OnMouseWheelUp = sbFramesMouseWheelUp
         end
         object pnlButtons: TPanel
           Left = 0
           Top = 0
-          Width = 447
+          Width = 434
           Height = 30
           Align = alTop
           BevelOuter = bvNone
@@ -126,7 +134,7 @@ object DPMForm: TDPMForm
           ShowCaption = False
           TabOrder = 0
           object btnNewPackage: TSpeedButton
-            Left = 397
+            Left = 384
             Top = 4
             Width = 22
             Height = 22
