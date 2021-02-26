@@ -3,7 +3,7 @@ object DPMForm: TDPMForm
   Top = 0
   Caption = 'Apollo DPM - Delphi Package Manager'
   ClientHeight = 441
-  ClientWidth = 624
+  ClientWidth = 704
   Color = clBtnFace
   OldCreateOrder = False
   Position = poMainFormCenter
@@ -16,7 +16,7 @@ object DPMForm: TDPMForm
   object pnlMainContainer: TPanel
     Left = 0
     Top = 0
-    Width = 619
+    Width = 699
     Height = 441
     Anchors = [akLeft, akTop, akRight, akBottom]
     BevelOuter = bvNone
@@ -27,7 +27,7 @@ object DPMForm: TDPMForm
     object splHorizontal: TSplitter
       Left = 0
       Top = 333
-      Width = 619
+      Width = 699
       Height = 2
       Cursor = crVSplit
       Align = alBottom
@@ -36,7 +36,7 @@ object DPMForm: TDPMForm
       AlignWithMargins = True
       Left = 6
       Top = 338
-      Width = 607
+      Width = 687
       Height = 100
       Margins.Left = 6
       Margins.Right = 6
@@ -56,7 +56,7 @@ object DPMForm: TDPMForm
       AlignWithMargins = True
       Left = 0
       Top = 0
-      Width = 606
+      Width = 686
       Height = 333
       Margins.Left = 0
       Margins.Top = 0
@@ -100,7 +100,7 @@ object DPMForm: TDPMForm
       object pnlFrames: TPanel
         Left = 172
         Top = 0
-        Width = 434
+        Width = 514
         Height = 333
         Align = alClient
         BevelOuter = bvNone
@@ -109,7 +109,7 @@ object DPMForm: TDPMForm
         object sbFrames: TScrollBox
           Left = 0
           Top = 30
-          Width = 434
+          Width = 514
           Height = 303
           Align = alClient
           BevelInner = bvNone
@@ -124,7 +124,7 @@ object DPMForm: TDPMForm
         object pnlButtons: TPanel
           Left = 0
           Top = 0
-          Width = 434
+          Width = 514
           Height = 30
           Align = alTop
           BevelOuter = bvNone
@@ -134,7 +134,7 @@ object DPMForm: TDPMForm
           ShowCaption = False
           TabOrder = 0
           object btnNewPackage: TSpeedButton
-            Left = 384
+            Left = 464
             Top = 4
             Width = 22
             Height = 22
@@ -149,7 +149,7 @@ object DPMForm: TDPMForm
     end
   end
   object swPackageDetails: TSplitView
-    Left = 609
+    Left = 689
     Top = 0
     Width = 15
     Height = 441
@@ -157,11 +157,25 @@ object DPMForm: TDPMForm
     Color = clWindow
     CompactWidth = 15
     Opened = False
-    OpenedWidth = 200
+    OpenedWidth = 300
     Placement = svpRight
     TabOrder = 1
     OnClosed = swPackageDetailsClosed
     OnOpened = swPackageDetailsOpened
+    object lblPackageName: TLabel
+      Left = 40
+      Top = 30
+      Width = 77
+      Height = 13
+      Caption = 'lblPackageName'
+    end
+    object lblDependencies: TLabel
+      Left = 40
+      Top = 56
+      Width = 67
+      Height = 13
+      Caption = 'Dependencies'
+    end
     object pnlDetailsSwitcher: TPanel
       Left = 0
       Top = 0
@@ -185,10 +199,24 @@ object DPMForm: TDPMForm
         Flat = True
       end
     end
+    object mmoDependencies: TMemo
+      Left = 40
+      Top = 72
+      Width = 217
+      Height = 281
+      ReadOnly = True
+      TabOrder = 1
+    end
+    object aiLoadDep: TActivityIndicator
+      Left = 126
+      Top = 181
+      IndicatorSize = aisLarge
+      IndicatorType = aitRotatingSector
+    end
   end
   object ilIcons: TImageList
-    Left = 540
-    Top = 46
+    Left = 52
+    Top = 22
     Bitmap = {
       494C010103000800040010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
@@ -331,8 +359,8 @@ object DPMForm: TDPMForm
   end
   object alActions: TActionList
     Images = ilIcons
-    Left = 540
-    Top = 102
+    Left = 52
+    Top = 78
     object actSwitchPackageDetails: TAction
       ImageIndex = 0
     end
@@ -341,5 +369,13 @@ object DPMForm: TDPMForm
       ImageIndex = 2
       OnExecute = actNewInitialPackageExecute
     end
+  end
+  object fodSelectFolder: TFileOpenDialog
+    FavoriteLinks = <>
+    FileTypes = <>
+    Options = [fdoPickFolders]
+    Title = 'Select folder'
+    Left = 53
+    Top = 133
   end
 end

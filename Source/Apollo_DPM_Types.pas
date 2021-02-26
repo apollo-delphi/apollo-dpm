@@ -17,7 +17,7 @@ type
     aPackage: TPackage; aVersion: TVersion): Boolean of object;
   TFrameActionProc = procedure(const aFrameActionType: TFrameActionType; aPackage: TPackage;
     aVersion: TVersion) of object;
-  TFrameSelectedProc = procedure(aFrame: TFrame) of object;
+  TFrameSelectedProc = procedure(aFrame: TFrame; aPackage: TPackage) of object;
 
   TPackageAction = (paInstall, paUninstall);
 
@@ -54,6 +54,7 @@ type
   TVersionConflicts = TArray<TVersionConflict>;
 
   TUINotifyProc = procedure(const aText: string) of object;
+  TUIGetFolderFunc = function: string of object;
 
 implementation
 

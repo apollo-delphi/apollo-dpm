@@ -21,18 +21,16 @@ type
     FPrivatePackages: TPrivatePackageList;
     FProjectPackages: TDependentPackageList;
     FSettings: TSettings;
+    FUIGetFolderFunc: TUIGetFolderFunc;
     FUINotifyProc: TUINotifyProc;
     FVersionCacheList: TVersionCacheList;
-    function DefineVersion(aPackage: TPackage; aVersion: TVersion): TVersion;
     function FindXmlNode(aNode: IXMLNode; const aNodeName: string): IXMLNode;
     function GetActiveProject: IOTAProject;
     function GetActiveProjectPath: string;
     function GetApolloMenuItem: TMenuItem;
-    function GetFiles(const aDirectoryPath, aNamePattern: string): TArray<string>;
     function GetDependentPackage(aPackage: TPackage): TDependentPackage;
     function GetIDEMainMenu: TMainMenu;
     function GetIDEPackagesPath: string;
-    function GetInitialPackage(aDependentPackage: TDependentPackage): TInitialPackage;
     function GetInstallPackageHandle(aDependentPackage: TDependentPackage;
       aVersion: TVersion): TPackageHandle;
     function GetPackagePath(aPackage: TPackage): string;
@@ -43,9 +41,6 @@ type
     function GetVersionCacheList: TVersionCacheList;
     function GetTextFromFile(const aPath: string): string;
     function IsProjectOpened: Boolean;
-    function LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList; overload;
-    function LoadDependencies(aDependentPackage: TDependentPackage): TDependentPackageList; overload;
-    function LoadRepoTree(aPackage: TPackage; aVersion: TVersion): TTree;
     function MakeBPL(const aProjectFileName, aPackagePath: string): string;
     function PostProcessPackageHandles(const aPackageHandles: TPackageHandles): TPackageHandles;
     function ProcessRequiredDependencies(const aCaption: string;
@@ -53,8 +48,6 @@ type
     function RepoPathToFilePath(const aRepoPath: string): string;
     function RunConsole(const aCommand: string): string;
     function SaveAsPrivatePackage(aPackage: TInitialPackage): string;
-    function SaveContent(const aPackagePath, aRepoPath, aContent: string): string;
-    function ShowConflictForm(const aCaption: string; aVersionConflicts: TVersionConflicts): TVersionConflicts;
     function SyncVersionCache(const aPackageID: string; aVersion: TVersion): TVersion;
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
@@ -66,7 +59,6 @@ type
     procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean);
     procedure DoLoadDependencies(aDependentPackage: TDependentPackage; aVersion: TVersion;
       aResult: TDependentPackageList); overload;
-    procedure DoLoadDependencies(aDependentPackage: TDependentPackage; aResult: TDependentPackageList); overload;
     procedure DoUninstall(aDependentPackage: TDependentPackage);
     procedure DPMClosed;
     procedure DPMMenuItemClick(Sender: TObject);
@@ -80,30 +72,44 @@ type
     procedure SavePackageList(const aPath: string; aPackageList: TDependentPackageList);
     procedure SavePackages;
     procedure UninstallBpl(const aBplPath: string);
-    procedure WriteFile(const aPath: string; const aBytes: TBytes);
   public
+    class function GetFiles(const aDirectoryPath, aNamePattern: string): TArray<string>;
     function AreVersionsLoaded(const aPackageID: string): Boolean;
     function AllowAction(const aFrameActionType: TFrameActionType;
       aPackage: TPackage; aVersion: TVersion): Boolean;
+    function DefineVersion(aPackage: TPackage; aVersion: TVersion): TVersion;
     function GetIDEPackages: TDependentPackageList;
+    function GetInitialPackage(aDependentPackage: TDependentPackage): TInitialPackage;
     function GetPrivatePackages: TPrivatePackageList;
     function GetProjectPackages: TDependentPackageList;
     function GetVersions(aPackage: TPackage; aCachedOnly: Boolean = False): TArray<TVersion>;
     function Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
+    function LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList; overload;
+    function LoadDependencies(aDependentPackage: TDependentPackage): TDependentPackageList; overload;
     function LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName, aError: string): Boolean;
+    function LoadRepoTree(aPackage: TPackage; aVersion: TVersion): TTree;
+    function SaveContent(const aPackagePath, aRepoPath, aContent: string): string;
+    function ShowConflictForm(const aCaption: string; aVersionConflicts: TVersionConflicts): TVersionConflicts;
     function Uninstall(aPackage: TPackage): TPackageHandles;
     function Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
     procedure AddNewPrivatePackage(aPackage: TInitialPackage);
     procedure ApplyAndSaveSettings;
+    procedure OpenProject(const aProjectPath: string);
+    procedure ShowFirstModule;
     procedure UpdatePrivatePackage(aPackage: TPrivatePackage);
+    procedure WriteFile(const aPath: string; const aBytes: TBytes);
     constructor Create;
     destructor Destroy; override;
+    property GetFolder: TUIGetFolderFunc read FUIGetFolderFunc;
+    property GHAPI: TGHAPI read FGHAPI;
+    property NotifyUI: TUINotifyProc read FUINotifyProc;
     property Settings: TSettings read FSettings;
   end;
 
 implementation
 
 uses
+  Apollo_DPM_Actions,
   Apollo_DPM_ConflictForm,
   Apollo_DPM_Consts,
   Apollo_DPM_Form,
@@ -212,7 +218,7 @@ begin
     begin
       FUINotifyProc(Format('adding to project %s', [FileItem]));
 
-      TThread.Queue(TThread.Current, procedure()
+      TThread.Synchronize(nil, procedure()
         begin
           GetActiveProject.AddFile(FileItem, True);
         end
@@ -235,7 +241,7 @@ begin
 
     case aFrameActionType of
       fatInstall:
-        Result := IsProjectOpened and
+        Result := (IsProjectOpened or (InitialPackage.PackageType = ptProjectTemplate)) and
           Assigned(aVersion) and
           (not InitialPackage.IsInstalled);
 
@@ -359,6 +365,14 @@ begin
     raise Exception.CreateFmt('compiling bpl: %s was not found.', [Result]);
 end;
 
+procedure TDPMEngine.OpenProject(const aProjectPath: string);
+var
+  ModuleServices: IOTAModuleServices;
+begin
+  ModuleServices := BorlandIDEServices as IOTAModuleServices;
+  ModuleServices.OpenModule(aProjectPath);
+end;
+
 procedure TDPMEngine.BuildMenu;
 begin
   if GetApolloMenuItem = nil then
@@ -471,23 +485,6 @@ begin
   GetProjectPackages.Add(DependentPackage);
 end;
 
-procedure TDPMEngine.DoLoadDependencies(aDependentPackage: TDependentPackage; aResult: TDependentPackageList);
-var
-  DependentPackage: TDependentPackage;
-  ID: string;
-begin
-  for ID in aDependentPackage.Version.Dependencies do
-  begin
-    DependentPackage := GetProjectPackages.GetByID(ID);
-
-    if Assigned(DependentPackage) then
-    begin
-      aResult.Add(DependentPackage);
-      DoLoadDependencies(DependentPackage, aResult);
-    end;
-  end;
-end;
-
 procedure TDPMEngine.DoUninstall(aDependentPackage: TDependentPackage);
 var
   BplFile: string;
@@ -542,12 +539,15 @@ begin
       try
         for i := PackageList.Count - 1 downto 0 do
         begin
-          //Package := PackageList.ExtractAt(i);
-          Package := PackageList.Extract(PackageList[i]);
-          aResult.Add(Package);
-          aVersion.Dependencies := aVersion.Dependencies + [Package.ID];
+          aVersion.Dependencies := aVersion.Dependencies + [PackageList[i].ID];
 
-          DoLoadDependencies(Package, Package.Version, aResult);
+          if PackageList[i].IsDirect then
+          begin
+            Package := PackageList.ExtractAt(i);
+            aResult.Add(Package);
+
+            DoLoadDependencies(Package, Package.Version, aResult);
+          end;
         end;
       finally
         PackageList.Free;
@@ -569,6 +569,7 @@ begin
   try
     DPMOpened;
     FUINotifyProc := DPMForm.NotifyObserver;
+    FUIGetFolderFunc := DPMForm.GetFolder;
     DPMForm.ShowModal;
   finally
     DPMForm.Free;
@@ -681,7 +682,7 @@ begin
     raise Exception.Create('unknown package type');
 end;
 
-function TDPMEngine.GetFiles(const aDirectoryPath, aNamePattern: string): TArray<string>;
+class function TDPMEngine.GetFiles(const aDirectoryPath, aNamePattern: string): TArray<string>;
 var
   Files: TStringDynArray;
   i: Integer;
@@ -845,47 +846,19 @@ end;
 
 function TDPMEngine.Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
 var
-  PackageHandle: TPackageHandle;
-  RequiredDependencies: TDependentPackageList;
-  Version: TVersion;
+  Action: TInstall;
 begin
+  case aInitialPackage.PackageType of
+    ptCodeSource: Action := TInstallCodeSource.Create(Self, aInitialPackage, aVersion);
+    ptProjectTemplate: Action := TInstallProjectTemplate.Create(Self, aInitialPackage, aVersion);
+  else
+    raise Exception.Create('Unknown package type!');
+  end;
+
   try
-    Version := DefineVersion(aInitialPackage, aVersion);
-    Result := [TPackageHandle.CreateInstallHandle(aInitialPackage, Version, True{IsDirect}, False{NeedToFree})];
-
-    FUINotifyProc(Format(#13#10'installing %s %s', [aInitialPackage.Name, Version.DisplayName]));
-
-    RequiredDependencies := LoadDependencies(aInitialPackage, Version);
-    try
-      Result := Result + ProcessRequiredDependencies(Format('Package %s version conflict', [aInitialPackage.Name]),
-        RequiredDependencies);
-    finally
-      RequiredDependencies.Free;
-    end;
-
-    try
-      for PackageHandle in Result do
-        if PackageHandle.PackageAction = paUninstall then
-          DoUninstall(PackageHandle.Package as TDependentPackage);
-
-      for PackageHandle in Result do
-        if PackageHandle.PackageAction = paInstall then
-          DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
-
-      if IsProjectOpened then
-        SaveActiveProject;
-
-      FUINotifyProc('succeeded');
-    except
-      on E: Exception do
-      begin
-        FUINotifyProc(E.Message);
-        FUINotifyProc('installation failed');
-      end;
-    end;
+    Action.Run;
   finally
-    SavePackages;
-    Result := PostProcessPackageHandles(Result);
+    Action.Free;
   end;
 end;
 
@@ -932,9 +905,19 @@ end;
 
 function TDPMEngine.LoadDependencies(
   aDependentPackage: TDependentPackage): TDependentPackageList;
+var
+  DependentPackage: TDependentPackage;
+  ID: string;
 begin
   Result := TDependentPackageList.Create(False);
-  DoLoadDependencies(aDependentPackage, Result);
+
+  for ID in aDependentPackage.Version.Dependencies do
+  begin
+    DependentPackage := GetProjectPackages.GetByID(ID);
+
+    if Assigned(DependentPackage) then
+      Result.Add(DependentPackage);
+  end;
 end;
 
 function TDPMEngine.LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName,
@@ -1087,7 +1070,7 @@ begin
     begin
       FUINotifyProc(Format('removing from project %s', [FileItem]));
 
-      TThread.Queue(TThread.Current, procedure()
+      TThread.Synchronize(nil, procedure()
         begin
           GetActiveProject.RemoveFile(FileItem);
         end
@@ -1119,7 +1102,7 @@ end;
 
 procedure TDPMEngine.SaveActiveProject;
 begin
-  TThread.Queue(TThread.Current, procedure()
+  TThread.Synchronize(nil, procedure()
     begin
       GetActiveProject.Save(False, True);
     end
@@ -1201,6 +1184,22 @@ begin
       Abort;
   finally
     ConflictForm.Free;
+  end;
+end;
+
+procedure TDPMEngine.ShowFirstModule;
+var
+  i: Integer;
+  ProjectModuleInfo: IOTAModuleInfo;
+begin
+  for i := 0 to GetActiveProject.GetModuleCount - 1 do
+  begin
+    ProjectModuleInfo := GetActiveProject.GetModule(i) as IOTAModuleInfo;
+    if TPath.GetExtension(ProjectModuleInfo.FileName).ToLower = '.pas' then
+      begin
+        ProjectModuleInfo.OpenModule.Show;
+        Break;
+      end;
   end;
 end;
 

@@ -504,7 +504,7 @@ begin
   Result := False;
 
   for Package in Self do
-    if (Package.ID <> aOwnerID) and Package.Version.ContainsDependency(aID) then
+    if (Package.ID <> aOwnerID) and Package.IsDirect and Package.Version.ContainsDependency(aID) then
       Exit(True);
 end;
 

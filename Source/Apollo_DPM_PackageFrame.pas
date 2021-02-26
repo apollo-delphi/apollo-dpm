@@ -102,7 +102,7 @@ type
 procedure TPackageFrame.ActionWrapper(const aFrameActionType: TFrameActionType;
   aPackage: TPackage; aVersion: TVersion);
 begin
-  OnSelected(Self);
+  OnSelected(Self, aPackage);
   FOnAction(aFrameActionType, aPackage, aVersion);
 end;
 
@@ -110,7 +110,7 @@ procedure TPackageFrame.btnActionDropDownClick(Sender: TObject);
 var
   LowerLeft: TPoint;
 begin
-  OnSelected(Self);
+  OnSelected(Self, FPackage);
 
   LowerLeft := Point(btnAction.Left, btnAction.Top + btnAction.Height + 2);
   LowerLeft := pnlActions.ClientToScreen(LowerLeft);
@@ -150,7 +150,7 @@ end;
 
 procedure TPackageFrame.cbVersionsDropDown(Sender: TObject);
 begin
-  OnSelected(Self);
+  OnSelected(Self, FPackage);
 
   AsyncLoad(aiVersionLoad,
     procedure
@@ -227,7 +227,7 @@ end;
 
 procedure TPackageFrame.FrameClick(Sender: TObject);
 begin
-  OnSelected(Self);
+  OnSelected(Self, FPackage);
 end;
 
 procedure TPackageFrame.FrameResize(Sender: TObject);

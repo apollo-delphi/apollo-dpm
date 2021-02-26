@@ -33,6 +33,11 @@ type
     actSwitchPackageDetails: TAction;
     btnNewPackage: TSpeedButton;
     actNewInitialPackage: TAction;
+    lblPackageName: TLabel;
+    mmoDependencies: TMemo;
+    lblDependencies: TLabel;
+    aiLoadDep: TActivityIndicator;
+    fodSelectFolder: TFileOpenDialog;
     procedure pnlDetailsSwitcherClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure swPackageDetailsOpened(Sender: TObject);
@@ -59,16 +64,18 @@ type
     procedure DoRenderPackageList(aPackages: TArray<TPackage>);
     procedure FrameAction(const aFrameActionType: TFrameActionType; aPackage: TPackage;
       aVersion: TVersion);
-    procedure FrameSelected(aFrame: TFrame);
+    procedure FrameSelected(aFrame: TFrame; aPackage: TPackage);
     procedure RenderNavigation;
     procedure RenderPackageList(aPackageList: TPrivatePackageList); overload;
     procedure RenderPackageList(aPackageList: TDependentPackageList); overload;
     procedure RenderPackage(aPackage: TPackage; const aIndex: Integer);
+    procedure RenderPackageDetail(aPackage: TPackage);
     procedure RenderPackages;
     procedure RenderSettings;
     procedure UpdateFrame(aFrame: TPackageFrame);
     procedure UpdateFrames(aPackageHandles: TPackageHandles);
   public
+    function GetFolder: string;
     procedure NotifyObserver(const aText: string);
     constructor Create(aDPMEngine: TDPMEngine); reintroduce;
   end;
@@ -206,7 +213,7 @@ begin
   end;
 end;
 
-procedure TDPMForm.FrameSelected(aFrame: TFrame);
+procedure TDPMForm.FrameSelected(aFrame: TFrame; aPackage: TPackage);
 var
   Frame: TPackageFrame;
 begin
@@ -215,6 +222,16 @@ begin
   for Frame in FPackageFrames do
     if Frame <> aFrame then
       Frame.Selected := False;
+
+  RenderPackageDetail(aPackage);
+end;
+
+function TDPMForm.GetFolder: string;
+begin
+  Result := '';
+
+  if fodSelectFolder.Execute then
+    Result := fodSelectFolder.FileName;
 end;
 
 function TDPMForm.GetFrame(const aPackageID: string): TPackageFrame;
@@ -295,6 +312,50 @@ begin
   PackageFrame.RenderPackage(aPackage);
 
   FPackageFrames := FPackageFrames + [PackageFrame];
+end;
+
+procedure TDPMForm.RenderPackageDetail(aPackage: TPackage);
+var
+  Dependencies: TDependentPackageList;
+  //DependentPackage: TDependentPackage;
+  InitialPackage: TInitialPackage;
+  Version: TVersion;
+begin
+  if not swPackageDetails.Opened then
+    Exit;
+
+  InitialPackage := nil;
+  //DependentPackage := nil;
+  lblPackageName.Caption := aPackage.Name;
+
+  if aPackage is TInitialPackage then
+  begin
+    InitialPackage := aPackage as TInitialPackage;
+    Version := FDPMEngine.GetVersions(InitialPackage)[0];
+    //Version := FDPMEngine.DefineVersion(InitialPackage, Version);
+  end
+  else
+  if aPackage is TDependentPackage then
+  begin
+    //DependentPackage := DependentPackage as TDependentPackage
+  end
+  else
+    Exit;
+
+  AsyncLoad(aiLoadDep,
+    procedure()
+    begin
+      if Assigned(InitialPackage) then
+        Dependencies := FDPMEngine.LoadDependencies(InitialPackage, Version);
+    end,
+    procedure()
+    var
+      Dependency: TDependentPackage;
+    begin
+      for Dependency in Dependencies do
+        mmoDependencies.Lines.Add(Dependency.Name);
+    end
+  );
 end;
 
 procedure TDPMForm.RenderPackageList(aPackageList: TDependentPackageList);
