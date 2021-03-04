@@ -42,6 +42,7 @@ type
     procedure FrameClick(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
+    FForLock: TArray<TMenuItem>;
     FInstalledVersion: TVersion;
     FOnAction: TFrameActionProc;
     FOnAllowAction: TFrameAllowActionFunc;
@@ -58,6 +59,7 @@ type
     procedure ClearVersionsCombo;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
     procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
+    procedure DoLockUnlock(const aLock: Boolean);
     procedure FillVersionsCombo;
     procedure SetActionBtnMenuItem(aMenuItem: TMenuItem);
     procedure SetAllowedActions;
@@ -65,8 +67,10 @@ type
     procedure SetSelected(const aValue: Boolean);
   public
     function IsShowingPackage(const aPackageID: string): Boolean;
+    procedure LockActions;
     procedure RenderPackage(aPackage: TPackage);
     procedure ReRenderPackage;
+    procedure UnlockActions;
     constructor Create(aOwner: TWinControl; aDPMEngine: TDPMEngine;
       const aIndex: Integer); reintroduce;
     destructor Destroy; override;
@@ -200,12 +204,27 @@ begin
   Top := (Height + 2) * aIndex;
 
   FDPMEngine := aDPMEngine;
+
+  FForLock := [mniInstall, mniUninstall, mniUpdate];
 end;
 
 destructor TPackageFrame.Destroy;
 begin
   ClearVersionsCombo;
   inherited;
+end;
+
+procedure TPackageFrame.DoLockUnlock(const aLock: Boolean);
+var
+  MeniItem: TMenuItem;
+begin
+  for MeniItem in FForLock do
+  begin
+    MeniItem.Enabled := not aLock;
+
+    if btnAction.Caption = MeniItem.Caption then
+      btnAction.Enabled := MeniItem.Enabled;
+  end;
 end;
 
 procedure TPackageFrame.FillVersionsCombo;
@@ -262,6 +281,11 @@ begin
   lblInstalled.Visible := True;
 end;
 
+procedure TPackageFrame.UnlockActions;
+begin
+  DoLockUnlock(False);
+end;
+
 function TPackageFrame.GetSelectedVersion: TVersion;
 var
   VersionComboItem: TVersionComboItem;
@@ -293,6 +317,11 @@ end;
 function TPackageFrame.IsShowingPackage(const aPackageID: string): Boolean;
 begin
   Result := aPackageID = FPackageID;
+end;
+
+procedure TPackageFrame.LockActions;
+begin
+  DoLockUnlock(True);
 end;
 
 procedure TPackageFrame.RenderPackage(aPackage: TPackage);
@@ -364,6 +393,7 @@ end;
 procedure TPackageFrame.SetActionBtnMenuItem(aMenuItem: TMenuItem);
 begin
   btnAction.Caption := aMenuItem.Caption;
+  btnAction.Enabled := aMenuItem.Enabled;
   btnAction.OnClick := aMenuItem.OnClick;
 end;
 

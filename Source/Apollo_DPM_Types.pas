@@ -53,6 +53,8 @@ type
 
   TVersionConflicts = TArray<TVersionConflict>;
 
+  TUIActionsLockProc = procedure of object;
+  TUIActionsUnlockProc = procedure of object;
   TUINotifyProc = procedure(const aText: string) of object;
   TUIGetFolderFunc = function: string of object;
 

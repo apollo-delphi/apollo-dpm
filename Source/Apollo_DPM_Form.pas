@@ -76,7 +76,9 @@ type
     procedure UpdateFrames(aPackageHandles: TPackageHandles);
   public
     function GetFolder: string;
+    procedure LockActions;
     procedure NotifyObserver(const aText: string);
+    procedure UnlockActions;
     constructor Create(aDPMEngine: TDPMEngine); reintroduce;
   end;
 
@@ -264,6 +266,14 @@ begin
     Result := tvNavigation.Selected.Text;
 end;
 
+procedure TDPMForm.LockActions;
+var
+  Frame: TPackageFrame;
+begin
+  for Frame in FPackageFrames do
+    Frame.LockActions;
+end;
+
 procedure TDPMForm.NotifyObserver(const aText: string);
 begin
   TThread.Synchronize(nil, procedure()
@@ -310,6 +320,8 @@ begin
   PackageFrame.OnSelected := FrameSelected;
 
   PackageFrame.RenderPackage(aPackage);
+  if FDPMEngine.AreActionsLocked then
+    PackageFrame.LockActions;
 
   FPackageFrames := FPackageFrames + [PackageFrame];
 end;
@@ -464,6 +476,14 @@ begin
 
   Rect := Node.DisplayRect(True);
   Sender.Canvas.TextOut(Rect.Left, Rect.Top, Node.Text);
+end;
+
+procedure TDPMForm.UnlockActions;
+var
+  Frame: TPackageFrame;
+begin
+  for Frame in FPackageFrames do
+    Frame.UnlockActions;
 end;
 
 procedure TDPMForm.UpdateFrame(aFrame: TPackageFrame);
