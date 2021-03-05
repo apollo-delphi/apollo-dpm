@@ -235,9 +235,7 @@ begin
   ClearVersionsCombo;
 
   if not FDPMEngine.AreVersionsLoaded(FPackage.ID) then
-    cbVersions.Items.AddObject(cStrLatestVersionOrCommit, TVersionComboItem.Create(cStrLatestVersionOrCommit))
-  else
-    cbVersions.Items.AddObject(cStrLatestCommit, TVersionComboItem.Create(cStrLatestCommit));
+    cbVersions.Items.AddObject(cStrLatestVersionOrCommit, TVersionComboItem.Create(cStrLatestVersionOrCommit));
 
   Versions := FDPMEngine.GetVersions(FPackage, True);
   for Version in Versions do

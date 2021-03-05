@@ -453,8 +453,6 @@ begin
         //AddSearchPath;
 
   FDPMEngine.GetProjectPackages.Add(DependentPackage);
-
-  Sleep(10000);
 end;
 
 function TInstallCodeSource.GetContentPath: string;

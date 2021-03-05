@@ -66,7 +66,6 @@ const
   cStrAtLeastOneProjectShouldBeAdded = 'At least one project reference should be added!';
   cStrCantLoadTheRepositoryURL = 'Can`t load the repository URL!';
   cStrLatestVersionOrCommit = 'the latest version or commit';
-  cStrLatestCommit = 'the latest commit';
   cStrMustHaveBplExtension = 'Package file name must have .bpl extension';
   cStrMustHaveDprojExtension = 'Project file name must have .dproj extension';
   cStrNotDesignTimePackage = 'can''t be installed because it is not a design time package';

@@ -341,17 +341,11 @@ begin
   if not aVersion.SHA.IsEmpty then
     Exit(aVersion);
 
-  if aVersion.Name = cStrLatestVersionOrCommit then
-  begin
-    Versions := GetVersions(aPackage);
-    if Length(Versions) > 0 then
-      Exit(Versions[0]);
-  end;
-
-  Result := TVersion.Create;
-  Result.Name := '';
-  Result.SHA := FGHAPI.GetMasterBranchSHA(aPackage.RepoOwner, aPackage.RepoName);
-  Result := SyncVersionCache(aPackage.ID, Result);
+  Versions := GetVersions(aPackage);
+  if Length(Versions) > 0 then
+    Exit(Versions[0])
+  else
+    raise Exception.Create('No versions was found!');
 end;
 
 procedure TDPMEngine.DeletePackagePath(aPackage: TPackage);
@@ -751,7 +745,7 @@ begin
   LockActions;
   Action := TInstall.GetClass(aInitialPackage.PackageType).Create(Self, aInitialPackage, aVersion);
   try
-    Action.Run;
+    Result := Action.Run;
   finally
     Action.Free;
     UnlockActions;
@@ -884,6 +878,11 @@ begin
 
     SyncVersionCache(aPackage.ID, Version);
   end;
+
+  Version := TVersion.Create;
+  Version.Name := '';
+  Version.SHA := FGHAPI.GetMasterBranchSHA(aPackage.RepoOwner, aPackage.RepoName);
+  SyncVersionCache(aPackage.ID, Version);
 
   GetVersionCacheList.AddLoadedPackageID(aPackage.ID);
 end;
