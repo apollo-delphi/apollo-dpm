@@ -39,7 +39,6 @@ type
     function GetProjectPackagesPath: string;
     function GetPrivatePackagesFolderPath: string;
     function GetSettingsPath: string;
-    function GetVendorsPath: string;
     function GetVersionCacheList: TVersionCacheList;
     function GetTextFromFile(const aPath: string): string;
     function MakeBPL(const aProjectFileName, aPackagePath: string): string;
@@ -54,10 +53,8 @@ type
     procedure AddDPMMenuItem;
     procedure ApplySettings;
     procedure BuildMenu;
-    procedure DeletePackagePath(aPackage: TPackage);
     procedure DoLoadDependencies(aDependentPackage: TDependentPackage; aVersion: TVersion;
       aResult: TDependentPackageList); overload;
-    procedure DoUninstall(aDependentPackage: TDependentPackage);
     procedure DPMClosed;
     procedure DPMMenuItemClick(Sender: TObject);
     procedure DPMOpened;
@@ -66,7 +63,6 @@ type
     procedure InstallBpl(const aBplPath: string);
     procedure LoadRepoVersions(aPackage: TPackage);
     procedure LockActions;
-    procedure RemoveUnitsFromProject(const aPackagePath: string);
     procedure SavePackageList(const aPath: string; aPackageList: TDependentPackageList);
     procedure UninstallBpl(const aBplPath: string);
     procedure UnlockActions;
@@ -79,21 +75,16 @@ type
     function GetInitialPackage(aDependentPackage: TDependentPackage): TInitialPackage;
     function GetPrivatePackages: TPrivatePackageList;
     function GetVersions(aPackage: TPackage; aCachedOnly: Boolean = False): TArray<TVersion>;
-    function Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
-    function IsProjectOpened: Boolean;
     function LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList; overload;
     function LoadDependencies(aDependentPackage: TDependentPackage): TDependentPackageList; overload;
     function LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName, aError: string): Boolean;
     function LoadRepoTree(aPackage: TPackage; aVersion: TVersion): TTree;
     function SaveContent(const aPackagePath, aRepoPath, aContent: string): string;
     function ShowConflictForm(const aCaption: string; aVersionConflicts: TVersionConflicts): TVersionConflicts;
-    function Uninstall(aPackage: TPackage): TPackageHandles;
     function Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
     procedure AddNewPrivatePackage(aPackage: TInitialPackage);
     procedure ApplyAndSaveSettings;
     procedure OpenProject(const aProjectPath: string);
-    procedure SaveActiveProject;
-    procedure SavePackages;
     procedure ShowFirstModule;
     procedure UpdatePrivatePackage(aPackage: TPrivatePackage);
     procedure WriteFile(const aPath: string; const aBytes: TBytes);
@@ -104,9 +95,18 @@ type
     property Settings: TSettings read FSettings;
   public
     class function GetFiles(const aDirectoryPath, aNamePattern: string): TArray<string>;
+    function ActiveProjectContains(const aFilePath: string): Boolean;
     function GetPackagePath(aPackage: TPackage): string;
     function GetProjectPackages: TDependentPackageList;
+    function GetVendorsPath: string;
+    function Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
+    function IsProjectOpened: Boolean;
+    function Uninstall(aPackage: TPackage): TPackageHandles;
     procedure AddFileToActiveProject(const aFilePath: string);
+    procedure RemoveFileFromActiveProject(const aFilePath: string);
+    procedure ResetDependentPackage(aDependentPackage: TDependentPackage);
+    procedure SaveActiveProject;
+    procedure SavePackages;
     property AreActionsLocked: Boolean read FAreActionsLocked;
     property NotifyUI: TUINotifyProc read FUINotifyProc;
   end;
@@ -128,6 +128,11 @@ uses
   Xml.XMLDoc;
 
 { TDPMEngine }
+
+function TDPMEngine.ActiveProjectContains(const aFilePath: string): Boolean;
+begin
+  Result := GetActiveProject.FindModuleInfo(aFilePath) <> nil;
+end;
 
 procedure TDPMEngine.AddApolloMenuItem;
 var
@@ -195,15 +200,7 @@ begin
           (InitialPackage.DependentPackage.Version.SHA <> aVersion.SHA);
 
       fatUninstall:
-        begin
-          Result :=
-            Assigned(aVersion) and
-            InitialPackage.IsInstalled and
-            (InitialPackage.DependentPackage.Version.SHA = aVersion.SHA) and
-            (((InitialPackage.DependentPackage.PackageType in [ptCodeSource]) and IsProjectOpened) or
-             (InitialPackage.DependentPackage.PackageType in [ptBplSource, ptBplBinary])
-            );
-        end;
+        Result := TUninstall.GetClass(InitialPackage.PackageType).Allowed(Self, InitialPackage.DependentPackage, aVersion);
 
       fatEditPackage:
         Result := True;
@@ -223,12 +220,7 @@ begin
           (DependentPackage.Version.SHA <> aVersion.SHA);
 
       fatUninstall:
-        Result :=
-          (((DependentPackage.PackageType in [ptCodeSource]) and IsProjectOpened) or
-           (DependentPackage.PackageType in [ptBplSource, ptBplBinary])
-          ) and
-          Assigned(aVersion) and
-          (DependentPackage.Version.SHA = aVersion.SHA);
+        Result := TUninstall.GetClass(DependentPackage.PackageType).Allowed(Self, DependentPackage, aVersion);
 
       fatEditPackage:
         Result := False;
@@ -348,22 +340,6 @@ begin
     raise Exception.Create('No versions was found!');
 end;
 
-procedure TDPMEngine.DeletePackagePath(aPackage: TPackage);
-var
-  Path: string;
-begin
-  Path := GetPackagePath(aPackage);
-  if Path.IsEmpty then
-    Exit;
-
-  FUINotifyProc('deleting ' + Path);
-
-  TDirectory.Delete(Path, True);
-
-  if Length(TDirectory.GetDirectories(GetVendorsPath, '*', TSearchOption.soTopDirectoryOnly)) = 0 then
-    TDirectory.Delete(GetVendorsPath);
-end;
-
 destructor TDPMEngine.Destroy;
 begin
   Validation.Free;
@@ -375,37 +351,6 @@ begin
     GetIDEMainMenu.Items.Remove(GetApolloMenuItem);
 
   inherited;
-end;
-
-procedure TDPMEngine.DoUninstall(aDependentPackage: TDependentPackage);
-var
-  BplFile: string;
-  InitialPackage: TInitialPackage;
-  PackageID: string;
-begin
-  PackageID := aDependentPackage.ID;
-
-  if aDependentPackage.PackageType = ptCodeSource then
-    RemoveUnitsFromProject(GetPackagePath(aDependentPackage));
-
-  DeletePackagePath(aDependentPackage);
-
-  InitialPackage := GetInitialPackage(aDependentPackage);
-  if Assigned(InitialPackage) then
-    InitialPackage.DependentPackage := nil;
-
-  if aDependentPackage.PackageType = ptBplSource then
-  begin
-    for BplFile in aDependentPackage.BplFileRefs do
-    begin
-      UninstallBpl(BplFile);
-      TFile.Delete(BplFile);
-    end;
-
-    GetIDEPackages.RemoveByID(PackageID);
-  end;
-
-  GetProjectPackages.RemoveByID(PackageID);
 end;
 
 procedure TDPMEngine.DoLoadDependencies(aDependentPackage: TDependentPackage; aVersion: TVersion;
@@ -959,24 +904,13 @@ begin
   end;
 end;
 
-procedure TDPMEngine.RemoveUnitsFromProject(const aPackagePath: string);
-var
-  FileItem: string;
-  Files: TArray<string>;
+procedure TDPMEngine.RemoveFileFromActiveProject(const aFilePath: string);
 begin
-  Files := GetFiles(aPackagePath, '*');
-
-  for FileItem in Files do
-    if GetActiveProject.FindModuleInfo(FileItem) <> nil then
+  TThread.Synchronize(nil, procedure()
     begin
-      FUINotifyProc(Format('removing from project %s', [FileItem]));
-
-      TThread.Synchronize(nil, procedure()
-        begin
-          GetActiveProject.RemoveFile(FileItem);
-        end
-      );
-    end;
+      GetActiveProject.RemoveFile(aFilePath);
+    end
+  );
 end;
 
 function TDPMEngine.RepoPathToFilePath(const aRepoPath: string): string;
@@ -989,6 +923,16 @@ begin
 
   for RepoPathPart in RepoPathParts do
     Result := TPath.Combine(Result, RepoPathPart);
+end;
+
+procedure TDPMEngine.ResetDependentPackage(
+  aDependentPackage: TDependentPackage);
+var
+  InitialPackage: TInitialPackage;
+begin
+  InitialPackage := GetInitialPackage(aDependentPackage);
+  if Assigned(InitialPackage) then
+    InitialPackage.DependentPackage := nil;
 end;
 
 function TDPMEngine.RunConsole(const aCommand: string): string;
@@ -1106,44 +1050,17 @@ end;
 
 function TDPMEngine.Uninstall(aPackage: TPackage): TPackageHandles;
 var
-  Dependency: TDependentPackage;
-  Dependencies: TDependentPackageList;
+  Action: TUninstall;
   DependentPackage: TDependentPackage;
-  PackageHandle: TPackageHandle;
 begin
+  LockActions;
+  DependentPackage := GetDependentPackage(aPackage);
+  Action := TUninstall.GetClass(DependentPackage.PackageType).Create(Self, DependentPackage);
   try
-    DependentPackage := GetDependentPackage(aPackage);
-    Result := [TPackageHandle.CreateUninstallHandle(DependentPackage)];
-
-    FUINotifyProc(Format(#13#10 + 'uninstalling %s %s', [DependentPackage.Name,
-      DependentPackage.Version.DisplayName]));
-
-    Dependencies := LoadDependencies(DependentPackage);
-    try
-      for Dependency in Dependencies do
-        if not Dependency.IsDirect and
-           not GetProjectPackages.IsUsingDependenceExceptOwner(Dependency.ID, DependentPackage.ID)
-        then
-          Result := Result + [TPackageHandle.CreateUninstallHandle(Dependency)];
-    finally
-      Dependencies.Free;
-    end;
-
-    for PackageHandle in Result do
-      DoUninstall(PackageHandle.Package as TDependentPackage);
-
-    SavePackages;
-
-    if IsProjectOpened then
-      SaveActiveProject;
-
-    FUINotifyProc('succeeded');
-  except
-    on E: Exception do
-    begin
-      FUINotifyProc(E.Message);
-      FUINotifyProc('uninstallation failed');
-    end;
+    Result := Action.Run;
+  finally
+    Action.Free;
+    UnlockActions;
   end;
 end;
 
@@ -1203,13 +1120,13 @@ begin
     Result := Result + ProcessRequiredDependencies(Format('Updating package %s version conflict', [DependentPackage.Name]),
       RequiredDependencies);
 
-    for PackageHandle in Result do
+    {for PackageHandle in Result do
       if PackageHandle.PackageAction = paUninstall then
         DoUninstall(PackageHandle.Package as TDependentPackage);
 
     for PackageHandle in Result do
       if PackageHandle.PackageAction = paInstall then
-        //DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
+        DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect); }
 
     SavePackages;
 

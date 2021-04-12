@@ -31,6 +31,7 @@ type
     procedure SetJSON(aJSONObj: TJSONObject); virtual;
   public
     function GetJSONString: string;
+    function SearchMatched(const aSearch: string): Boolean;
     procedure Assign(aPackage: TPackage); virtual;
     constructor Create(const aJSONString: string); overload;
     destructor Destroy; override;
@@ -146,6 +147,17 @@ uses
   System.SysUtils;
 
 { TPackage }
+
+function TPackage.SearchMatched(const aSearch: string): Boolean;
+begin
+  if aSearch.IsEmpty then
+    Exit(True);
+
+  if Name.ToUpper.Contains(aSearch.ToUpper) then
+    Result := True
+  else
+    Result := False;
+end;
 
 procedure TPackage.SetJSON(aJSONObj: TJSONObject);
 begin

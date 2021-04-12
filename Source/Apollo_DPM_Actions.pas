@@ -12,13 +12,10 @@ type
   TDPMAction = class abstract
   protected
     FDPMEngine: TDPMEngine;
-    procedure DoUninstall(aDependentPackage: TDependentPackage);
-  public
-    function Run: TPackageHandles; virtual; abstract;
   end;
 
   TInstall = class;
-  TDPMActionClass = class of TInstall;
+  TInstallClass = class of TInstall;
 
   TInstall = class abstract(TDPMAction)
   private
@@ -33,22 +30,22 @@ type
     function SaveContent(const aPackagePath, aRepoPath, aContent: string): string;
     procedure AddPackageFiles(aInitialPackage: TInitialPackage; aVersion: TVersion);
   protected
-    function GetContentPath: string; virtual; abstract;
+    function GetContentPath(aPackage: TPackage): string; virtual; abstract;
     function GetDependencyHandles(aVersion: TVersion): TPackageHandles; virtual;
     procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean); virtual;
   public
     class function Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
       aVersion: TVersion): Boolean; virtual;
-    class function GetClass(const aPackageType: TPackageType): TDPMActionClass;
-    function Run: TPackageHandles; override;
-    constructor Create(aDPMEngine: TDPMEngine; aInitialPackage: TInitialPackage; aVersion: TVersion);
+    class function GetClass(const aPackageType: TPackageType): TInstallClass;
+    function Run: TPackageHandles;
+    constructor Create(aDPMEngine: TDPMEngine; aPackage: TInitialPackage; aVersion: TVersion);
   end;
 
   TInstallCodeSource = class(TInstall)
   private
     procedure AddUnitsToProject(aInitialPackage: TInitialPackage);
   protected
-    function GetContentPath: string; override;
+    function GetContentPath(aPackage: TPackage): string; override;
     procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean); override;
   end;
 
@@ -61,12 +58,36 @@ type
   private
     FProjectPath: string;
   protected
-    function GetContentPath: string; override;
+    function GetContentPath(aPackage: TPackage): string; override;
     function GetDependencyHandles(aVersion: TVersion): TPackageHandles; override;
     procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean); override;
   public
     class function Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
       aVersion: TVersion): Boolean; override;
+  end;
+
+  TUninstall = class;
+  TUninstallClass = class of TUninstall;
+
+  TUninstall = class abstract(TDPMAction)
+  private
+    FDependentPackage: TDependentPackage;
+    procedure DeletePackagePath(aPackage: TPackage);
+  protected
+    procedure DoUninstall(aDependentPackage: TDependentPackage); virtual;
+  public
+    class function Allowed(aDPMEngine: TDPMEngine; aPackage: TDependentPackage;
+      aVersion: TVersion): Boolean;
+    class function GetClass(const aPackageType: TPackageType): TUninstallClass;
+    function Run: TPackageHandles;
+    constructor Create(aDPMEngine: TDPMEngine; aPackage: TDependentPackage);
+  end;
+
+  TUninstallCodeSource = class(TUninstall)
+  private
+    procedure RemoveUnitsFromProject(aDependentPackage: TDependentPackage);
+  protected
+    procedure DoUninstall(aDependentPackage: TDependentPackage); override;
   end;
 
 implementation
@@ -76,7 +97,8 @@ uses
   System.Classes,
   System.IOUtils,
   System.NetEncoding,
-  System.SysUtils;
+  System.SysUtils,
+  System.TypInfo;
 
 { TInstall }
 
@@ -96,21 +118,22 @@ begin
 end;
 
 constructor TInstall.Create(aDPMEngine: TDPMEngine;
-  aInitialPackage: TInitialPackage; aVersion: TVersion);
+  aPackage: TInitialPackage; aVersion: TVersion);
 begin
   FDPMEngine := aDPMEngine;
-  FInitialPackage := aInitialPackage;
+  FInitialPackage := aPackage;
   FVersion := aVersion;
 end;
 
-class function TInstall.GetClass(const aPackageType: TPackageType): TDPMActionClass;
+class function TInstall.GetClass(const aPackageType: TPackageType): TInstallClass;
 begin
   case aPackageType of
     ptCodeSource: Result := TInstallCodeSource;
     ptBplSource, ptBplBinary: Result := TInstall;
     ptProjectTemplate: Result := TInstallProjectTemplate;
   else
-    raise Exception.Create('TInstall.GetClass: unknown PackageType');
+    raise Exception.CreateFmt('TInstall..GetClass: unknown PackageType %s',
+      [GetEnumName(TypeInfo(TPackageType), Ord(aPackageType))]);
   end;
 end;
 
@@ -120,7 +143,7 @@ var
 begin
   RequiredDependencies := FDPMEngine.LoadDependencies(FInitialPackage, aVersion);
   try
-    Result := Result + ProcessRequiredDependencies(Format('Package %s version conflict', [FInitialPackage.Name]),
+    Result := ProcessRequiredDependencies(Format('Package %s version conflict', [FInitialPackage.Name]),
       RequiredDependencies);
   finally
     RequiredDependencies.Free;
@@ -186,11 +209,12 @@ begin
   begin
     InstalledDependency := FDPMEngine.GetProjectPackages.GetByID(RequiredDependency.ID);
 
-    if Assigned(InstalledDependency) and
-      (InstalledDependency.Version.SHA <> RequiredDependency.Version.SHA)
-    then
+    if Assigned(InstalledDependency) then
+    begin
+      if InstalledDependency.Version.SHA <> RequiredDependency.Version.SHA then
         VersionConflicts := VersionConflicts + [
-          TVersionConflict.Create(RequiredDependency, RequiredDependency.Version, InstalledDependency.Version)]
+          TVersionConflict.Create(RequiredDependency, RequiredDependency.Version, InstalledDependency.Version)];
+    end
     else
       Result := Result + [GetInstallPackageHandle(RequiredDependency, RequiredDependency.Version)];
   end;
@@ -226,9 +250,9 @@ begin
 
   Result := Result + GetDependencyHandles(Version);
 
-  for PackageHandle in Result do
+  {for PackageHandle in Result do
     if PackageHandle.PackageAction = paUninstall then
-      DoUninstall(PackageHandle.Package as TDependentPackage);
+      DoUninstall(PackageHandle.Package as TDependentPackage); }
 
   for PackageHandle in Result do
     if PackageHandle.PackageAction = paInstall then
@@ -301,7 +325,7 @@ begin
       Blob := FDPMEngine.GHAPI.GetRepoBlob(TreeNode.URL);
 
       NodePath := aInitialPackage.ApplyPathMoves(TreeNode.Path);
-      SaveContent(GetContentPath, NodePath, Blob.Content);
+      SaveContent(GetContentPath(aInitialPackage), NodePath, Blob.Content);
     end;
   end;
 end;
@@ -330,13 +354,6 @@ begin
   FDPMEngine.WriteFile(Result, Bytes);
 end;
 
-{ TDPMAction }
-
-procedure TDPMAction.DoUninstall(aDependentPackage: TDependentPackage);
-begin
-
-end;
-
 { TInstallProjectTemplate }
 
 class function TInstallProjectTemplate.Allowed(aDPMEngine: TDPMEngine;
@@ -354,7 +371,7 @@ var
 begin
   inherited;
 
-  Files := FDPMEngine.GetFiles(GetContentPath, '*');
+  Files := FDPMEngine.GetFiles(GetContentPath(aInitialPackage), '*');
 
   for FileItem in Files do
   begin
@@ -374,7 +391,7 @@ begin
   end;
 end;
 
-function TInstallProjectTemplate.GetContentPath: string;
+function TInstallProjectTemplate.GetContentPath(aPackage: TPackage): string;
 begin
   if FProjectPath.IsEmpty then
   begin
@@ -401,7 +418,7 @@ var
   FileUnitPath: string;
   RepoUnitPath: string;
 begin
-  Files := FDPMEngine.GetFiles(GetContentPath, '*');
+  Files := FDPMEngine.GetFiles(GetContentPath(aInitialPackage), '*');
 
   for FileItem in Files do
   begin
@@ -455,9 +472,9 @@ begin
   FDPMEngine.GetProjectPackages.Add(DependentPackage);
 end;
 
-function TInstallCodeSource.GetContentPath: string;
+function TInstallCodeSource.GetContentPath(aPackage: TPackage): string;
 begin
-  Result := FDPMEngine.GetPackagePath(FInitialPackage);
+  Result := FDPMEngine.GetPackagePath(aPackage);
 end;
 
 { TInstallBplBinary }
@@ -480,6 +497,168 @@ begin
 
     GetIDEPackages.Add(TDependentPackage.Create(DependentPackage.GetJSONString,
       SyncVersionCache));}
+end;
+
+{ TUninstall }
+
+class function TUninstall.Allowed(aDPMEngine: TDPMEngine; aPackage: TDependentPackage;
+  aVersion: TVersion): Boolean;
+begin
+  Result := aDPMEngine.IsProjectOpened and
+    Assigned(aPackage) and
+    Assigned(aVersion) and
+    (aPackage.Version.SHA = aVersion.SHA);
+
+           {Result :=
+            Assigned(aVersion) and
+            InitialPackage.IsInstalled and
+            (InitialPackage.DependentPackage.Version.SHA = aVersion.SHA) and
+            (((InitialPackage.DependentPackage.PackageType in [ptCodeSource]) and IsProjectOpened) or
+             (InitialPackage.DependentPackage.PackageType in [ptBplSource, ptBplBinary])
+            );}
+
+        {Result :=
+          (((DependentPackage.PackageType in [ptCodeSource]) and IsProjectOpened) or
+           (DependentPackage.PackageType in [ptBplSource, ptBplBinary])
+          ) and
+          Assigned(aVersion) and
+          (DependentPackage.Version.SHA = aVersion.SHA);  }
+end;
+
+constructor TUninstall.Create(aDPMEngine: TDPMEngine;
+  aPackage: TDependentPackage);
+begin
+  FDPMEngine := aDPMEngine;
+  FDependentPackage := aPackage;
+end;
+
+procedure TUninstall.DeletePackagePath(aPackage: TPackage);
+var
+  Path: string;
+begin
+  Path := FDPMEngine.GetPackagePath(aPackage);
+  if Path.IsEmpty then
+    Exit;
+
+  FDPMEngine.NotifyUI('deleting ' + Path);
+
+  TDirectory.Delete(Path, True);
+
+  if Length(TDirectory.GetDirectories(FDPMEngine.GetVendorsPath, '*', TSearchOption.soTopDirectoryOnly)) = 0 then
+    TDirectory.Delete(FDPMEngine.GetVendorsPath);
+end;
+
+procedure TUninstall.DoUninstall(aDependentPackage: TDependentPackage);
+//var
+//  BplFile: string;
+//  InitialPackage: TInitialPackage;
+//  PackageID: string;
+begin
+  DeletePackagePath(aDependentPackage);
+
+  {PackageID := aDependentPackage.ID;
+
+  if aDependentPackage.PackageType = ptBplSource then
+  begin
+    for BplFile in aDependentPackage.BplFileRefs do
+    begin
+      UninstallBpl(BplFile);
+      TFile.Delete(BplFile);
+    end;
+
+    GetIDEPackages.RemoveByID(PackageID);
+  end;
+
+  GetProjectPackages.RemoveByID(PackageID); }
+end;
+
+class function TUninstall.GetClass(
+  const aPackageType: TPackageType): TUninstallClass;
+begin
+  case aPackageType of
+    ptCodeSource: Result := TUninstallCodeSource;
+    ptBplSource: Result := TUninstall;
+    ptProjectTemplate: Result := TUninstall;
+  else
+    raise Exception.CreateFmt('TUninstall.GetClass: unknown PackageType %s',
+      [GetEnumName(TypeInfo(TPackageType), Ord(aPackageType))]);
+  end;
+end;
+
+function TUninstall.Run: TPackageHandles;
+  //Dependency: TDependentPackage;
+  //Dependencies: TDependentPackageList;
+  //DependentPackage: TDependentPackage;
+var
+  PackageHandle: TPackageHandle;
+begin
+  FDPMEngine.NotifyUI(Format(#13#10 + 'uninstalling %s %s', [FDependentPackage.Name,
+    FDependentPackage.Version.DisplayName]));
+
+  Result := [TPackageHandle.CreateUninstallHandle(FDependentPackage)];
+
+  for PackageHandle in Result do
+    DoUninstall(PackageHandle.Package as TDependentPackage);
+
+  if FDPMEngine.IsProjectOpened then
+    FDPMEngine.SaveActiveProject;
+
+  FDPMEngine.SavePackages;
+
+  FDPMEngine.NotifyUI('succeeded');
+
+  {try
+    Dependencies := LoadDependencies(DependentPackage);
+    try
+      for Dependency in Dependencies do
+        if not Dependency.IsDirect and
+           not GetProjectPackages.IsUsingDependenceExceptOwner(Dependency.ID, DependentPackage.ID)
+        then
+          Result := Result + [TPackageHandle.CreateUninstallHandle(Dependency)];
+    finally
+      Dependencies.Free;
+    end;
+
+  except
+    on E: Exception do
+    begin
+      FUINotifyProc(E.Message);
+      FUINotifyProc('uninstallation failed');
+    end;
+  end;}
+end;
+
+{ TUninstallCodeSource }
+
+procedure TUninstallCodeSource.DoUninstall(
+  aDependentPackage: TDependentPackage);
+var
+  PackageID: string;
+begin
+  RemoveUnitsFromProject(aDependentPackage);
+
+  inherited;
+
+  PackageID := aDependentPackage.ID;
+  FDPMEngine.ResetDependentPackage(aDependentPackage);
+
+  FDPMEngine.GetProjectPackages.RemoveByID(PackageID);
+end;
+
+procedure TUninstallCodeSource.RemoveUnitsFromProject(
+  aDependentPackage: TDependentPackage);
+var
+  FileItem: string;
+  Files: TArray<string>;
+begin
+  Files := FDPMEngine.GetFiles(FDPMEngine.GetPackagePath(aDependentPackage), '*');
+
+  for FileItem in Files do
+    if FDPMEngine.ActiveProjectContains(FileItem) then
+    begin
+      FDPMEngine.NotifyUI(Format('removing from project %s', [FileItem]));
+      FDPMEngine.RemoveFileFromActiveProject(FileItem);
+    end;
 end;
 
 end.

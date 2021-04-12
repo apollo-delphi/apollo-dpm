@@ -3,16 +3,30 @@ unit Apollo_DPM_Form;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, Vcl.ComCtrls,
-  Vcl.WinXCtrls, Vcl.Buttons, System.Actions, Vcl.ActnList, System.ImageList,
-  Vcl.ImgList,
   Apollo_DPM_Engine,
-  Apollo_DPM_PackageFrame,
   Apollo_DPM_Package,
+  Apollo_DPM_PackageFrame,
   Apollo_DPM_SettingsFrame,
   Apollo_DPM_Types,
-  Apollo_DPM_Version;
+  Apollo_DPM_Version,
+  System.Actions,
+  System.Classes,
+  System.ImageList,
+  System.SysUtils,
+  System.Variants,
+  Vcl.ActnList,
+  Vcl.Buttons,
+  Vcl.ComCtrls,
+  Vcl.Controls,
+  Vcl.Dialogs,
+  Vcl.ExtCtrls,
+  Vcl.Forms,
+  Vcl.Graphics,
+  Vcl.ImgList,
+  Vcl.StdCtrls,
+  Vcl.WinXCtrls,
+  Winapi.Messages,
+  Winapi.Windows, Vcl.Imaging.pngimage;
 
 type
   TDPMForm = class(TForm)
@@ -38,6 +52,11 @@ type
     lblDependencies: TLabel;
     aiLoadDep: TActivityIndicator;
     fodSelectFolder: TFileOpenDialog;
+    edSearch: TEdit;
+    imSearchIcon: TImage;
+    pnlSearch: TPanel;
+    btnClearSearch: TSpeedButton;
+    actClearSearch: TAction;
     procedure pnlDetailsSwitcherClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure swPackageDetailsOpened(Sender: TObject);
@@ -51,7 +70,11 @@ type
     procedure sbFramesMouseWheelUp(Sender: TObject; Shift: TShiftState;
       MousePos: TPoint; var Handled: Boolean);
     procedure FormResize(Sender: TObject);
+    procedure edSearchKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure actClearSearchExecute(Sender: TObject);
+    procedure actClearSearchUpdate(Sender: TObject);
   private
+    FSearch: string;
     FDPMEngine: TDPMEngine;
     FPackageFrames: TArray<TPackageFrame>;
     FSettingsFrame: TSettingsFrame;
@@ -95,6 +118,18 @@ uses
   Apollo_DPM_UIHelper;
 
 { TDPMForm }
+
+procedure TDPMForm.actClearSearchExecute(Sender: TObject);
+begin
+  edSearch.Text := '';
+  FSearch := '';
+  RenderPackages;
+end;
+
+procedure TDPMForm.actClearSearchUpdate(Sender: TObject);
+begin
+  actClearSearch.Enabled := edSearch.Text <> '';
+end;
 
 procedure TDPMForm.actNewInitialPackageExecute(Sender: TObject);
 var
@@ -155,6 +190,16 @@ var
 begin
   for i := 0 to Length(aPackages) - 1 do
     RenderPackage(aPackages[i], i);
+end;
+
+procedure TDPMForm.edSearchKeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if edSearch.Modified and (edSearch.Text <> FSearch) then
+  begin
+    FSearch := edSearch.Text;
+    RenderPackages;
+  end;
 end;
 
 procedure TDPMForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -302,10 +347,13 @@ var
   Package: TPrivatePackage;
   Packages: TArray<TPackage>;
 begin
+  ClearFrames;
   Packages := [];
+  FSearch := Trim(edSearch.Text);
 
   for Package in aPackageList do
-    Packages := Packages + [Package];
+    if Package.SearchMatched(FSearch) then
+      Packages := Packages + [Package];
 
   DoRenderPackageList(Packages);
 end;
@@ -375,6 +423,7 @@ var
   Package: TDependentPackage;
   Packages: TArray<TPackage>;
 begin
+  ClearFrames;
   Packages := [];
 
   if FDPMEngine.Settings.ShowIndirectPackages then
@@ -389,8 +438,6 @@ end;
 
 procedure TDPMForm.RenderPackages;
 begin
-  ClearFrames;
-
   if GetSelectedNavigation = cNavPrivatePackages then
     RenderPackageList(FDPMEngine.GetPrivatePackages)
   else
@@ -447,6 +494,8 @@ end;
 
 procedure TDPMForm.tvNavigationChange(Sender: TObject; Node: TTreeNode);
 begin
+  edSearch.Text := '';
+
   if GetSelectedNavigation = cNavSettings then
     RenderSettings
   else
