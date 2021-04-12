@@ -15,7 +15,6 @@ type
   TPackage = class abstract
   private
     FDescription: string;
-    FID: string;
     FJSON: TJSONObject;
     FName: string;
     FPackageType: TPackageType;
@@ -36,7 +35,7 @@ type
     constructor Create(const aJSONString: string); overload;
     destructor Destroy; override;
     property Description: string read FDescription write FDescription;
-    property ID: string read GetID write FID;
+    property ID: string read GetID;
     property Name: string read FName write FName;
     property PackageType: TPackageType read FPackageType write FPackageType;
     property RepoName: string read FRepoName write FRepoName;
@@ -161,7 +160,6 @@ end;
 
 procedure TPackage.SetJSON(aJSONObj: TJSONObject);
 begin
-  ID := aJSONObj.GetValue(cKeyId).Value;
   Name := aJSONObj.GetValue(cKeyName).Value;
   Description := aJSONObj.GetValue(cKeyDescription).Value;
   RepoOwner := aJSONObj.GetValue(cKeyRepoOwner).Value;
@@ -209,7 +207,6 @@ end;
 
 procedure TPackage.Assign(aPackage: TPackage);
 begin
-  ID := aPackage.ID;
   Name := aPackage.Name;
   Description := aPackage.Description;
   RepoOwner := aPackage.RepoOwner;
@@ -219,10 +216,7 @@ end;
 
 function TPackage.GetID: string;
 begin
-  if FID.IsEmpty then
-    FID := THashMD5.GetHashString(FRepoOwner + FRepoName).ToUpper;
-
-  Result := FID;
+  Result := THashMD5.GetHashString(FRepoOwner + FRepoName).ToUpper;
 end;
 
 function TPackage.GetJSON: TJSONObject;
