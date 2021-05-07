@@ -4,12 +4,13 @@ interface
 
 uses
   Apollo_DPM_GitHubAPI,
-  System.JSON,
-  System.Generics.Collections;
+  System.Generics.Collections,
+  System.JSON;
 
 type
   TVersion = class
   private
+    FDate: TDateTime;
     FDependencies: TArray<string>;
     FName: string;
     FRepoTree: TTree;
@@ -20,9 +21,11 @@ type
   public
     function ContainsDependency(const ID: string): Boolean;
     function GetJSON: TJSONObject;
-    procedure Assign(aVersion: TVersion);
+    procedure Assign(aVersion: TVersion); overload;
+    procedure Assign(const aTag: TTag); overload;
     constructor Create; overload;
     constructor Create(aJSONObj: TJSONObject); overload;
+    property Date: TDateTime read FDate write FDate;
     property Dependencies: TArray<string> read FDependencies write FDependencies;
     property DisplayName: string read GetDisplayName;
     property Name: string read FName write FName;
@@ -68,7 +71,15 @@ procedure TVersion.Assign(aVersion: TVersion);
 begin
   Name := aVersion.Name;
   SHA := aVersion.SHA;
+  Date := aVersion.Date;
   RepoTree := aVersion.RepoTree;
+end;
+
+procedure TVersion.Assign(const aTag: TTag);
+begin
+  Name := aTag.Name;
+  SHA := aTag.SHA;
+  Date := aTag.Date;
 end;
 
 function TVersion.ContainsDependency(const ID: string): Boolean;
@@ -91,6 +102,7 @@ begin
 
   Name := aJSONObj.GetValue(cKeyVersionName).Value;
   SHA := aJSONObj.GetValue(cKeyVersionSHA).Value;
+  Date := StrToFloat(aJSONObj.GetValue(cKeyVersionDate).Value);
 
   if aJSONObj.TryGetValue(cKeyDependencies, jsnDependencies) then
     for jsnDependency in jsnDependencies do
@@ -110,7 +122,11 @@ begin
     Result := Name
   else
   if not SHA.IsEmpty then
-    Result := Format('commit %s...', [SHA.Substring(0, 13)]);
+    Result := Format('commit %s...%s (%s)', [
+      SHA.Substring(0, 3),
+      SHA.Substring(SHA.Length - 3, 3),
+      FormatDateTime('c', Date)
+    ]);
 end;
 
 function TVersion.GetJSON: TJSONObject;
@@ -122,6 +138,7 @@ begin
 
   Result.AddPair(cKeyVersionName, Name);
   Result.AddPair(cKeyVersionSHA, SHA);
+  Result.AddPair(cKeyVersionDate, FloatToStr(Date));
 
   if Length(Dependencies) > 0 then
   begin

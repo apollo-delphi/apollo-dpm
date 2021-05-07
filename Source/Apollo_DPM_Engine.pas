@@ -781,7 +781,7 @@ begin
   end;
 
   try
-    SHA := FGHAPI.GetMasterBranchSHA(URLWords[1], URLWords[2]);
+    SHA := FGHAPI.GetMasterBranch(URLWords[1], URLWords[2]).SHA;
   except
     aError := cStrCantLoadTheRepositoryURL;
     Exit;
@@ -807,27 +807,28 @@ begin
 end;
 
 procedure TDPMEngine.LoadRepoVersions(aPackage: TPackage);
-var
-  Tag:  TTag;
-  Tags: TArray<TTag>;
-  Version: TVersion;
-begin
-  Tags := FGHAPI.GetRepoTags(aPackage.RepoOwner, aPackage.RepoName);
 
-  for Tag in Tags do
+  procedure CreateVersion(const aTag: TTag);
+  var
+    Version: TVersion;
   begin
     Version := TVersion.Create;
-
-    Version.Name := Tag.Name;
-    Version.SHA := Tag.SHA;
+    Version.Assign(aTag);
 
     SyncVersionCache(aPackage.ID, Version);
   end;
 
-  Version := TVersion.Create;
-  Version.Name := '';
-  Version.SHA := FGHAPI.GetMasterBranchSHA(aPackage.RepoOwner, aPackage.RepoName);
-  SyncVersionCache(aPackage.ID, Version);
+var
+  Tag:  TTag;
+  Tags: TArray<TTag>;
+begin
+  Tags := FGHAPI.GetRepoTags(aPackage.RepoOwner, aPackage.RepoName);
+
+  for Tag in Tags do
+    CreateVersion(Tag);
+
+  Tag := FGHAPI.GetMasterBranch(aPackage.RepoOwner, aPackage.RepoName);
+  CreateVersion(Tag);
 
   GetVersionCacheList.AddLoadedPackageID(aPackage.ID);
 end;

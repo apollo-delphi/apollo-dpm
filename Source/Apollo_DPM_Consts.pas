@@ -49,6 +49,7 @@ const
   cKeyVersion = 'version';
   cKeyVersionName = 'name';
   cKeyVersionSHA = 'sha';
+  cKeyVersionDate = 'date';
 
   cNavInstalledToIDE = 'Installed to IDE';
   cNavPrivatePackages = 'Private Packages';

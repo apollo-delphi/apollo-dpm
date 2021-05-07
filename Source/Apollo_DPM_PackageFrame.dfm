@@ -1,7 +1,7 @@
 object PackageFrame: TPackageFrame
   Left = 0
   Top = 0
-  Width = 385
+  Width = 450
   Height = 97
   Margins.Left = 0
   Margins.Top = 0
@@ -37,7 +37,7 @@ object PackageFrame: TPackageFrame
     Font.Style = [fsBold]
   end
   object lblInstalled: TLabel
-    Left = 325
+    Left = 390
     Top = 16
     Width = 41
     Height = 13
@@ -59,7 +59,7 @@ object PackageFrame: TPackageFrame
     Transparent = True
   end
   object pnlActions: TPanel
-    Left = 260
+    Left = 325
     Top = 54
     Width = 106
     Height = 27
@@ -124,15 +124,15 @@ object PackageFrame: TPackageFrame
     end
   end
   object aiVersionLoad: TActivityIndicator
-    Left = 231
-    Top = 56
+    Left = 294
+    Top = 57
     IndicatorSize = aisSmall
     IndicatorType = aitRotatingSector
   end
   object cbVersions: TComboBox
     Left = 58
     Top = 57
-    Width = 167
+    Width = 230
     Height = 22
     Style = csOwnerDrawFixed
     TabOrder = 2

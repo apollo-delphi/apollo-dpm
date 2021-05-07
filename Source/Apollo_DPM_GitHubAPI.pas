@@ -7,6 +7,7 @@ uses
 
 type
   TTag = record
+    Date: TDateTime;
     Name: string;
     SHA: string;
   end;
@@ -30,7 +31,7 @@ type
     FHTTP: THTTP;
     function GetAPIHostBaseURL(const aRepoOwner, aRepoName: string): string;
   public
-    function GetMasterBranchSHA(const aRepoOwner, aRepoName: string): string;
+    function GetMasterBranch(const aRepoOwner, aRepoName: string): TTag;
     function GetRepoBlob(const aURL: string): TBlob;
     function GetRepoTags(const aRepoOwner, aRepoName: string): TArray<TTag>;
     function GetRepoTree(const aRepoOwner, aRepoName, aSHA: string): TTree;
@@ -64,20 +65,20 @@ begin
   Result := Format('https://api.github.com/repos/%s/%s', [aRepoOwner, aRepoName]);
 end;
 
-function TGHAPI.GetMasterBranchSHA(const aRepoOwner, aRepoName: string): string;
+function TGHAPI.GetMasterBranch(const aRepoOwner, aRepoName: string): TTag;
 var
   jsnObj: TJSONObject;
   sJSON: string;
   URL: string;
 begin
-  Result := '';
-
   URL := GetAPIHostBaseURL(aRepoOwner, aRepoName) + '/branches/master';
   sJSON := FHTTP.Get(URL);
 
   jsnObj := TJSONObject.ParseJSONValue(sJSON) as TJSONObject;
   try
-    Result := (jsnObj.GetValue('commit') as TJSONObject).GetValue('sha').Value;
+    Result.SHA := jsnObj.FindValue('commit.sha').Value;
+    Result.Date := jsnObj.FindValue('commit.commit.committer.date').AsType<TDateTime>;
+    Result.Name := '';
   finally
     jsnObj.Free;
   end;

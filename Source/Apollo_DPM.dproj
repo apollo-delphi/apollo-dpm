@@ -155,10 +155,6 @@
                     <Source Name="MainSource">Apollo_DPM.dpk</Source>
                 </Source>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclie260.bpl">Internet Explorer Components</Excluded_Packages>
-                    <Excluded_Packages Name="C:\Intrahealth\Tools\IHExperts2007\Bin\IHExperts10_3.bpl">Intrahealth Experts</Excluded_Packages>
-                    <Excluded_Packages Name="C:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl\ProfileRB12_XE103.bpl">Profile Report Builder 12 Components v8.0</Excluded_Packages>
-                    <Excluded_Packages Name="C:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl\ProfileDx_XE103.bpl">Profile Dx component v8.0</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k260.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dclofficexp260.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
