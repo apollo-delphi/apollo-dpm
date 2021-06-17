@@ -109,6 +109,9 @@ type
     procedure SavePackages;
     property AreActionsLocked: Boolean read FAreActionsLocked;
     property NotifyUI: TUINotifyProc read FUINotifyProc;
+
+  public
+    function CreateNewProject(const aProjectName: string): IOTAProject;
   end;
 
 implementation
@@ -324,6 +327,16 @@ begin
   BuildMenu;
 
   Validation := TValidation.Create(Self);
+end;
+
+function TDPMEngine.CreateNewProject(const aProjectName: string): IOTAProject;
+var
+  ModuleServices: IOTAModuleServices;
+  ProjectGroup: IOTAProjectGroup;
+begin
+  ModuleServices := BorlandIDEServices as IOTAModuleServices;
+  ProjectGroup := ModuleServices.MainProjectGroup;
+  ProjectGroup.AddNewProject;
 end;
 
 function TDPMEngine.DefineVersion(aPackage: TPackage; aVersion: TVersion): TVersion;

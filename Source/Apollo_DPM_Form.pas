@@ -7,6 +7,7 @@ uses
   Apollo_DPM_Package,
   Apollo_DPM_PackageFrame,
   Apollo_DPM_SettingsFrame,
+  Apollo_DPM_TestFrame,
   Apollo_DPM_Types,
   Apollo_DPM_Version,
   System.Actions,
@@ -22,11 +23,12 @@ uses
   Vcl.ExtCtrls,
   Vcl.Forms,
   Vcl.Graphics,
+  Vcl.Imaging.pngimage,
   Vcl.ImgList,
   Vcl.StdCtrls,
   Vcl.WinXCtrls,
   Winapi.Messages,
-  Winapi.Windows, Vcl.Imaging.pngimage;
+  Winapi.Windows;
 
 type
   TDPMForm = class(TForm)
@@ -78,6 +80,7 @@ type
     FDPMEngine: TDPMEngine;
     FPackageFrames: TArray<TPackageFrame>;
     FSettingsFrame: TSettingsFrame;
+    FTestFrame: TTestFrame;
     function GetFrame(const aPackageID: string): TPackageFrame;
     function GetFrameIndex(aFrame: TPackageFrame): Integer;
     function GetSelectedNavigation: string;
@@ -95,6 +98,7 @@ type
     procedure RenderPackageDetail(aPackage: TPackage);
     procedure RenderPackages;
     procedure RenderSettings;
+    procedure RenderTest;
     procedure UpdateFrame(aFrame: TPackageFrame);
     procedure UpdateFrames(aPackageHandles: TPackageHandles);
   public
@@ -156,6 +160,9 @@ begin
 
   if Assigned(FSettingsFrame) then
     FreeAndNil(FSettingsFrame);
+
+  if Assigned(FTestFrame) then
+    FreeAndNil(FTestFrame);
 end;
 
 constructor TDPMForm.Create(aDPMEngine: TDPMEngine);
@@ -340,6 +347,9 @@ begin
   tvNavigation.Items.Add(nil, cNavInstalledToIDE);
   tvNavigation.Items.Add(nil, cNavPrivatePackages);
   tvNavigation.Items.Add(nil, cNavSettings);
+{$IFDEF DEBUG}
+  tvNavigation.Items.Add(nil, cNavTest);
+{$ENDIF DEBUG}
 end;
 
 procedure TDPMForm.RenderPackageList(aPackageList: TPrivatePackageList);
@@ -457,6 +467,15 @@ begin
   FSettingsFrame.Align := alClient;
 end;
 
+procedure TDPMForm.RenderTest;
+begin
+  ClearFrames;
+
+  FTestFrame := TTestFrame.Create(sbFrames, FDPMEngine);
+  FTestFrame.Parent := sbFrames;
+  FTestFrame.Align := alClient;
+end;
+
 procedure TDPMForm.sbFramesMouseWheelDown(Sender: TObject; Shift: TShiftState;
   MousePos: TPoint; var Handled: Boolean);
 begin
@@ -498,6 +517,9 @@ begin
 
   if GetSelectedNavigation = cNavSettings then
     RenderSettings
+  else
+  if GetSelectedNavigation = cNavTest then
+    RenderTest
   else
     RenderPackages;
 end;

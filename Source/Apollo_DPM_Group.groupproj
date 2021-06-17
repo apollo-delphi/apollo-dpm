@@ -6,6 +6,9 @@
         <Projects Include="Apollo_DPM.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="..\TestProject\DPMTestProject.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -23,14 +26,23 @@
     <Target Name="Apollo_DPM:Make">
         <MSBuild Projects="Apollo_DPM.dproj" Targets="Make"/>
     </Target>
+    <Target Name="DPMTestProject">
+        <MSBuild Projects="..\TestProject\DPMTestProject.dproj"/>
+    </Target>
+    <Target Name="DPMTestProject:Clean">
+        <MSBuild Projects="..\TestProject\DPMTestProject.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DPMTestProject:Make">
+        <MSBuild Projects="..\TestProject\DPMTestProject.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Apollo_DPM"/>
+        <CallTarget Targets="Apollo_DPM;DPMTestProject"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Apollo_DPM:Clean"/>
+        <CallTarget Targets="Apollo_DPM:Clean;DPMTestProject:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Apollo_DPM:Make"/>
+        <CallTarget Targets="Apollo_DPM:Make;DPMTestProject:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

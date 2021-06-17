@@ -56,6 +56,8 @@ contains
   Apollo_DPM_Settings in 'Apollo_DPM_Settings.pas',
   Apollo_HTTP in '..\Vendors\Apollo_HTTP\Apollo_HTTP.pas',
   Apollo_DPM_Pipes in 'Apollo_DPM_Pipes.pas',
-  Apollo_DPM_Actions in 'Apollo_DPM_Actions.pas';
+  Apollo_DPM_Actions in 'Apollo_DPM_Actions.pas',
+  Apollo_DPM_TestFrame in 'Apollo_DPM_TestFrame.pas' {TestFrame: TFrame},
+  Apollo_DPM_Test in 'Apollo_DPM_Test.pas';
 
 end.

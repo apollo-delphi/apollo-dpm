@@ -55,6 +55,7 @@ const
   cNavPrivatePackages = 'Private Packages';
   cNavProjectDependencies = 'Project Dependencies';
   cNavSettings = 'Settings';
+  cNavTest = 'Test';
 
   cPathIDEPackages = 'Apollo\DPM\DPM.IDEPackages.json';
   cPathPrivatePackagesFolder = 'Apollo\DPM\PrivatePackages';
