@@ -19,6 +19,7 @@ type
     function GetDisplayName: string;
     procedure Init;
   public
+    class function CreateAsLatestVersionOption: TVersion;
     function ContainsDependency(const ID: string): Boolean;
     function GetJSON: TJSONObject;
     procedure Assign(aVersion: TVersion); overload;
@@ -112,6 +113,14 @@ end;
 constructor TVersion.Create;
 begin
   Init;
+end;
+
+class function TVersion.CreateAsLatestVersionOption: TVersion;
+begin
+  Result := TVersion.Create;
+
+  Result.Name := cStrLatestVersionOrCommit;
+  Result.SHA := '';
 end;
 
 function TVersion.GetDisplayName: string;

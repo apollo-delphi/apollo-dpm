@@ -20,7 +20,6 @@ type
     FGHAPI: TGHAPI;
     FIDEPackages: TDependentPackageList;
     FPrivatePackages: TPrivatePackageList;
-    FProjectPackages: TDependentPackageList;
     FSettings: TSettings;
     FUIActionsLockProc: TUIActionsLockProc;
     FUIActionsUnlockProc: TUIActionsUnlockProc;
@@ -28,23 +27,14 @@ type
     FUINotifyProc: TUINotifyProc;
     FVersionCacheList: TVersionCacheList;
     function FindXmlNode(aNode: IXMLNode; const aNodeName: string): IXMLNode;
-    function GetActiveProject: IOTAProject;
-    function GetActiveProjectPath: string;
     function GetApolloMenuItem: TMenuItem;
     function GetDependentPackage(aPackage: TPackage): TDependentPackage;
     function GetIDEMainMenu: TMainMenu;
     function GetIDEPackagesPath: string;
-    function GetInstallPackageHandle(aDependentPackage: TDependentPackage;
-      aVersion: TVersion): TPackageHandle;
-    function GetProjectPackagesPath: string;
     function GetPrivatePackagesFolderPath: string;
     function GetSettingsPath: string;
     function GetVersionCacheList: TVersionCacheList;
-    function GetTextFromFile(const aPath: string): string;
     function MakeBPL(const aProjectFileName, aPackagePath: string): string;
-    function PostProcessPackageHandles(const aPackageHandles: TPackageHandles): TPackageHandles;
-    function ProcessRequiredDependencies(const aCaption: string;
-      aRequiredDependencies: TDependentPackageList): TPackageHandles;
     function RepoPathToFilePath(const aRepoPath: string): string;
     function RunConsole(const aCommand: string): string;
     function SaveAsPrivatePackage(aPackage: TInitialPackage): string;
@@ -58,7 +48,6 @@ type
     procedure DPMClosed;
     procedure DPMMenuItemClick(Sender: TObject);
     procedure DPMOpened;
-    procedure FreePackageLists;
     procedure FreeVersionCacheList;
     procedure InstallBpl(const aBplPath: string);
     procedure LoadRepoVersions(aPackage: TPackage);
@@ -66,6 +55,7 @@ type
     procedure SavePackageList(const aPath: string; aPackageList: TDependentPackageList);
     procedure UninstallBpl(const aBplPath: string);
     procedure UnlockActions;
+    function GetProjectGroup: IOTAProjectGroup;
   public
     function AreVersionsLoaded(const aPackageID: string): Boolean;
     function AllowAction(const aFrameActionType: TFrameActionType;
@@ -73,15 +63,11 @@ type
     function DefineVersion(aPackage: TPackage; aVersion: TVersion): TVersion;
     function GetIDEPackages: TDependentPackageList;
     function GetInitialPackage(aDependentPackage: TDependentPackage): TInitialPackage;
-    function GetPrivatePackages: TPrivatePackageList;
     function GetVersions(aPackage: TPackage; aCachedOnly: Boolean = False): TArray<TVersion>;
-    function LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList; overload;
-    function LoadDependencies(aDependentPackage: TDependentPackage): TDependentPackageList; overload;
     function LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName, aError: string): Boolean;
     function LoadRepoTree(aPackage: TPackage; aVersion: TVersion): TTree;
     function SaveContent(const aPackagePath, aRepoPath, aContent: string): string;
     function ShowConflictForm(const aCaption: string; aVersionConflicts: TVersionConflicts): TVersionConflicts;
-    function Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
     procedure AddNewPrivatePackage(aPackage: TInitialPackage);
     procedure ApplyAndSaveSettings;
     procedure OpenProject(const aProjectPath: string);
@@ -93,25 +79,39 @@ type
     property GetFolder: TUIGetFolderFunc read FUIGetFolderFunc;
     property GHAPI: TGHAPI read FGHAPI;
     property Settings: TSettings read FSettings;
-  public
-    class function GetFiles(const aDirectoryPath, aNamePattern: string): TArray<string>;
-    function ActiveProjectContains(const aFilePath: string): Boolean;
     function GetPackagePath(aPackage: TPackage): string;
-    function GetProjectPackages: TDependentPackageList;
-    function GetVendorsPath: string;
-    function Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
     function IsProjectOpened: Boolean;
-    function Uninstall(aPackage: TPackage): TPackageHandles;
     procedure AddFileToActiveProject(const aFilePath: string);
-    procedure RemoveFileFromActiveProject(const aFilePath: string);
     procedure ResetDependentPackage(aDependentPackage: TDependentPackage);
     procedure SaveActiveProject;
     procedure SavePackages;
     property AreActionsLocked: Boolean read FAreActionsLocked;
-    property NotifyUI: TUINotifyProc read FUINotifyProc;
 
+  private
+    FProjectPackages: TDependentPackageList;
+    FTestMode: Boolean;
+    procedure FreePackageLists;
   public
-    function CreateNewProject(const aProjectName: string): IOTAProject;
+    class function Files_Get(const aDirectoryPath, aNamePattern: string): TArray<string>;
+    class function File_GetText(const aPath: string): string;
+    function Action_Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
+    function Action_Uninstall(aPackage: TPackage): TPackageHandles;
+    function Action_Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
+    function Packages_GetPrivate: TPrivatePackageList;
+    function Packages_GetProject: TDependentPackageList;
+    function Package_LoadDependencies(aDependentPackage: TDependentPackage): TDependentPackageList; overload;
+    function Package_LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList; overload;
+    function Path_GetActiveProject: string;
+    function Path_GetProjectPackages: string;
+    function Path_GetVendors: string;
+    function ProjectActive_Contains(const aFilePath: string): Boolean;
+    function ProjectActive_RemoveFile(const aFilePath: string): IOTAProject;
+    function Project_GetActive: IOTAProject;
+    function Project_GetDPM: IOTAProject;
+    function Project_GetTest: IOTAProject;
+    function Project_SetActive(aProject: IOTAProject): IOTAProject;
+    property NotifyUI: TUINotifyProc read FUINotifyProc;
+    property TestMode: Boolean read FTestMode write FTestMode;
   end;
 
 implementation
@@ -132,7 +132,7 @@ uses
 
 { TDPMEngine }
 
-function TDPMEngine.ActiveProjectContains(const aFilePath: string): Boolean;
+function TDPMEngine.ProjectActive_Contains(const aFilePath: string): Boolean;
 begin
   Result := GetActiveProject.FindModuleInfo(aFilePath) <> nil;
 end;
@@ -166,10 +166,10 @@ var
 begin
   Path := SaveAsPrivatePackage(aPackage);
 
-  Package := TPrivatePackage.Create(GetTextFromFile(Path));
+  Package := TPrivatePackage.Create(File_GetText(Path));
   Package.FilePath := Path;
 
-  GetPrivatePackages.Add(Package);
+  Packages_GetPrivate.Add(Package);
 end;
 
 procedure TDPMEngine.AddFileToActiveProject(const aFilePath: string);
@@ -254,7 +254,7 @@ begin
   FUINotifyProc(Format('compiling %s', [aProjectFileName]));
 
   ProjectFilePath := '';
-  Files := GetFiles(aPackagePath, '*');
+  Files := Files_Get(aPackagePath, '*');
   for FileItem in Files do
     if FileItem.EndsWith(aProjectFileName) then
     begin
@@ -329,14 +329,18 @@ begin
   Validation := TValidation.Create(Self);
 end;
 
-function TDPMEngine.CreateNewProject(const aProjectName: string): IOTAProject;
+function TDPMEngine.Project_GetTest: IOTAProject;
 var
-  ModuleServices: IOTAModuleServices;
   ProjectGroup: IOTAProjectGroup;
+  i: Integer;
 begin
-  ModuleServices := BorlandIDEServices as IOTAModuleServices;
-  ProjectGroup := ModuleServices.MainProjectGroup;
-  ProjectGroup.AddNewProject;
+  ProjectGroup := GetProjectGroup;
+
+  for i := 0 to ProjectGroup.ProjectCount - 1 do
+    if ProjectGroup.Projects[i].FileName.EndsWith('DPMTestProject.dproj') then
+      Exit(ProjectGroup.Projects[i]);
+
+  raise Exception.Create('Test project DPMTestProject.dproj is not in the project group!');
 end;
 
 function TDPMEngine.DefineVersion(aPackage: TPackage; aVersion: TVersion): TVersion;
@@ -432,7 +436,7 @@ end;
 procedure TDPMEngine.DPMOpened;
 begin
   if TFile.Exists(GetSettingsPath) then
-    FSettings := TSettings.Create(GetTextFromFile(GetSettingsPath))
+    FSettings := TSettings.Create(File_GetText(GetSettingsPath))
   else
     FSettings := TSettings.Create;
 
@@ -442,7 +446,7 @@ end;
 function TDPMEngine.GetInitialPackage(
   aDependentPackage: TDependentPackage): TInitialPackage;
 begin
-  Result := GetPrivatePackages.GetByID(aDependentPackage.ID);
+  Result := Packages_GetPrivate.GetByID(aDependentPackage.ID);
 
   if Assigned(Result) then
     Exit(Result);
@@ -485,29 +489,12 @@ begin
     FreeAndNil(FVersionCacheList);
 end;
 
-function TDPMEngine.GetActiveProject: IOTAProject;
-var
-  i: Integer;
-  Module: IOTAModule;
-  ModuleServices: IOTAModuleServices;
-  Project: IOTAProject;
-  ProjectGroup: IOTAProjectGroup;
+function TDPMEngine.Project_GetActive: IOTAProject;
 begin
-  Result := nil;
-
-  ModuleServices := BorlandIDEServices as IOTAModuleServices;
-  for i := 0 to ModuleServices.ModuleCount - 1 do
-  begin
-    Module := ModuleServices.Modules[i];
-    if Supports(Module, IOTAProjectGroup, ProjectGroup) then
-      Exit(ProjectGroup.ActiveProject)
-    else
-    if Supports(Module, IOTAProject, Project) then
-      Exit(Project);
-  end;
+  Result := GetActiveProject;
 end;
 
-function TDPMEngine.GetActiveProjectPath: string;
+function TDPMEngine.Path_GetActiveProject: string;
 begin
   Result := TDirectory.GetParent(GetActiveProject.FileName);
 end;
@@ -534,7 +521,21 @@ begin
     raise Exception.Create('unknown package type');
 end;
 
-class function TDPMEngine.GetFiles(const aDirectoryPath, aNamePattern: string): TArray<string>;
+function TDPMEngine.Project_GetDPM: IOTAProject;
+var
+  ProjectGroup: IOTAProjectGroup;
+  i: Integer;
+begin
+  ProjectGroup := GetProjectGroup;
+
+  for i := 0 to ProjectGroup.ProjectCount - 1 do
+    if ProjectGroup.Projects[i].FileName.EndsWith('Apollo_DPM.dproj') then
+      Exit(ProjectGroup.Projects[i]);
+
+  raise Exception.Create('Project Apollo_DPM.dproj is not in the project group!');
+end;
+
+class function TDPMEngine.Files_Get(const aDirectoryPath, aNamePattern: string): TArray<string>;
 var
   Files: TStringDynArray;
   i: Integer;
@@ -573,34 +574,15 @@ begin
   Result := TPath.Combine(TPath.GetPublicPath, cPathIDEPackages);
 end;
 
-function TDPMEngine.GetInstallPackageHandle(aDependentPackage: TDependentPackage;
-  aVersion: TVersion): TPackageHandle;
-var
-  InitialPackage: TInitialPackage;
-  NeedToFree: Boolean;
-begin
-  NeedToFree := False;
-
-  InitialPackage := GetInitialPackage(aDependentPackage);
-
-  if not Assigned(InitialPackage) then
-  begin
-    InitialPackage := TInitialPackage.Create;
-    InitialPackage.Assign(aDependentPackage);
-    NeedToFree := True;
-  end;
-  Result := TPackageHandle.CreateInstallHandle(InitialPackage, aVersion, False{IsDirect}, NeedToFree);
-end;
-
 function TDPMEngine.GetPackagePath(aPackage: TPackage): string;
 begin
   if IsProjectOpened then
-    Result := TPath.Combine(GetVendorsPath, aPackage.Name)
+    Result := TPath.Combine(Path_GetVendors, aPackage.Name)
   else
     Result := '';
 end;
 
-function TDPMEngine.GetPrivatePackages: TPrivatePackageList;
+function TDPMEngine.Packages_GetPrivate: TPrivatePackageList;
 var
   FileArr: TArray<string>;
   FileItem: string;
@@ -611,12 +593,12 @@ begin
   begin
     if TDirectory.Exists(GetPrivatePackagesFolderPath) then
     begin
-      FileArr := GetFiles(GetPrivatePackagesFolderPath, '*.json');
+      FileArr := Files_Get(GetPrivatePackagesFolderPath, '*.json');
       PrivatePackageFiles := [];
       for FileItem in FileArr do
       begin
         PrivatePackageFile.Path := FileItem;
-        PrivatePackageFile.JSONString := GetTextFromFile(FileItem);
+        PrivatePackageFile.JSONString := File_GetText(FileItem);
 
         PrivatePackageFiles := PrivatePackageFiles + [PrivatePackageFile];
       end;
@@ -624,7 +606,7 @@ begin
       if Length(PrivatePackageFiles) > 0 then
         FPrivatePackages := TPrivatePackageList.Create(PrivatePackageFiles);
 
-      FPrivatePackages.SetDependentPackageRef(GetProjectPackages);
+      FPrivatePackages.SetDependentPackageRef(Packages_GetProject);
       FPrivatePackages.SetDependentPackageRef(GetIDEPackages);
     end;
   end;
@@ -639,15 +621,23 @@ begin
   Result := TPath.Combine(TPath.GetPublicPath, cPathPrivatePackagesFolder);
 end;
 
-function TDPMEngine.GetProjectPackages: TDependentPackageList;
+function TDPMEngine.GetProjectGroup: IOTAProjectGroup;
+var
+  ModuleServices: IOTAModuleServices;
+begin
+  ModuleServices := BorlandIDEServices as IOTAModuleServices;
+  Result := ModuleServices.MainProjectGroup;
+end;
+
+function TDPMEngine.Packages_GetProject: TDependentPackageList;
 var
   sJSON: string;
 begin
   if not Assigned(FProjectPackages) then
   begin
-    if TFile.Exists(GetProjectPackagesPath) then
+    if TFile.Exists(Path_GetProjectPackages) then
     begin
-      sJSON := TFile.ReadAllText(GetProjectPackagesPath, TEncoding.ANSI);
+      sJSON := TFile.ReadAllText(Path_GetProjectPackages, TEncoding.ANSI);
       FProjectPackages := TDependentPackageList.Create(sJSON, SyncVersionCache);
     end
     else
@@ -657,10 +647,10 @@ begin
   Result := FProjectPackages;
 end;
 
-function TDPMEngine.GetProjectPackagesPath: string;
+function TDPMEngine.Path_GetProjectPackages: string;
 begin
   if IsProjectOpened then
-    Result := TPath.Combine(GetActiveProjectPath, cPathProjectPackages)
+    Result := TPath.Combine(Path_GetActiveProject, cPathProjectPackages)
   else
     Result := '';
 end;
@@ -670,14 +660,14 @@ begin
   Result := TPath.Combine(TPath.GetPublicPath, cPathSettings);
 end;
 
-function TDPMEngine.GetTextFromFile(const aPath: string): string;
+class function TDPMEngine.File_GetText(const aPath: string): string;
 begin
   Result := TFile.ReadAllText(aPath, TEncoding.ANSI);
 end;
 
-function TDPMEngine.GetVendorsPath: string;
+function TDPMEngine.Path_GetVendors: string;
 begin
-  Result := TPath.Combine(TDirectory.GetParent(GetActiveProjectPath), 'Vendors');
+  Result := TPath.Combine(TDirectory.GetParent(Path_GetActiveProject), 'Vendors');
 end;
 
 function TDPMEngine.GetVersionCacheList: TVersionCacheList;
@@ -696,13 +686,14 @@ begin
   Result := GetVersionCacheList.GetByPackageID(aPackage.ID);
 end;
 
-function TDPMEngine.Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
+function TDPMEngine.Action_Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
 var
   Action: TInstall;
 begin
   LockActions;
   Action := TInstall.GetClass(aInitialPackage.PackageType).Create(Self, aInitialPackage, aVersion);
   try
+    Action.TestMode := TestMode;
     Result := Action.Run;
   finally
     Action.Free;
@@ -737,7 +728,7 @@ begin
   Result := GetActiveProject <> nil;
 end;
 
-function TDPMEngine.LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList;
+function TDPMEngine.Package_LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList;
 var
   DependentPackage: TDependentPackage;
 begin
@@ -751,7 +742,7 @@ begin
   end;
 end;
 
-function TDPMEngine.LoadDependencies(
+function TDPMEngine.Package_LoadDependencies(
   aDependentPackage: TDependentPackage): TDependentPackageList;
 var
   DependentPackage: TDependentPackage;
@@ -761,7 +752,7 @@ begin
 
   for ID in aDependentPackage.Version.Dependencies do
   begin
-    DependentPackage := GetProjectPackages.GetByID(ID);
+    DependentPackage := Packages_GetProject.GetByID(ID);
 
     if Assigned(DependentPackage) then
       Result.Add(DependentPackage);
@@ -852,79 +843,14 @@ begin
   FUIActionsLockProc;
 end;
 
-function TDPMEngine.PostProcessPackageHandles(
-  const aPackageHandles: TPackageHandles): TPackageHandles;
-var
-  i: Integer;
-  PackageHandle: TPackageHandle;
-begin
-  Result := [];
-
-  for i := High(aPackageHandles) downto 0 do
-  begin
-    PackageHandle := aPackageHandles[i];
-
-    if PackageHandle.NeedToFree then
-      PackageHandle.Package.Free;
-    PackageHandle.Package := nil;
-
-    if (PackageHandle.PackageAction = paUninstall) and
-       aPackageHandles.ContainsInstallHandle(PackageHandle.PackageID)
-    then
-      //do nothing
-    else
-      Result := Result + [PackageHandle];
-  end;
-end;
-
-function TDPMEngine.ProcessRequiredDependencies(const aCaption: string;
-  aRequiredDependencies: TDependentPackageList): TPackageHandles;
-var
-  InstalledDependency: TDependentPackage;
-  RequiredDependency: TDependentPackage;
-  VersionConflict: TVersionConflict;
-  VersionConflicts: TVersionConflicts;
-begin
-  Result := [];
-  VersionConflicts := [];
-
-  for RequiredDependency in aRequiredDependencies do
-  begin
-    InstalledDependency := GetProjectPackages.GetByID(RequiredDependency.ID);
-
-    if Assigned(InstalledDependency) and
-      (InstalledDependency.Version.SHA <> RequiredDependency.Version.SHA)
-    then
-        VersionConflicts := VersionConflicts + [
-          TVersionConflict.Create(RequiredDependency, RequiredDependency.Version, InstalledDependency.Version)]
-    else
-      Result := Result + [GetInstallPackageHandle(RequiredDependency, RequiredDependency.Version)];
-  end;
-
-  if Length(VersionConflicts) > 0 then
-  begin
-    VersionConflicts := ShowConflictForm(aCaption, VersionConflicts);
-
-    for VersionConflict in VersionConflicts do
-    begin
-      if VersionConflict.Selection = VersionConflict.RequiredVersion then
-      begin
-        InstalledDependency := GetProjectPackages.GetByID(VersionConflict.DependentPackage.ID);
-        Result := Result + [TPackageHandle.CreateUninstallHandle(InstalledDependency)];
-
-        Result := Result + [GetInstallPackageHandle(VersionConflict.DependentPackage, VersionConflict.Selection)];
-      end;
-    end;
-  end;
-end;
-
-procedure TDPMEngine.RemoveFileFromActiveProject(const aFilePath: string);
+function TDPMEngine.ProjectActive_RemoveFile(const aFilePath: string): IOTAProject;
 begin
   TThread.Synchronize(nil, procedure()
     begin
       GetActiveProject.RemoveFile(aFilePath);
     end
   );
+  Result := GetActiveProject;
 end;
 
 function TDPMEngine.RepoPathToFilePath(const aRepoPath: string): string;
@@ -1008,9 +934,24 @@ end;
 procedure TDPMEngine.SavePackages;
 begin
   if IsProjectOpened then
-    SavePackageList(GetProjectPackagesPath, GetProjectPackages);
+    SavePackageList(Path_GetProjectPackages, Packages_GetProject);
 
   SavePackageList(GetIDEPackagesPath, GetIDEPackages);
+end;
+
+function TDPMEngine.Project_SetActive(aProject: IOTAProject): IOTAProject;
+var
+  ProjectGroup: IOTAProjectGroup;
+begin
+  ProjectGroup := GetProjectGroup;
+
+  if ProjectGroup.ActiveProject <> aProject then
+  begin
+    ProjectGroup.SetActiveProject(aProject);
+    FreePackageLists;
+  end;
+
+  Result := aProject;
 end;
 
 procedure TDPMEngine.ApplyAndSaveSettings;
@@ -1062,7 +1003,7 @@ begin
   end;
 end;
 
-function TDPMEngine.Uninstall(aPackage: TPackage): TPackageHandles;
+function TDPMEngine.Action_Uninstall(aPackage: TPackage): TPackageHandles;
 var
   Action: TUninstall;
   DependentPackage: TDependentPackage;
@@ -1071,6 +1012,7 @@ begin
   DependentPackage := GetDependentPackage(aPackage);
   Action := TUninstall.GetClass(DependentPackage.PackageType).Create(Self, DependentPackage);
   try
+    Action.TestMode := TestMode;
     Result := Action.Run;
   finally
     Action.Free;
@@ -1094,64 +1036,20 @@ begin
   FAreActionsLocked := False;
 end;
 
-function TDPMEngine.Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
+function TDPMEngine.Action_Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
 var
+  Action: TUpdate;
   DependentPackage: TDependentPackage;
-  InstalledDependencies: TDependentPackageList;
-  InstalledDependency: TDependentPackage;
-  PackageHandle: TPackageHandle;
-  RequiredDependencies: TDependentPackageList;
-  RequiredDependency: TDependentPackage;
-  Version: TVersion;
 begin
-  Version := DefineVersion(aPackage, aVersion);
-
+  LockActions;
   DependentPackage := GetDependentPackage(aPackage);
-  if DependentPackage.Version.SHA = Version.SHA then
-  begin
-    FUINotifyProc(Format(#13#10'Package %s %s already up to date.', [aPackage.Name, Version.DisplayName]));
-    Result := [TPackageHandle.CreateInstallHandle(aPackage, Version, True{IsDirect}, False{NeedToFree})];
-    Exit;
-  end;
-
-  FUINotifyProc(Format(#13#10'Updating %s %s', [DependentPackage.Name, DependentPackage.Version.DisplayName]));
-
-  Result := [TPackageHandle.CreateUninstallHandle(DependentPackage)];
-  Result := Result + [GetInstallPackageHandle(DependentPackage, Version)];
-
-  InstalledDependencies := LoadDependencies(DependentPackage);
-  RequiredDependencies := LoadDependencies(Result.GetFirstInstallPackage, Version);
+  Action := TUpdate.GetClass(DependentPackage.PackageType).Create(Self, DependentPackage, aVersion);
   try
-    for InstalledDependency in InstalledDependencies do
-    begin
-      RequiredDependency := RequiredDependencies.GetByID(InstalledDependency.ID);
-      if (not Assigned(RequiredDependency)) and
-         (not GetProjectPackages.IsUsingDependenceExceptOwner(InstalledDependency.ID, DependentPackage.ID))
-      then
-        Result := Result + [TPackageHandle.CreateUninstallHandle(InstalledDependency)];
-    end;
-
-    Result := Result + ProcessRequiredDependencies(Format('Updating package %s version conflict', [DependentPackage.Name]),
-      RequiredDependencies);
-
-    {for PackageHandle in Result do
-      if PackageHandle.PackageAction = paUninstall then
-        DoUninstall(PackageHandle.Package as TDependentPackage);
-
-    for PackageHandle in Result do
-      if PackageHandle.PackageAction = paInstall then
-        DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect); }
-
-    SavePackages;
-
-    if IsProjectOpened then
-      SaveActiveProject;
-
-    FUINotifyProc('Success');
+    Action.TestMode := TestMode;
+    Result := Action.Run;
   finally
-    InstalledDependencies.Free;
-    RequiredDependencies.Free;
-    Result := PostProcessPackageHandles(Result);
+    Action.Free;
+    UnlockActions;
   end;
 end;
 

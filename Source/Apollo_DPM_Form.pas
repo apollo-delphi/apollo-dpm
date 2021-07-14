@@ -99,7 +99,7 @@ type
     procedure RenderPackages;
     procedure RenderSettings;
     procedure RenderTest;
-    procedure UpdateFrame(aFrame: TPackageFrame);
+    procedure UpdateFrame(aFrame: TPackageFrame; aPackage: TPackage);
     procedure UpdateFrames(aPackageHandles: TPackageHandles);
   public
     function GetFolder: string;
@@ -230,7 +230,7 @@ begin
         AsyncLoad(nil,
           procedure
           begin
-            PackageHandles := FDPMEngine.Install(aPackage as TInitialPackage, aVersion);
+            PackageHandles := FDPMEngine.Action_Install(aPackage as TInitialPackage, aVersion);
           end,
           procedure
           begin
@@ -243,7 +243,7 @@ begin
         AsyncLoad(nil,
           procedure
           begin
-            PackageHandles := FDPMEngine.Update(aPackage, aVersion);
+            PackageHandles := FDPMEngine.Action_Update(aPackage, aVersion);
           end,
           procedure
           begin
@@ -253,7 +253,7 @@ begin
       end;
     fatUninstall:
       begin
-        PackageHandles := FDPMEngine.Uninstall(aPackage);
+        PackageHandles := FDPMEngine.Action_Uninstall(aPackage);
         UpdateFrames(PackageHandles);
       end;
     fatEditPackage:
@@ -261,7 +261,7 @@ begin
       if ShowPackageForm(aPackage as TInitialPackage) then
       begin
         FDPMEngine.UpdatePrivatePackage(aPackage as TPrivatePackage);
-        UpdateFrame(GetFrame(aPackage.ID));
+        UpdateFrame(GetFrame(aPackage.ID), aPackage);
       end;
     end;
   end;
@@ -416,7 +416,7 @@ begin
     procedure()
     begin
       if Assigned(InitialPackage) then
-        Dependencies := FDPMEngine.LoadDependencies(InitialPackage, Version);
+        Dependencies := FDPMEngine.Package_LoadDependencies(InitialPackage, Version);
     end,
     procedure()
     var
@@ -449,10 +449,10 @@ end;
 procedure TDPMForm.RenderPackages;
 begin
   if GetSelectedNavigation = cNavPrivatePackages then
-    RenderPackageList(FDPMEngine.GetPrivatePackages)
+    RenderPackageList(FDPMEngine.Packages_GetPrivate)
   else
   if GetSelectedNavigation = cNavProjectDependencies then
-    RenderPackageList(FDPMEngine.GetProjectPackages)
+    RenderPackageList(FDPMEngine.Packages_GetProject)
   else
   if GetSelectedNavigation = cNavInstalledToIDE then
     RenderPackageList(FDPMEngine.GetIDEPackages);
@@ -557,15 +557,16 @@ begin
     Frame.UnlockActions;
 end;
 
-procedure TDPMForm.UpdateFrame(aFrame: TPackageFrame);
+procedure TDPMForm.UpdateFrame(aFrame: TPackageFrame; aPackage: TPackage);
 begin
   if Assigned(aFrame) then
-    aFrame.ReRenderPackage;
+    aFrame.RenderPackage(aPackage);
 end;
 
 procedure TDPMForm.UpdateFrames(aPackageHandles: TPackageHandles);
 var
   Frame: TPackageFrame;
+  Package: TPackage;
   PackageHandle: TPackageHandle;
 begin
   for PackageHandle in aPackageHandles do
@@ -574,23 +575,35 @@ begin
 
     if not Assigned(Frame) then
     begin
+      Package := FDPMEngine.Packages_GetProject.GetByID(PackageHandle.PackageID);
+
       if (PackageHandle.PackageAction = paInstall) and (GetSelectedNavigation = cNavProjectDependencies) then
-        RenderPackage(FDPMEngine.GetProjectPackages.GetByID(PackageHandle.PackageID), Length(FPackageFrames));
+        RenderPackage(Package, Length(FPackageFrames));
 
       Continue;
     end;
 
     if Frame.PackageClass = TPrivatePackage then
+    begin
+      Package := FDPMEngine.Packages_GetProject.GetByID(PackageHandle.PackageID);
+
       case PackageHandle.PackageAction of
-        paInstall: UpdateFrame(Frame);
-        paUninstall: UpdateFrame(Frame);
-      end
+        paInstall: UpdateFrame(Frame, Package);
+        paUninstall: UpdateFrame(Frame, Package);
+      end;
+    end
     else
     if Frame.PackageClass = TDependentPackage then
+    begin
+      Package := FDPMEngine.Packages_GetPrivate.GetByID(PackageHandle.PackageID);
+
       case PackageHandle.PackageAction of
-        paInstall: UpdateFrame(Frame);
+        paInstall: UpdateFrame(Frame, Package);
         paUninstall: DeleteFrame(Frame);
       end;
+    end
+    else
+      raise Exception.Create('TDPMForm.UpdateFrames: not implemented PackageClass');
   end;
 end;
 

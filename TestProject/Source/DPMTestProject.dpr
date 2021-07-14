@@ -2,7 +2,8 @@ program DPMTestProject;
 
 uses
   Vcl.Forms,
-  DPMTestForm in 'DPMTestForm.pas' {TestForm};
+  DPMTestForm in 'DPMTestForm.pas' {TestForm},
+  Apollo_Helpers in '..\Vendors\Apollo_Helpers\Apollo_Helpers.pas';
 
 {$R *.res}
 

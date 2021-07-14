@@ -4,7 +4,7 @@ object ConflictForm: TConflictForm
   BorderStyle = bsDialog
   Caption = 'Version Conflicts'
   ClientHeight = 299
-  ClientWidth = 454
+  ClientWidth = 484
   Color = clWindow
   OldCreateOrder = False
   Position = poOwnerFormCenter
@@ -22,8 +22,8 @@ object ConflictForm: TConflictForm
     Font.Style = [fsBold]
   end
   object btnApply: TButton
-    Left = 293
-    Top = 270
+    Left = 324
+    Top = 269
     Width = 75
     Height = 25
     Caption = 'Apply'
@@ -31,8 +31,8 @@ object ConflictForm: TConflictForm
     OnClick = btnApplyClick
   end
   object btnCancel: TButton
-    Left = 374
-    Top = 270
+    Left = 405
+    Top = 269
     Width = 75
     Height = 25
     Caption = 'Cancel'
@@ -42,7 +42,7 @@ object ConflictForm: TConflictForm
   object sbVersionConflicts: TScrollBox
     Left = 0
     Top = 34
-    Width = 454
+    Width = 484
     Height = 209
     Align = alTop
     BevelInner = bvNone
@@ -55,7 +55,7 @@ object ConflictForm: TConflictForm
   object pnlHeader: TPanel
     Left = 0
     Top = 0
-    Width = 454
+    Width = 484
     Height = 34
     Align = alTop
     BevelOuter = bvNone

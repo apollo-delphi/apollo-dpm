@@ -167,7 +167,7 @@ begin
 
   if aVisibility = vPrivate then
   begin
-    Package := FDPMEngine.GetPrivatePackages.GetByName(aPackageName);
+    Package := FDPMEngine.Packages_GetPrivate.GetByName(aPackageName);
 
     if Assigned(Package) and (Package.ID <> aPackageID) then
       Exit(False);

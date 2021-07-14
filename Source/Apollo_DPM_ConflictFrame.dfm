@@ -1,7 +1,7 @@
 object ConflictFrame: TConflictFrame
   Left = 0
   Top = 0
-  Width = 450
+  Width = 477
   Height = 73
   Anchors = [akLeft, akTop, akRight]
   Color = clWindow
@@ -70,7 +70,7 @@ object ConflictFrame: TConflictFrame
     Font.Style = [fsBold]
   end
   object rbKeepInstalled: TRadioButton
-    Left = 313
+    Left = 347
     Top = 27
     Width = 105
     Height = 17
@@ -78,7 +78,7 @@ object ConflictFrame: TConflictFrame
     TabOrder = 0
   end
   object rbUpdateToRequired: TRadioButton
-    Left = 313
+    Left = 347
     Top = 49
     Width = 130
     Height = 17

@@ -13,18 +13,44 @@ object TestFrame: TTestFrame
     Caption = 'Run Tests'
     Flat = True
   end
+  object lbCopyErrorInfo: TLabel
+    Left = 303
+    Top = 333
+    Width = 186
+    Height = 13
+    Anchors = [akLeft, akBottom]
+    AutoSize = False
+    Caption = 'Double click for copy error to clipboard'
+    ParentFont = False
+    Font.Name = 'Tahoma'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Style = [fsItalic]
+  end
   object lvTests: TListView
     Left = 100
     Top = 34
-    Width = 281
-    Height = 321
+    Width = 389
+    Height = 295
     Anchors = [akLeft, akTop, akBottom]
     Checkboxes = True
-    Columns = <>
+    Columns = <
+      item
+        Caption = 'Test'
+        Width = 220
+      end
+      item
+        Caption = 'Result'
+        Width = 55
+      end
+      item
+        Caption = 'Error'
+        Width = 110
+      end>
     ReadOnly = True
     RowSelect = True
     TabOrder = 0
-    ViewStyle = vsList
+    ViewStyle = vsReport
+    OnDblClick = lvTestsDblClick
   end
   object alActions: TActionList
     Images = ilIcons

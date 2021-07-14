@@ -6,7 +6,7 @@
         <Projects Include="Apollo_DPM.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="..\TestProject\DPMTestProject.dproj">
+        <Projects Include="..\TestProject\Source\DPMTestProject.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -27,13 +27,13 @@
         <MSBuild Projects="Apollo_DPM.dproj" Targets="Make"/>
     </Target>
     <Target Name="DPMTestProject">
-        <MSBuild Projects="..\TestProject\DPMTestProject.dproj"/>
+        <MSBuild Projects="..\TestProject\Source\DPMTestProject.dproj"/>
     </Target>
     <Target Name="DPMTestProject:Clean">
-        <MSBuild Projects="..\TestProject\DPMTestProject.dproj" Targets="Clean"/>
+        <MSBuild Projects="..\TestProject\Source\DPMTestProject.dproj" Targets="Clean"/>
     </Target>
     <Target Name="DPMTestProject:Make">
-        <MSBuild Projects="..\TestProject\DPMTestProject.dproj" Targets="Make"/>
+        <MSBuild Projects="..\TestProject\Source\DPMTestProject.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
         <CallTarget Targets="Apollo_DPM;DPMTestProject"/>

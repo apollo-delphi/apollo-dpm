@@ -69,7 +69,6 @@ type
     function IsShowingPackage(const aPackageID: string): Boolean;
     procedure LockActions;
     procedure RenderPackage(aPackage: TPackage);
-    procedure ReRenderPackage;
     procedure UnlockActions;
     constructor Create(aOwner: TWinControl; aDPMEngine: TDPMEngine;
       const aIndex: Integer); reintroduce;
@@ -97,7 +96,7 @@ type
     FIsOption: Boolean;
   public
     constructor Create(aVersion: TVersion); overload;
-    constructor Create(const aGetVersionOption: string); overload;
+    constructor Create; overload;
     destructor Destroy; override;
   end;
 
@@ -235,7 +234,7 @@ begin
   ClearVersionsCombo;
 
   if not FDPMEngine.AreVersionsLoaded(FPackage.ID) then
-    cbVersions.Items.AddObject(cStrLatestVersionOrCommit, TVersionComboItem.Create(cStrLatestVersionOrCommit));
+    cbVersions.Items.AddObject(cStrLatestVersionOrCommit, TVersionComboItem.Create);
 
   Versions := FDPMEngine.GetVersions(FPackage, True);
   for Version in Versions do
@@ -330,10 +329,10 @@ begin
 
   lblName.Caption := aPackage.Name;
   lblDescription.Caption := aPackage.Description;
-  lblInstalled.Visible := False;
 
   FillVersionsCombo;
 
+  lblInstalled.Visible := False;
   FInstalledVersion := nil;
   if FPackage is TDependentPackage then
   begin
@@ -357,11 +356,6 @@ begin
 
   SetAllowedActions;
   SetActionBtnMenuItem(GetFirstActionMenuItem);
-end;
-
-procedure TPackageFrame.ReRenderPackage;
-begin
-  RenderPackage(FPackage);
 end;
 
 procedure TPackageFrame.mniEditPackageClick(Sender: TObject);
@@ -415,13 +409,10 @@ end;
 
 { TVersionComboItem }
 
-constructor TVersionComboItem.Create(const aGetVersionOption: string);
+constructor TVersionComboItem.Create;
 begin
   FIsOption := True;
-  FVersion := TVersion.Create;
-
-  FVersion.Name := aGetVersionOption;
-  FVersion.SHA := '';
+  FVersion := TVersion.CreateAsLatestVersionOption;
 end;
 
 destructor TVersionComboItem.Destroy;
