@@ -736,7 +736,7 @@ begin
     on E: Exception do
     begin
       FDPMEngine.NotifyUI(E.Message);
-      FDPMEngine.NotifyUI('uptdating failed');
+      FDPMEngine.NotifyUI('updating failed');
       raise;
     end;
   end;

@@ -75,7 +75,7 @@ object PackageForm: TPackageForm
     TabOrder = 3
   end
   object btnApply: TButton
-    Left = 168
+    Left = 170
     Top = 445
     Width = 75
     Height = 25
@@ -131,7 +131,7 @@ object PackageForm: TPackageForm
       EditLabel.Caption = 'Owner'
       LabelPosition = lpLeft
       ReadOnly = True
-      TabOrder = 2
+      TabOrder = 1
     end
     object leRepoName: TLabeledEdit
       Left = 45
