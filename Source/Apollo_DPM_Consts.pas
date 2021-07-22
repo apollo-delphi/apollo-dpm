@@ -57,9 +57,11 @@ const
   cNavSettings = 'Settings';
   cNavTest = 'Test';
 
+  cPathBplVendorsFolder = 'Apollo\DPM\Vendors';
   cPathIDEPackages = 'Apollo\DPM\DPM.IDEPackages.json';
   cPathPrivatePackagesFolder = 'Apollo\DPM\PrivatePackages';
   cPathProjectPackages = 'DPM.Packages.json';
+  cPathProjectVendorsFolder = 'Vendors';
   cPathSettings = 'Apollo\DPM\DPM.Settings.json';
 
   cStrAPackageWithThisNameAlreadyExists = 'A package with this name already exists!';

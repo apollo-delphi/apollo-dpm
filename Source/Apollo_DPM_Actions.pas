@@ -6,7 +6,8 @@ uses
   Apollo_DPM_Engine,
   Apollo_DPM_Package,
   Apollo_DPM_Types,
-  Apollo_DPM_Version;
+  Apollo_DPM_Version,
+  Xml.XMLIntf;
 
 type
   TDPMAction = class abstract
@@ -26,6 +27,7 @@ type
     procedure DeletePackagePath(aPackage: TPackage);
   protected
     procedure DoUninstall(aDependentPackage: TDependentPackage); virtual;
+    procedure RemovePackageFromLists(const aPackageID: string; aDependentPackage: TDependentPackage); virtual;
   public
     class function Allowed(aDPMEngine: TDPMEngine; aPackage: TDependentPackage;
       aVersion: TVersion): Boolean;
@@ -41,6 +43,14 @@ type
     procedure DoUninstall(aDependentPackage: TDependentPackage); override;
   end;
 
+  TUninstallBplSource = class(TUninstall)
+  private
+    procedure UninstallBpl(const aBplPath: string);
+  protected
+    procedure DoUninstall(aDependentPackage: TDependentPackage); override;
+    procedure RemovePackageFromLists(const aPackageID: string; aDependentPackage: TDependentPackage); override;
+  end;
+
   TInstall = class;
   TInstallClass = class of TInstall;
 
@@ -51,7 +61,7 @@ type
     function SaveContent(const aPackagePath, aRepoPath, aContent: string): string;
     procedure AddPackageFiles(aInitialPackage: TInitialPackage; aVersion: TVersion);
   protected
-    function GetContentPath(aPackage: TPackage): string; virtual; abstract;
+    function GetContentPath(aPackage: TPackage): string; virtual;
     function GetDependencyHandles(aVersion: TVersion): TPackageHandles; virtual;
     function GetInstallPackageHandle(aDependentPackage: TDependentPackage;
       aVersion: TVersion; const aIsDirect: Boolean = False): TPackageHandle;
@@ -60,6 +70,7 @@ type
     function ProcessRequiredDependencies(const aCaption: string;
       aRequiredDependencies: TDependentPackageList): TPackageHandles;
     procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean); virtual;
+    procedure ProcessUninstallHandles(aPackageHandles: TPackageHandles); virtual;
   public
     class function Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
       aVersion: TVersion): Boolean; virtual;
@@ -72,7 +83,19 @@ type
   private
     procedure AddUnitsToProject(aInitialPackage: TInitialPackage);
   protected
-    function GetContentPath(aPackage: TPackage): string; override;
+    procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean); override;
+    procedure ProcessUninstallHandles(aPackageHandles: TPackageHandles); override;
+  public
+    class function Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
+      aVersion: TVersion): Boolean; override;
+  end;
+
+  TInstallBplSource = class(TInstall)
+  private
+    function FindXmlNode(aNode: IXMLNode; const aNodeName: string): IXMLNode;
+    function MakeBPL(const aProjectFileName, aPackagePath: string): string;
+    procedure InstallBpl(const aBplPath: string);
+  protected
     procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean); override;
   end;
 
@@ -112,12 +135,15 @@ type
 implementation
 
 uses
+  Apollo_DPM_Consts,
   Apollo_DPM_GitHubAPI,
   System.Classes,
   System.IOUtils,
   System.NetEncoding,
   System.SysUtils,
-  System.TypInfo;
+  System.TypInfo,
+  ToolsAPI,
+  Xml.XMLDoc;
 
 { TInstall }
 
@@ -131,7 +157,6 @@ class function TInstall.Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackag
   aVersion: TVersion): Boolean;
 begin
   Result :=
-    aDPMEngine.IsProjectOpened and
     Assigned(aVersion) and
     not aPackage.IsInstalled;
 end;
@@ -148,12 +173,18 @@ class function TInstall.GetClass(const aPackageType: TPackageType): TInstallClas
 begin
   case aPackageType of
     ptCodeSource: Result := TInstallCodeSource;
-    ptBplSource, ptBplBinary: Result := TInstall;
+    ptBplSource: Result := TInstallBplSource;
+    ptBplBinary: Result := TInstall;
     ptProjectTemplate: Result := TInstallProjectTemplate;
   else
-    raise Exception.CreateFmt('TInstall..GetClass: unknown PackageType %s',
+    raise Exception.CreateFmt('TInstall.GetClass: unknown PackageType %s',
       [GetEnumName(TypeInfo(TPackageType), Ord(aPackageType))]);
   end;
+end;
+
+function TInstall.GetContentPath(aPackage: TPackage): string;
+begin
+  Result := FDPMEngine.Path_GetPackage(aPackage);
 end;
 
 function TInstall.GetDependencyHandles(aVersion: TVersion): TPackageHandles;
@@ -177,7 +208,7 @@ var
 begin
   NeedToFree := False;
 
-  InitialPackage := FDPMEngine.GetInitialPackage(aDependentPackage);
+  InitialPackage := FDPMEngine.Package_FindInitial(aDependentPackage.ID);
 
   if not Assigned(InitialPackage) then
   begin
@@ -256,10 +287,13 @@ begin
   end;
 end;
 
+procedure TInstall.ProcessUninstallHandles(aPackageHandles: TPackageHandles);
+begin
+end;
+
 function TInstall.Run: TPackageHandles;
 var
   PackageHandle: TPackageHandle;
-  UninstallCodeSource: TUninstallCodeSource;
   Version: TVersion;
 begin
   FDPMEngine.NotifyUI(Format(#13#10'installing %s... ', [FInitialPackage.Name]));
@@ -271,20 +305,13 @@ begin
 
     Result := Result + GetDependencyHandles(Version);
 
-    UninstallCodeSource := TUninstallCodeSource.Create(FDPMEngine, nil);
-    try
-      for PackageHandle in Result do
-        if PackageHandle.PackageAction = paUninstall then
-          UninstallCodeSource.DoUninstall(PackageHandle.Package as TDependentPackage);
-    finally
-      UninstallCodeSource.Free;
-    end;
+    ProcessUninstallHandles(Result);
 
     for PackageHandle in Result do
       if PackageHandle.PackageAction = paInstall then
         DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
 
-    if FDPMEngine.IsProjectOpened then
+    if FDPMEngine.Project_IsOpened then
       FDPMEngine.SaveActiveProject;
 
     FDPMEngine.SavePackages;
@@ -404,6 +431,13 @@ end;
 
 { TInstallCodeSource }
 
+class function TInstallCodeSource.Allowed(aDPMEngine: TDPMEngine;
+  aPackage: TInitialPackage; aVersion: TVersion): Boolean;
+begin
+  Result := inherited Allowed(aDPMEngine, aPackage, aVersion)
+    and aDPMEngine.Project_IsOpened;
+end;
+
 procedure TInstallCodeSource.AddUnitsToProject(aInitialPackage: TInitialPackage);
 var
   Allow: Boolean;
@@ -466,9 +500,20 @@ begin
   FDPMEngine.Packages_GetProject.Add(DependentPackage);
 end;
 
-function TInstallCodeSource.GetContentPath(aPackage: TPackage): string;
+procedure TInstallCodeSource.ProcessUninstallHandles(
+  aPackageHandles: TPackageHandles);
+var
+  PackageHandle: TPackageHandle;
+  UninstallCodeSource: TUninstallCodeSource;
 begin
-  Result := FDPMEngine.GetPackagePath(aPackage);
+  UninstallCodeSource := TUninstallCodeSource.Create(FDPMEngine, nil);
+  try
+    for PackageHandle in aPackageHandles do
+      if PackageHandle.PackageAction = paUninstall then
+        UninstallCodeSource.DoUninstall(PackageHandle.Package as TDependentPackage);
+  finally
+    UninstallCodeSource.Free;
+  end;
 end;
 
 { TInstallBplBinary }
@@ -498,7 +543,7 @@ end;
 class function TUninstall.Allowed(aDPMEngine: TDPMEngine; aPackage: TDependentPackage;
   aVersion: TVersion): Boolean;
 begin
-  Result := aDPMEngine.IsProjectOpened and
+  Result :=
     Assigned(aPackage) and
     Assigned(aVersion) and
     (aPackage.Version.SHA = aVersion.SHA);
@@ -530,7 +575,7 @@ procedure TUninstall.DeletePackagePath(aPackage: TPackage);
 var
   Path: string;
 begin
-  Path := FDPMEngine.GetPackagePath(aPackage);
+  Path := FDPMEngine.Path_GetPackage(aPackage);
   if Path.IsEmpty then
     Exit;
 
@@ -538,32 +583,13 @@ begin
 
   TDirectory.Delete(Path, True);
 
-  if Length(TDirectory.GetDirectories(FDPMEngine.Path_GetVendors, '*', TSearchOption.soTopDirectoryOnly)) = 0 then
-    TDirectory.Delete(FDPMEngine.Path_GetVendors);
+  if Length(TDirectory.GetDirectories(FDPMEngine.Path_GetVendors(aPackage.PackageType), '*', TSearchOption.soTopDirectoryOnly)) = 0 then
+    TDirectory.Delete(FDPMEngine.Path_GetVendors(aPackage.PackageType));
 end;
 
 procedure TUninstall.DoUninstall(aDependentPackage: TDependentPackage);
-//var
-//  BplFile: string;
-//  InitialPackage: TInitialPackage;
-//  PackageID: string;
 begin
   DeletePackagePath(aDependentPackage);
-
-  {PackageID := aDependentPackage.ID;
-
-  if aDependentPackage.PackageType = ptBplSource then
-  begin
-    for BplFile in aDependentPackage.BplFileRefs do
-    begin
-      UninstallBpl(BplFile);
-      TFile.Delete(BplFile);
-    end;
-
-    GetIDEPackages.RemoveByID(PackageID);
-  end;
-
-  GetProjectPackages.RemoveByID(PackageID); }  //raise Exception.Create('Error Message');
 end;
 
 class function TUninstall.GetClass(
@@ -571,7 +597,7 @@ class function TUninstall.GetClass(
 begin
   case aPackageType of
     ptCodeSource: Result := TUninstallCodeSource;
-    ptBplSource: Result := TUninstall;
+    ptBplSource: Result := TUninstallBplSource;
     ptProjectTemplate: Result := TUninstall;
   else
     raise Exception.CreateFmt('TUninstall.GetClass: unknown PackageType %s',
@@ -579,11 +605,21 @@ begin
   end;
 end;
 
+procedure TUninstall.RemovePackageFromLists(const aPackageID: string;
+  aDependentPackage: TDependentPackage);
+begin
+  FDPMEngine.ResetDependentPackage(aDependentPackage);
+
+  if FDPMEngine.Project_IsOpened then
+    FDPMEngine.Packages_GetProject.RemoveByID(aPackageID);
+end;
+
 function TUninstall.Run: TPackageHandles;
 var
   Dependencies: TDependentPackageList;
   Dependency: TDependentPackage;
   PackageHandle: TPackageHandle;
+  UninstallPackage: TDependentPackage;
 begin
   FDPMEngine.NotifyUI(Format(#13#10 + 'uninstalling %s %s', [FDependentPackage.Name,
     FDependentPackage.Version.DisplayName]));
@@ -602,9 +638,12 @@ begin
     end;
 
     for PackageHandle in Result do
-      DoUninstall(PackageHandle.Package as TDependentPackage);
+    begin
+      UninstallPackage := PackageHandle.Package as TDependentPackage;
+      DoUninstall(UninstallPackage);
+    end;
 
-    if FDPMEngine.IsProjectOpened then
+    if FDPMEngine.Project_IsOpened then
       FDPMEngine.SaveActiveProject;
 
     FDPMEngine.SavePackages;
@@ -624,17 +663,12 @@ end;
 
 procedure TUninstallCodeSource.DoUninstall(
   aDependentPackage: TDependentPackage);
-var
-  PackageID: string;
 begin
   RemoveUnitsFromProject(aDependentPackage);
 
   inherited;
 
-  PackageID := aDependentPackage.ID;
-  FDPMEngine.ResetDependentPackage(aDependentPackage);
-
-  FDPMEngine.Packages_GetProject.RemoveByID(PackageID);
+  RemovePackageFromLists(aDependentPackage.ID, aDependentPackage);
 end;
 
 procedure TUninstallCodeSource.RemoveUnitsFromProject(
@@ -643,7 +677,7 @@ var
   FileItem: string;
   Files: TArray<string>;
 begin
-  Files := FDPMEngine.Files_Get(FDPMEngine.GetPackagePath(aDependentPackage), '*');
+  Files := FDPMEngine.Files_Get(FDPMEngine.Path_GetPackage(aDependentPackage), '*');
 
   for FileItem in Files do
     if FDPMEngine.ProjectActive_Contains(FileItem) then
@@ -721,7 +755,7 @@ begin
         if PackageHandle.PackageAction = paInstall then
           InstallCodeSource.DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
 
-      if FDPMEngine.IsProjectOpened then
+      if FDPMEngine.Project_IsOpened then
         FDPMEngine.SaveActiveProject;
 
       Result := InstallCodeSource.PostProcessPackageHandles(Result);
@@ -740,6 +774,185 @@ begin
       raise;
     end;
   end;
+end;
+
+{ TInstallBplSource }
+
+procedure TInstallBplSource.DoInstall(aInitialPackage: TInitialPackage;
+  aVersion: TVersion; const aIsDirect: Boolean);
+var
+  BplPath: string;
+  DependentPackage: TDependentPackage;
+  ProjectFileName: string;
+begin
+  inherited;
+
+  DependentPackage := TDependentPackage.CreateByInitial(aInitialPackage);
+  DependentPackage.Version := aVersion;
+  DependentPackage.IsDirect := aIsDirect;
+
+  for ProjectFileName in aInitialPackage.ProjectFileRefs do
+  begin
+    BplPath := MakeBPL(ProjectFileName, FDPMEngine.Path_GetPackage(aInitialPackage));
+    DependentPackage.BplFileRefs := DependentPackage.BplFileRefs + [BplPath];
+  end;
+
+  for BplPath in DependentPackage.BplFileRefs do
+    InstallBpl(BplPath);
+
+  if FDPMEngine.Project_IsOpened then
+    FDPMEngine.Packages_GetProject.Add(DependentPackage);
+
+  FDPMEngine.Packages_AddCopyToIDE(DependentPackage);
+end;
+
+function TInstallBplSource.FindXmlNode(aNode: IXMLNode;
+  const aNodeName: string): IXMLNode;
+var
+  i: Integer;
+begin
+  Result := nil;
+  if not Assigned(aNode) then
+    Exit;
+
+  if CompareText(aNode.NodeName, aNodeName) = 0 then
+    Result := aNode
+  else
+    if Assigned(aNode.ChildNodes) then
+      for i := 0 to aNode.ChildNodes.Count - 1 do
+      begin
+        Result := FindXmlNode(aNode.ChildNodes[I], aNodeName);
+        if Result <> nil then
+          Exit;
+      end;
+end;
+
+procedure TInstallBplSource.InstallBpl(const aBplPath: string);
+var
+  FileName: string;
+  PackageServices: IOTAPackageServices;
+begin
+  FileName := TPath.GetFileName(aBplPath);
+  FDPMEngine.NotifyUI(Format('installing %s', [FileName]));
+
+  PackageServices := BorlandIDEServices as IOTAPackageServices;
+  try
+    PackageServices.InstallPackage(aBplPath);
+  except
+    on E: Exception do
+    begin
+      if E.Message.Contains(cStrNotDesignTimePackage) then
+        FDPMEngine.NotifyUI(Format('%s is not design time package, continue..', [FileName]))
+      else
+        raise;
+    end;
+  end;
+end;
+
+function TInstallBplSource.MakeBPL(const aProjectFileName,
+  aPackagePath: string): string;
+var
+  ConsoleOutput: string;
+  FileItem: string;
+  Files: TArray<string>;
+  FrameworkDir: string;
+  MSBuildPath: string;
+  OutputFile: string;
+  OutputPath: string;
+  ProjectFilePath: string;
+  RsVarsPath: string;
+  StringList: TStringList;
+  XmlFile: IXMLDocument;
+  XmlNode: IXMLNode;
+begin
+  FDPMEngine.NotifyUI(Format('compiling %s', [aProjectFileName]));
+
+  ProjectFilePath := '';
+  Files := FDPMEngine.Files_Get(aPackagePath, '*');
+  for FileItem in Files do
+    if FileItem.EndsWith(aProjectFileName) then
+    begin
+      ProjectFilePath := FileItem;
+      Break;
+    end;
+
+  if ProjectFilePath.IsEmpty then
+    raise Exception.CreateFmt('compiling bpl: %s was not found.', [aProjectFileName]);
+
+  RsVarsPath := TPath.Combine((BorlandIDEServices as IOTAServices).ExpandRootMacro('$(BDSBIN)'), 'rsvars.bat');
+
+  if not TFile.Exists(RsVarsPath) then
+    raise Exception.Create('compiling bpl: can`t find rsvars.bat');
+
+  StringList := TStringList.Create;
+  try
+    StringList.LoadFromFile(RsVarsPath);
+    FrameworkDir := StringList.Values['@SET FrameworkDir'];
+  finally
+    StringList.Free;
+  end;
+
+  if FrameworkDir.IsEmpty then
+    raise Exception.Create('compiling bpl: can`t find .NET FrameworkDir');
+
+  MSBuildPath := TPath.Combine(FrameworkDir, 'MSBuild.exe');
+  ConsoleOutput := FDPMEngine.Console_Run(Format('%s "%s" /t:Make', [MSBuildPath, ProjectFilePath]));
+
+  //FUINotifyProc(ConsoleOutput);
+
+  XmlFile := LoadXMLDocument(ProjectFilePath);
+
+  XmlNode := FindXmlNode(XmlFile.Node, 'DCC_BplOutput');
+  if Assigned(XmlNode) and not XmlNode.Text.IsEmpty then
+    OutputPath := XmlNode.Text
+  else
+    OutputPath := '$(BDSCOMMONDIR)\Bpl';
+  OutputPath := (BorlandIDEServices as IOTAServices).ExpandRootMacro(OutputPath);
+
+  OutputFile := FindXmlNode(XmlFile.Node, 'MainSource').Text;
+  OutputFile := OutputFile.Remove(OutputFile.LastIndexOf('.'));
+  OutputFile := OutputFile + '.bpl';
+
+  Result := TPath.Combine(OutputPath, OutputFile);
+  if not TFile.Exists(Result) then
+    raise Exception.CreateFmt('compiling bpl: %s was not found.', [Result]);
+end;
+
+{ TUninstallBplSource }
+
+procedure TUninstallBplSource.RemovePackageFromLists(const aPackageID: string;
+  aDependentPackage: TDependentPackage);
+begin
+  inherited;
+
+  FDPMEngine.Packages_GetIDE.RemoveByID(aPackageID);
+end;
+
+procedure TUninstallBplSource.DoUninstall(aDependentPackage: TDependentPackage);
+var
+  BplFile: string;
+begin
+  inherited;
+
+  for BplFile in aDependentPackage.BplFileRefs do
+  begin
+    UninstallBpl(BplFile);
+
+    FDPMEngine.NotifyUI('deleting ' + BplFile);
+    TFile.Delete(BplFile);
+  end;
+
+  RemovePackageFromLists(aDependentPackage.ID, aDependentPackage);
+end;
+
+procedure TUninstallBplSource.UninstallBpl(const aBplPath: string);
+var
+  PackageServices: IOTAPackageServices;
+begin
+  FDPMEngine.NotifyUI(Format('uninstalling %s', [TPath.GetFileName(aBplPath)]));
+
+  PackageServices := BorlandIDEServices as IOTAPackageServices;
+  PackageServices.UninstallPackage(aBplPath);
 end;
 
 end.

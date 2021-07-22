@@ -10,8 +10,7 @@ uses
   Apollo_DPM_Version,
   System.SysUtils,
   ToolsAPI,
-  Vcl.Menus,
-  Xml.XMLIntf;
+  Vcl.Menus;
 
 type
   TDPMEngine = class
@@ -26,17 +25,13 @@ type
     FUIGetFolderFunc: TUIGetFolderFunc;
     FUINotifyProc: TUINotifyProc;
     FVersionCacheList: TVersionCacheList;
-    function FindXmlNode(aNode: IXMLNode; const aNodeName: string): IXMLNode;
     function GetApolloMenuItem: TMenuItem;
     function GetDependentPackage(aPackage: TPackage): TDependentPackage;
     function GetIDEMainMenu: TMainMenu;
-    function GetIDEPackagesPath: string;
     function GetPrivatePackagesFolderPath: string;
     function GetSettingsPath: string;
     function GetVersionCacheList: TVersionCacheList;
-    function MakeBPL(const aProjectFileName, aPackagePath: string): string;
     function RepoPathToFilePath(const aRepoPath: string): string;
-    function RunConsole(const aCommand: string): string;
     function SaveAsPrivatePackage(aPackage: TInitialPackage): string;
     function SyncVersionCache(const aPackageID: string; aVersion: TVersion): TVersion;
     procedure AddApolloMenuItem;
@@ -49,11 +44,9 @@ type
     procedure DPMMenuItemClick(Sender: TObject);
     procedure DPMOpened;
     procedure FreeVersionCacheList;
-    procedure InstallBpl(const aBplPath: string);
     procedure LoadRepoVersions(aPackage: TPackage);
     procedure LockActions;
     procedure SavePackageList(const aPath: string; aPackageList: TDependentPackageList);
-    procedure UninstallBpl(const aBplPath: string);
     procedure UnlockActions;
     function GetProjectGroup: IOTAProjectGroup;
   public
@@ -61,8 +54,6 @@ type
     function AllowAction(const aFrameActionType: TFrameActionType;
       aPackage: TPackage; aVersion: TVersion): Boolean;
     function DefineVersion(aPackage: TPackage; aVersion: TVersion): TVersion;
-    function GetIDEPackages: TDependentPackageList;
-    function GetInitialPackage(aDependentPackage: TDependentPackage): TInitialPackage;
     function GetVersions(aPackage: TPackage; aCachedOnly: Boolean = False): TArray<TVersion>;
     function LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName, aError: string): Boolean;
     function LoadRepoTree(aPackage: TPackage; aVersion: TVersion): TTree;
@@ -79,8 +70,6 @@ type
     property GetFolder: TUIGetFolderFunc read FUIGetFolderFunc;
     property GHAPI: TGHAPI read FGHAPI;
     property Settings: TSettings read FSettings;
-    function GetPackagePath(aPackage: TPackage): string;
-    function IsProjectOpened: Boolean;
     procedure AddFileToActiveProject(const aFilePath: string);
     procedure ResetDependentPackage(aDependentPackage: TDependentPackage);
     procedure SaveActiveProject;
@@ -90,6 +79,7 @@ type
   private
     FProjectPackages: TDependentPackageList;
     FTestMode: Boolean;
+    function Path_GetIDEPackages: string;
     procedure FreePackageLists;
   public
     class function Files_Get(const aDirectoryPath, aNamePattern: string): TArray<string>;
@@ -97,18 +87,26 @@ type
     function Action_Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
     function Action_Uninstall(aPackage: TPackage): TPackageHandles;
     function Action_Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
+    function Console_Run(const aCommand: string): string;
+    function Packages_AddCopyToIDE(aDependentPackage: TDependentPackage): TDependentPackageList;
+    function Packages_GetIDE: TDependentPackageList;
     function Packages_GetPrivate: TPrivatePackageList;
     function Packages_GetProject: TDependentPackageList;
     function Package_LoadDependencies(aDependentPackage: TDependentPackage): TDependentPackageList; overload;
     function Package_LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList; overload;
+
+    function Package_FindInitial(const aPackageID: string): TInitialPackage;
+
     function Path_GetActiveProject: string;
+    function Path_GetPackage(aPackage: TPackage): string;
     function Path_GetProjectPackages: string;
-    function Path_GetVendors: string;
+    function Path_GetVendors(const aPackageType: TPackageType): string;
     function ProjectActive_Contains(const aFilePath: string): Boolean;
     function ProjectActive_RemoveFile(const aFilePath: string): IOTAProject;
     function Project_GetActive: IOTAProject;
     function Project_GetDPM: IOTAProject;
     function Project_GetTest: IOTAProject;
+    function Project_IsOpened: Boolean;
     function Project_SetActive(aProject: IOTAProject): IOTAProject;
     property NotifyUI: TUINotifyProc read FUINotifyProc;
     property TestMode: Boolean read FTestMode write FTestMode;
@@ -127,8 +125,7 @@ uses
   System.IOUtils,
   System.NetEncoding,
   System.Types,
-  Vcl.Controls,
-  Xml.XMLDoc;
+  Vcl.Controls;
 
 { TDPMEngine }
 
@@ -234,74 +231,6 @@ end;
 function TDPMEngine.AreVersionsLoaded(const aPackageID: string): Boolean;
 begin
   Result := GetVersionCacheList.ContainsLoadedPackageID(aPackageID);
-end;
-
-function TDPMEngine.MakeBPL(const aProjectFileName, aPackagePath: string): string;
-var
-  ConsoleOutput: string;
-  FileItem: string;
-  Files: TArray<string>;
-  FrameworkDir: string;
-  MSBuildPath: string;
-  OutputFile: string;
-  OutputPath: string;
-  ProjectFilePath: string;
-  RsVarsPath: string;
-  StringList: TStringList;
-  XmlFile: IXMLDocument;
-  XmlNode: IXMLNode;
-begin
-  FUINotifyProc(Format('compiling %s', [aProjectFileName]));
-
-  ProjectFilePath := '';
-  Files := Files_Get(aPackagePath, '*');
-  for FileItem in Files do
-    if FileItem.EndsWith(aProjectFileName) then
-    begin
-      ProjectFilePath := FileItem;
-      Break;
-    end;
-
-  if ProjectFilePath.IsEmpty then
-    raise Exception.CreateFmt('compiling bpl: %s was not found.', [aProjectFileName]);
-
-  RsVarsPath := TPath.Combine((BorlandIDEServices as IOTAServices).ExpandRootMacro('$(BDSBIN)'), 'rsvars.bat');
-
-  if not TFile.Exists(RsVarsPath) then
-    raise Exception.Create('compiling bpl: can`t find rsvars.bat');
-
-  StringList := TStringList.Create;
-  try
-    StringList.LoadFromFile(RsVarsPath);
-    FrameworkDir := StringList.Values['@SET FrameworkDir'];
-  finally
-    StringList.Free;
-  end;
-
-  if FrameworkDir.IsEmpty then
-    raise Exception.Create('compiling bpl: can`t find .NET FrameworkDir');
-
-  MSBuildPath := TPath.Combine(FrameworkDir, 'MSBuild.exe');
-  ConsoleOutput := RunConsole(Format('%s "%s" /t:Make', [MSBuildPath, ProjectFilePath]));
-
-  //FUINotifyProc(ConsoleOutput);
-
-  XmlFile := LoadXMLDocument(ProjectFilePath);
-
-  XmlNode := FindXmlNode(XmlFile.Node, 'DCC_BplOutput');
-  if Assigned(XmlNode) and not XmlNode.Text.IsEmpty then
-    OutputPath := XmlNode.Text
-  else
-    OutputPath := '$(BDSCOMMONDIR)\Bpl';
-  OutputPath := (BorlandIDEServices as IOTAServices).ExpandRootMacro(OutputPath);
-
-  OutputFile := FindXmlNode(XmlFile.Node, 'MainSource').Text;
-  OutputFile := OutputFile.Remove(OutputFile.LastIndexOf('.'));
-  OutputFile := OutputFile + '.bpl';
-
-  Result := TPath.Combine(OutputPath, OutputFile);
-  if not TFile.Exists(Result) then
-    raise Exception.CreateFmt('compiling bpl: %s was not found.', [Result]);
 end;
 
 procedure TDPMEngine.OpenProject(const aProjectPath: string);
@@ -443,36 +372,6 @@ begin
   ApplySettings;
 end;
 
-function TDPMEngine.GetInitialPackage(
-  aDependentPackage: TDependentPackage): TInitialPackage;
-begin
-  Result := Packages_GetPrivate.GetByID(aDependentPackage.ID);
-
-  if Assigned(Result) then
-    Exit(Result);
-end;
-
-function TDPMEngine.FindXmlNode(aNode: IXMLNode;
-  const aNodeName: string): IXMLNode;
-var
-  i: Integer;
-begin
-  Result := nil;
-  if not Assigned(aNode) then
-    Exit;
-
-  if CompareText(aNode.NodeName, aNodeName) = 0 then
-    Result := aNode
-  else
-    if Assigned(aNode.ChildNodes) then
-      for i := 0 to aNode.ChildNodes.Count - 1 do
-      begin
-        Result := FindXmlNode(aNode.ChildNodes[I], aNodeName);
-        if Result <> nil then
-          Exit;
-      end;
-end;
-
 procedure TDPMEngine.FreePackageLists;
 begin
   if Assigned(FPrivatePackages) then
@@ -551,15 +450,34 @@ begin
   Result := (BorlandIDEServices as INTAServices).MainMenu;
 end;
 
-function TDPMEngine.GetIDEPackages: TDependentPackageList;
+function TDPMEngine.Path_GetIDEPackages: string;
+begin
+  Result := TPath.Combine(TPath.GetPublicPath, cPathIDEPackages);
+end;
+
+function TDPMEngine.Path_GetPackage(aPackage: TPackage): string;
+begin
+  Result := TPath.Combine(Path_GetVendors(aPackage.PackageType), aPackage.Name);
+end;
+
+function TDPMEngine.Packages_AddCopyToIDE(
+  aDependentPackage: TDependentPackage): TDependentPackageList;
+begin
+  Packages_GetIDE.Add(TDependentPackage.Create(aDependentPackage.GetJSONString,
+    SyncVersionCache));
+
+  Result := Packages_GetIDE;
+end;
+
+function TDPMEngine.Packages_GetIDE: TDependentPackageList;
 var
   sJSON: string;
 begin
   if not Assigned(FIDEPackages) then
   begin
-    if TFile.Exists(GetIDEPackagesPath) then
+    if TFile.Exists(Path_GetIDEPackages) then
     begin
-      sJSON := TFile.ReadAllText(GetIDEPackagesPath, TEncoding.ANSI);
+      sJSON := TFile.ReadAllText(Path_GetIDEPackages, TEncoding.ANSI);
       FIDEPackages := TDependentPackageList.Create(sJSON, SyncVersionCache);
     end
     else
@@ -567,19 +485,6 @@ begin
   end;
 
   Result := FIDEPackages;
-end;
-
-function TDPMEngine.GetIDEPackagesPath: string;
-begin
-  Result := TPath.Combine(TPath.GetPublicPath, cPathIDEPackages);
-end;
-
-function TDPMEngine.GetPackagePath(aPackage: TPackage): string;
-begin
-  if IsProjectOpened then
-    Result := TPath.Combine(Path_GetVendors, aPackage.Name)
-  else
-    Result := '';
 end;
 
 function TDPMEngine.Packages_GetPrivate: TPrivatePackageList;
@@ -607,7 +512,7 @@ begin
         FPrivatePackages := TPrivatePackageList.Create(PrivatePackageFiles);
 
       FPrivatePackages.SetDependentPackageRef(Packages_GetProject);
-      FPrivatePackages.SetDependentPackageRef(GetIDEPackages);
+      FPrivatePackages.SetDependentPackageRef(Packages_GetIDE);
     end;
   end;
 
@@ -649,7 +554,7 @@ end;
 
 function TDPMEngine.Path_GetProjectPackages: string;
 begin
-  if IsProjectOpened then
+  if Project_IsOpened then
     Result := TPath.Combine(Path_GetActiveProject, cPathProjectPackages)
   else
     Result := '';
@@ -665,9 +570,20 @@ begin
   Result := TFile.ReadAllText(aPath, TEncoding.ANSI);
 end;
 
-function TDPMEngine.Path_GetVendors: string;
+function TDPMEngine.Path_GetVendors(const aPackageType: TPackageType): string;
 begin
-  Result := TPath.Combine(TDirectory.GetParent(Path_GetActiveProject), 'Vendors');
+  case aPackageType of
+    ptCodeSource:
+      begin
+        if not Project_IsOpened then
+          raise Exception.Create('TDPMEngine.Path_GetVendors: ptCodeSource must have opened project!');
+
+        Result := TPath.Combine(TDirectory.GetParent(Path_GetActiveProject), cPathProjectVendorsFolder);
+      end;
+    ptBplSource, ptBplBinary: Result := TPath.Combine(TPath.GetPublicPath, cPathBplVendorsFolder);
+  else
+    raise Exception.Create('TDPMEngine.Path_GetVendors: Path is not specified for this package type!');
+  end;
 end;
 
 function TDPMEngine.GetVersionCacheList: TVersionCacheList;
@@ -701,31 +617,17 @@ begin
   end;
 end;
 
-procedure TDPMEngine.InstallBpl(const aBplPath: string);
-var
-  FileName: string;
-  PackageServices: IOTAPackageServices;
-begin
-  FileName := TPath.GetFileName(aBplPath);
-  FUINotifyProc(Format('installing %s', [FileName]));
-
-  PackageServices := BorlandIDEServices as IOTAPackageServices;
-  try
-    PackageServices.InstallPackage(aBplPath);
-  except
-    on E: Exception do
-    begin
-      if E.Message.Contains(cStrNotDesignTimePackage) then
-        FUINotifyProc(Format('%s is not design time package, continue..', [FileName]))
-      else
-        raise;
-    end;
-  end;
-end;
-
-function TDPMEngine.IsProjectOpened: Boolean;
+function TDPMEngine.Project_IsOpened: Boolean;
 begin
   Result := GetActiveProject <> nil;
+end;
+
+function TDPMEngine.Package_FindInitial(const aPackageID: string): TInitialPackage;
+begin
+  Result := Packages_GetPrivate.GetByID(aPackageID);
+
+  if Assigned(Result) then
+    Exit(Result);
 end;
 
 function TDPMEngine.Package_LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList;
@@ -870,12 +772,12 @@ procedure TDPMEngine.ResetDependentPackage(
 var
   InitialPackage: TInitialPackage;
 begin
-  InitialPackage := GetInitialPackage(aDependentPackage);
+  InitialPackage := Package_FindInitial(aDependentPackage.ID);
   if Assigned(InitialPackage) then
     InitialPackage.DependentPackage := nil;
 end;
 
-function TDPMEngine.RunConsole(const aCommand: string): string;
+function TDPMEngine.Console_Run(const aCommand: string): string;
 begin
   try
     Result := RunCommandPrompt(aCommand);
@@ -933,10 +835,10 @@ end;
 
 procedure TDPMEngine.SavePackages;
 begin
-  if IsProjectOpened then
+  if Project_IsOpened then
     SavePackageList(Path_GetProjectPackages, Packages_GetProject);
 
-  SavePackageList(GetIDEPackagesPath, GetIDEPackages);
+  SavePackageList(Path_GetIDEPackages, Packages_GetIDE);
 end;
 
 function TDPMEngine.Project_SetActive(aProject: IOTAProject): IOTAProject;
@@ -1018,16 +920,6 @@ begin
     Action.Free;
     UnlockActions;
   end;
-end;
-
-procedure TDPMEngine.UninstallBpl(const aBplPath: string);
-var
-  PackageServices: IOTAPackageServices;
-begin
-  FUINotifyProc(Format('uninstalling %s', [TPath.GetFileName(aBplPath)]));
-
-  PackageServices := BorlandIDEServices as IOTAPackageServices;
-  PackageServices.UninstallPackage(aBplPath);
 end;
 
 procedure TDPMEngine.UnlockActions;

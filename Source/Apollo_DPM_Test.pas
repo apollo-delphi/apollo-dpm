@@ -95,6 +95,16 @@ type
     procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
   end;
 
+  TTestInstallBplSource = class(TTestCommon, ITestImpl)
+  protected
+    function GetDescription: string;
+    function GetStepCount: Integer;
+    function GetTestPackageName(const aStep: Integer): string;
+    function GetVersion(const aStep: Integer): TVersion;
+    procedure Asserts;
+    procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
+  end;
+
   EWrongStep = class(Exception)
   public
     constructor Create;
@@ -105,7 +115,8 @@ begin
   Result := [
     TTestInstallCodeSource.Create(aDPMEngine),
     TTestUninstallCodeSource.Create(aDPMEngine),
-    TTestUpdateCodeSource.Create(aDPMEngine)
+    TTestUpdateCodeSource.Create(aDPMEngine),
+    TTestInstallBplSource.Create(aDPMEngine)
   ];
 end;
 
@@ -308,7 +319,7 @@ var
   ProjectPackagesPath: string;
   VendorsPath: string;
 begin
-  VendorsPath := FDPMEngine.Path_GetVendors;
+  VendorsPath := FDPMEngine.Path_GetVendors(ptCodeSource);
   if TDirectory.Exists(VendorsPath) then
   begin
     Files := FDPMEngine.Files_Get(VendorsPath, '*.pas');
@@ -499,6 +510,39 @@ end;
 constructor EWrongStep.Create;
 begin
   inherited Create('Wrong step');
+end;
+
+{ TTestInstallBplSource }
+
+procedure TTestInstallBplSource.Asserts;
+begin
+
+end;
+
+procedure TTestInstallBplSource.DoAction(aPackage: TInitialPackage;
+  aVersion: TVersion; const aStep: Integer);
+begin
+  FDPMEngine.Action_Install(aPackage, aVersion);
+end;
+
+function TTestInstallBplSource.GetDescription: string;
+begin
+  Result := 'Install Bpl Source Package';
+end;
+
+function TTestInstallBplSource.GetStepCount: Integer;
+begin
+  Result := 1;
+end;
+
+function TTestInstallBplSource.GetTestPackageName(const aStep: Integer): string;
+begin
+  Result := 'Thunderbird_Tree.json';
+end;
+
+function TTestInstallBplSource.GetVersion(const aStep: Integer): TVersion;
+begin
+  Result := TVersion.CreateAsLatestVersionOption;
 end;
 
 end.

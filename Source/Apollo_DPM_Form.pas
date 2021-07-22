@@ -81,6 +81,7 @@ type
     FPackageFrames: TArray<TPackageFrame>;
     FSettingsFrame: TSettingsFrame;
     FTestFrame: TTestFrame;
+    function FindDependentPackage(const aPackageID: string): TPackage;
     function GetFrame(const aPackageID: string): TPackageFrame;
     function GetFrameIndex(aFrame: TPackageFrame): Integer;
     function GetSelectedNavigation: string;
@@ -209,6 +210,13 @@ begin
   end;
 end;
 
+function TDPMForm.FindDependentPackage(const aPackageID: string): TPackage;
+begin
+  Result := FDPMEngine.Packages_GetProject.GetByID(aPackageID);
+  if not Assigned(Result) then
+    Result := FDPMEngine.Packages_GetIDE.GetByID(aPackageID);
+end;
+
 procedure TDPMForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
  //SaveLayout([Self, splHorizontal, splVertical, swPackageDetail]);
@@ -253,8 +261,16 @@ begin
       end;
     fatUninstall:
       begin
-        PackageHandles := FDPMEngine.Action_Uninstall(aPackage);
-        UpdateFrames(PackageHandles);
+        AsyncLoad(nil,
+          procedure
+          begin
+            PackageHandles := FDPMEngine.Action_Uninstall(aPackage);
+          end,
+          procedure
+          begin
+            UpdateFrames(PackageHandles);
+          end
+        );
       end;
     fatEditPackage:
     begin
@@ -455,7 +471,7 @@ begin
     RenderPackageList(FDPMEngine.Packages_GetProject)
   else
   if GetSelectedNavigation = cNavInstalledToIDE then
-    RenderPackageList(FDPMEngine.GetIDEPackages);
+    RenderPackageList(FDPMEngine.Packages_GetIDE);
 end;
 
 procedure TDPMForm.RenderSettings;
@@ -575,17 +591,18 @@ begin
 
     if not Assigned(Frame) then
     begin
-      Package := FDPMEngine.Packages_GetProject.GetByID(PackageHandle.PackageID);
-
       if (PackageHandle.PackageAction = paInstall) and (GetSelectedNavigation = cNavProjectDependencies) then
+      begin
+        Package := FindDependentPackage(PackageHandle.PackageID);
         RenderPackage(Package, Length(FPackageFrames));
+      end;
 
       Continue;
     end;
 
     if Frame.PackageClass = TPrivatePackage then
     begin
-      Package := FDPMEngine.Packages_GetProject.GetByID(PackageHandle.PackageID);
+      Package := FDPMEngine.Packages_GetPrivate.GetByID(PackageHandle.PackageID);
 
       case PackageHandle.PackageAction of
         paInstall: UpdateFrame(Frame, Package);
@@ -595,7 +612,7 @@ begin
     else
     if Frame.PackageClass = TDependentPackage then
     begin
-      Package := FDPMEngine.Packages_GetPrivate.GetByID(PackageHandle.PackageID);
+      Package := FindDependentPackage(PackageHandle.PackageID);
 
       case PackageHandle.PackageAction of
         paInstall: UpdateFrame(Frame, Package);

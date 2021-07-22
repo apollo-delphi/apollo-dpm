@@ -44,7 +44,7 @@ begin
     begin
       aLoadProc;
 
-      TThread.Queue(TThread.Current, procedure()
+      TThread.Synchronize(nil, procedure()
         begin
           if Assigned(aCallBack) then
             aCallBack;
@@ -57,6 +57,7 @@ begin
 
   if Assigned(aIndicator) then
     aIndicator.Animate := True;
+
   AsyncTask.Start;
 end;
 

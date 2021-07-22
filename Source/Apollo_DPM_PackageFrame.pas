@@ -264,6 +264,12 @@ end;
 
 procedure TPackageFrame.SetupInstalledLabel(aDependentPackage: TDependentPackage);
 begin
+  if FDPMEngine.Packages_GetProject.GetByID(aDependentPackage.ID) = nil then
+  begin
+    lblInstalled.Caption := 'ide only';
+    lblInstalled.Font.Color := clGreen;
+  end
+  else
   if aDependentPackage.IsDirect then
   begin
     lblInstalled.Caption := 'installed';
