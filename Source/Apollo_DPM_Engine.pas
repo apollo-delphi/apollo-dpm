@@ -9,7 +9,7 @@ uses
   Apollo_DPM_Types,
   Apollo_DPM_Version,
   System.SysUtils,
-  ToolsAPI,
+  ToolsAPI, {must be used in this unit only}
   Vcl.Menus;
 
 type
@@ -82,29 +82,39 @@ type
     function Path_GetIDEPackages: string;
     procedure FreePackageLists;
   public
-    class function Files_Get(const aDirectoryPath, aNamePattern: string): TArray<string>;
-    class function File_GetText(const aPath: string): string;
     function Action_Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
     function Action_Uninstall(aPackage: TPackage): TPackageHandles;
     function Action_Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
+    function Bpl_Install(const aBplPath: string): Boolean;
+    function Bpl_IsInstalled(const aBplPath: string): Boolean;
+    function Bpl_Uninstall(const aBplPath: string): Boolean;
     function Console_Run(const aCommand: string): string;
+    function Directory_Delete(const aPath: string): Boolean;
+    function Directory_DeleteIfEmpty(const aPath: string): Boolean;
+    function Directory_Exists(const aPath: string): Boolean;
+    function Files_Get(const aDirectoryPath, aNamePattern: string): TArray<string>;
+    function File_Delete(const aPath: string): Boolean;
+    function File_Exists(const aPath: string): Boolean;
+    function File_GetExtension(const aPath: string): string;
+    function File_GetName(const aPath: string): string;
+    function File_GetText(const aPath: string): string;
     function Packages_AddCopyToIDE(aDependentPackage: TDependentPackage): TDependentPackageList;
     function Packages_GetIDE: TDependentPackageList;
     function Packages_GetPrivate: TPrivatePackageList;
     function Packages_GetProject: TDependentPackageList;
+    function Package_FindInitial(const aPackageID: string): TInitialPackage;
     function Package_LoadDependencies(aDependentPackage: TDependentPackage): TDependentPackageList; overload;
     function Package_LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList; overload;
-
-    function Package_FindInitial(const aPackageID: string): TInitialPackage;
-
+    function Path_Combine(const aPath1, aPath2: string): string;
     function Path_GetActiveProject: string;
+    function Path_GetEnviroment(const aVarName: string): string;
     function Path_GetPackage(aPackage: TPackage): string;
     function Path_GetProjectPackages: string;
     function Path_GetVendors(const aPackageType: TPackageType): string;
     function ProjectActive_Contains(const aFilePath: string): Boolean;
     function ProjectActive_RemoveFile(const aFilePath: string): IOTAProject;
     function Project_GetActive: IOTAProject;
-    function Project_GetDPM: IOTAProject;
+    function Project_GetDPM(const aMayReturnNil: Boolean = False): IOTAProject;
     function Project_GetTest: IOTAProject;
     function Project_IsOpened: Boolean;
     function Project_SetActive(aProject: IOTAProject): IOTAProject;
@@ -122,7 +132,7 @@ uses
   Apollo_DPM_Pipes,
   Apollo_DPM_Validation,
   System.Classes,
-  System.IOUtils,
+  System.IOUtils, {must be used in this unit only}
   System.NetEncoding,
   System.Types,
   Vcl.Controls;
@@ -241,6 +251,55 @@ begin
   ModuleServices.OpenModule(aProjectPath);
 end;
 
+function TDPMEngine.Bpl_Install(const aBplPath: string): Boolean;
+var
+  PackageServices: IOTAPackageServices;
+begin
+  TThread.Synchronize(nil, procedure
+    begin
+      PackageServices := BorlandIDEServices as IOTAPackageServices;
+      try
+        PackageServices.InstallPackage(aBplPath);
+      except
+        on E: Exception do
+        begin
+          if E.Message.Contains(cStrNotDesignTimePackage) then
+            NotifyUI(Format('%s is not design time package, continue..', [File_GetName(aBplPath)]))
+          else
+            raise;
+        end;
+      end;
+    end
+  );
+  Result := True;
+end;
+
+function TDPMEngine.Bpl_IsInstalled(const aBplPath: string): Boolean;
+var
+  i: Integer;
+  PackageServices: IOTAPackageServices;
+begin
+  Result := False;
+
+  PackageServices := BorlandIDEServices as IOTAPackageServices;
+  for i := 0 to PackageServices.PackageCount - 1 do
+    if PackageServices.Package[i].FileName = aBplPath then
+      Exit(True);
+end;
+
+function TDPMEngine.Bpl_Uninstall(const aBplPath: string): Boolean;
+var
+  PackageServices: IOTAPackageServices;
+begin
+  TThread.Synchronize(nil, procedure
+    begin
+      PackageServices := BorlandIDEServices as IOTAPackageServices;
+      PackageServices.UninstallPackage(aBplPath);
+    end
+  );
+  Result := True;
+end;
+
 procedure TDPMEngine.BuildMenu;
 begin
   if GetApolloMenuItem = nil then
@@ -297,6 +356,27 @@ begin
     GetIDEMainMenu.Items.Remove(GetApolloMenuItem);
 
   inherited;
+end;
+
+function TDPMEngine.Directory_Delete(const aPath: string): Boolean;
+begin
+  TDirectory.Delete(aPath, True);
+  Result := True;
+end;
+
+function TDPMEngine.Directory_DeleteIfEmpty(const aPath: string): Boolean;
+begin
+  Result := False;
+  if Length(TDirectory.GetDirectories(aPath, '*', TSearchOption.soTopDirectoryOnly)) = 0 then
+  begin
+    TDirectory.Delete(aPath);
+    Result := True;
+  end;
+end;
+
+function TDPMEngine.Directory_Exists(const aPath: string): Boolean;
+begin
+  Result := TDirectory.Exists(aPath);
 end;
 
 procedure TDPMEngine.DoLoadDependencies(aDependentPackage: TDependentPackage; aVersion: TVersion;
@@ -393,9 +473,19 @@ begin
   Result := GetActiveProject;
 end;
 
+function TDPMEngine.Path_Combine(const aPath1, aPath2: string): string;
+begin
+  Result := TPath.Combine(aPath1, aPath2);
+end;
+
 function TDPMEngine.Path_GetActiveProject: string;
 begin
   Result := TDirectory.GetParent(GetActiveProject.FileName);
+end;
+
+function TDPMEngine.Path_GetEnviroment(const aVarName: string): string;
+begin
+  Result := (BorlandIDEServices as IOTAServices).ExpandRootMacro(aVarName);
 end;
 
 function TDPMEngine.GetApolloMenuItem: TMenuItem;
@@ -420,21 +510,25 @@ begin
     raise Exception.Create('unknown package type');
 end;
 
-function TDPMEngine.Project_GetDPM: IOTAProject;
+function TDPMEngine.Project_GetDPM(const aMayReturnNil: Boolean = False): IOTAProject;
 var
   ProjectGroup: IOTAProjectGroup;
   i: Integer;
 begin
   ProjectGroup := GetProjectGroup;
 
-  for i := 0 to ProjectGroup.ProjectCount - 1 do
-    if ProjectGroup.Projects[i].FileName.EndsWith('Apollo_DPM.dproj') then
-      Exit(ProjectGroup.Projects[i]);
+  if Assigned(ProjectGroup) then
+    for i := 0 to ProjectGroup.ProjectCount - 1 do
+      if ProjectGroup.Projects[i].FileName.EndsWith('Apollo_DPM.dproj') then
+        Exit(ProjectGroup.Projects[i]);
 
-  raise Exception.Create('Project Apollo_DPM.dproj is not in the project group!');
+  if aMayReturnNil then
+    Result := nil
+  else
+    raise Exception.Create('Project Apollo_DPM.dproj is not in the project group!');
 end;
 
-class function TDPMEngine.Files_Get(const aDirectoryPath, aNamePattern: string): TArray<string>;
+function TDPMEngine.Files_Get(const aDirectoryPath, aNamePattern: string): TArray<string>;
 var
   Files: TStringDynArray;
   i: Integer;
@@ -565,7 +659,28 @@ begin
   Result := TPath.Combine(TPath.GetPublicPath, cPathSettings);
 end;
 
-class function TDPMEngine.File_GetText(const aPath: string): string;
+function TDPMEngine.File_Delete(const aPath: string): Boolean;
+begin
+  TFile.Delete(aPath);
+  Result := True;
+end;
+
+function TDPMEngine.File_Exists(const aPath: string): Boolean;
+begin
+  Result := TFile.Exists(aPath);
+end;
+
+function TDPMEngine.File_GetExtension(const aPath: string): string;
+begin
+  Result := TPath.GetExtension(aPath);
+end;
+
+function TDPMEngine.File_GetName(const aPath: string): string;
+begin
+  Result := TPath.GetFileName(aPath);
+end;
+
+function TDPMEngine.File_GetText(const aPath: string): string;
 begin
   Result := TFile.ReadAllText(aPath, TEncoding.ANSI);
 end;

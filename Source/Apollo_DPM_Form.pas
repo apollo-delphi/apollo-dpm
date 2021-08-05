@@ -364,7 +364,8 @@ begin
   tvNavigation.Items.Add(nil, cNavPrivatePackages);
   tvNavigation.Items.Add(nil, cNavSettings);
 {$IFDEF DEBUG}
-  tvNavigation.Items.Add(nil, cNavTest);
+  if FDPMEngine.Project_GetDPM(True{aMayReturnNil}) <> nil then
+    tvNavigation.Items.Add(nil, cNavTest);
 {$ENDIF DEBUG}
 end;
 
@@ -612,10 +613,12 @@ begin
     else
     if Frame.PackageClass = TDependentPackage then
     begin
-      Package := FindDependentPackage(PackageHandle.PackageID);
-
       case PackageHandle.PackageAction of
-        paInstall: UpdateFrame(Frame, Package);
+        paInstall:
+          begin
+            Package := FindDependentPackage(PackageHandle.PackageID);
+            UpdateFrame(Frame, Package);
+          end;
         paUninstall: DeleteFrame(Frame);
       end;
     end
@@ -625,7 +628,6 @@ begin
 end;
 
 {procedure SaveLayout(const aControls: TArray<TWinControl>);
-
 
 procedure TDPMForm.SaveLayout(const aControls: TArray<TWinControl>);
 begin

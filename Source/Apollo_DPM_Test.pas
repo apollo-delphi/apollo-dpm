@@ -53,8 +53,15 @@ type
     function GetDescription: string;
     function GetError: string;
     function GetPassed: Boolean;
+    function GetIDEPackage(const aPackageName: string): TDependentPackage;
     function GetProjectPackage(const aPackageName: string): TDependentPackage;
     procedure AssertBoolean(const aActual, aExpected: Boolean);
+    procedure AssertBplInstalled(const aPath: string);
+    procedure AssertBplNotInstalled(const aPath: string);
+    procedure AssertDirExists(const aPath: string);
+    procedure AssertDirNotExists(const aPath: string);
+    procedure AssertFileExists(const aPath: string);
+    procedure AssertFileNotExists(const aPath: string);
     procedure AssertInteger(const aActual, aExpected: Integer);
     procedure AssertNil(aObject: TObject; const aObjName: string);
     procedure AssertObject(aObject: TObject; const aObjName: string);
@@ -105,6 +112,19 @@ type
     procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
   end;
 
+  TTestUnistallBplSource = class(TTestCommon, ITestImpl)
+  private
+    FBplPath: string;
+    FPackageDir: string;
+  protected
+    function GetDescription: string;
+    function GetStepCount: Integer;
+    function GetTestPackageName(const aStep: Integer): string;
+    function GetVersion(const aStep: Integer): TVersion;
+    procedure Asserts;
+    procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
+  end;
+
   EWrongStep = class(Exception)
   public
     constructor Create;
@@ -116,7 +136,8 @@ begin
     TTestInstallCodeSource.Create(aDPMEngine),
     TTestUninstallCodeSource.Create(aDPMEngine),
     TTestUpdateCodeSource.Create(aDPMEngine),
-    TTestInstallBplSource.Create(aDPMEngine)
+    TTestInstallBplSource.Create(aDPMEngine),
+    TTestUnistallBplSource.Create(aDPMEngine)
   ];
 end;
 
@@ -237,6 +258,23 @@ begin
   Result := FError.CommaText;
 end;
 
+function TTestCommon.GetIDEPackage(
+  const aPackageName: string): TDependentPackage;
+var
+  ProjectPackage: TDependentPackage;
+begin
+  Result := nil;
+
+  for ProjectPackage in FDPMEngine.Packages_GetIDE do
+    if ProjectPackage.Name = aPackageName then
+    begin
+      if Assigned(Result) then
+        raise Exception.Create('TTestCommon.GetIDEPackage: more than one package found')
+      else
+        Result := ProjectPackage;
+    end;
+end;
+
 function TTestCommon.GetPassed: Boolean;
 begin
   Result := FPassed;
@@ -264,7 +302,61 @@ begin
   if aActual <> aExpected then
   begin
     FPassed := False;
-    FError.Add(Format('Boolean: Actual=%s Expected=%s', [BoolToStr(aActual), BoolToStr(aExpected)]));
+    FError.Add(Format('AssertBoolean: Actual=%s Expected=%s', [BoolToStr(aActual), BoolToStr(aExpected)]));
+  end;
+end;
+
+procedure TTestCommon.AssertBplInstalled(const aPath: string);
+begin
+  if not FDPMEngine.Bpl_IsInstalled(aPath) then
+  begin
+    FPassed := False;
+    FError.Add(Format('AssertBplInstalled: %s', [aPath]));
+  end;
+end;
+
+procedure TTestCommon.AssertBplNotInstalled(const aPath: string);
+begin
+  if FDPMEngine.Bpl_IsInstalled(aPath) then
+  begin
+    FPassed := False;
+    FError.Add(Format('AssertBplNotInstalled: %s', [aPath]));
+  end;
+end;
+
+procedure TTestCommon.AssertDirExists(const aPath: string);
+begin
+  if not FDPMEngine.Directory_Exists(aPath) then
+  begin
+    FPassed := False;
+    FError.Add(Format('AssertDirExists: %s', [aPath]));
+  end;
+end;
+
+procedure TTestCommon.AssertDirNotExists(const aPath: string);
+begin
+  if FDPMEngine.Directory_Exists(aPath) then
+  begin
+    FPassed := False;
+    FError.Add(Format('AssertDirNotExists: %s', [aPath]));
+  end;
+end;
+
+procedure TTestCommon.AssertFileExists(const aPath: string);
+begin
+  if not FDPMEngine.File_Exists(aPath) then
+  begin
+    FPassed := False;
+    FError.Add(Format('AssertFileExists: %s', [aPath]));
+  end;
+end;
+
+procedure TTestCommon.AssertFileNotExists(const aPath: string);
+begin
+  if FDPMEngine.File_Exists(aPath) then
+  begin
+    FPassed := False;
+    FError.Add(Format('AssertFileNotExists: %s', [aPath]));
   end;
 end;
 
@@ -273,7 +365,7 @@ begin
   if aActual <> aExpected then
   begin
     FPassed := False;
-    FError.Add(Format('Integer: Actual=%d Expected=%d', [aActual, aExpected]));
+    FError.Add(Format('AssertInteger: Actual=%d Expected=%d', [aActual, aExpected]));
   end;
 end;
 
@@ -282,7 +374,7 @@ begin
   if aObject <> nil then
   begin
     FPassed := False;
-    FError.Add(Format('Object %s is not nil', [aObjName]));
+    FError.Add(Format('AssertNil %s is not nil', [aObjName]));
   end;
 end;
 
@@ -291,7 +383,7 @@ begin
   if not Assigned(aObject) then
   begin
     FPassed := False;
-    FError.Add(Format('Object %s not assigned', [aObjName]));
+    FError.Add(Format('AssertObject %s not assigned', [aObjName]));
   end;
 end;
 
@@ -300,7 +392,7 @@ begin
   if aActual <> aExpected then
   begin
     FPassed := False;
-    FError.Add(Format('String: Actual=%s Expected=%s', [aActual, aExpected]));
+    FError.Add(Format('AssertString: Actual=%s Expected=%s', [aActual, aExpected]));
   end;
 end;
 
@@ -515,13 +607,38 @@ end;
 { TTestInstallBplSource }
 
 procedure TTestInstallBplSource.Asserts;
+var
+  BplPath: string;
+  Package: TDependentPackage;
 begin
+  Package := GetProjectPackage('Test_Thunderbird_Tree');
+  AssertObject(Package, 'Test_Thunderbird_Tree');
+  AssertBoolean(Package.IsDirect, True);
+  AssertDirExists(FDPMEngine.Path_GetPackage(Package));
 
+  Package := GetIDEPackage('Test_Thunderbird_Tree');
+  AssertObject(Package, 'Test_Thunderbird_Tree');
+  AssertBoolean(Package.IsDirect, True);
+  AssertDirExists(FDPMEngine.Path_GetPackage(Package));
+
+  BplPath := '';
+  if (Length(Package.BplFileRefs) > 0) then
+    BplPath := Package.BplFileRefs[0];
+  AssertBoolean(BplPath.EndsWith('\Bpl\thunderbirdTree.bpl'), True);
+  AssertFileExists(BplPath);
+
+  AssertBplInstalled(BplPath);
 end;
 
 procedure TTestInstallBplSource.DoAction(aPackage: TInitialPackage;
   aVersion: TVersion; const aStep: Integer);
+var
+  aIDEPackage: TDependentPackage;
 begin
+  aIDEPackage := GetIDEPackage('Test_Thunderbird_Tree');
+  if Assigned(aIDEPackage) then
+    FDPMEngine.Action_Uninstall(aIDEPackage);
+
   FDPMEngine.Action_Install(aPackage, aVersion);
 end;
 
@@ -537,10 +654,66 @@ end;
 
 function TTestInstallBplSource.GetTestPackageName(const aStep: Integer): string;
 begin
-  Result := 'Thunderbird_Tree.json';
+  Result := 'Test_Thunderbird_Tree.json';
 end;
 
 function TTestInstallBplSource.GetVersion(const aStep: Integer): TVersion;
+begin
+  Result := TVersion.CreateAsLatestVersionOption;
+end;
+
+{ TTestUnistallBplSource }
+
+procedure TTestUnistallBplSource.Asserts;
+var
+  Package: TDependentPackage;
+begin
+  Package := GetProjectPackage('Test_Thunderbird_Tree');
+  AssertNil(Package, 'Test_Thunderbird_Tree');
+
+  Package := GetIDEPackage('Test_Thunderbird_Tree');
+  AssertNil(Package, 'Test_Thunderbird_Tree');
+
+  AssertDirNotExists(FPackageDir);
+  AssertFileNotExists(FBplPath);
+  AssertBplNotInstalled(FBplPath);
+end;
+
+procedure TTestUnistallBplSource.DoAction(aPackage: TInitialPackage;
+  aVersion: TVersion; const aStep: Integer);
+var
+  DependentPackage: TDependentPackage;
+begin
+  DependentPackage := GetIDEPackage('Test_Thunderbird_Tree');
+  if not Assigned(DependentPackage) then
+  begin
+    FDPMEngine.Action_Install(aPackage, aVersion);
+    DependentPackage := GetIDEPackage('Test_Thunderbird_Tree');
+  end;
+
+  FBplPath := DependentPackage.BplFileRefs[0];
+  FPackageDir := FDPMEngine.Path_GetPackage(DependentPackage);
+
+  FDPMEngine.Action_Uninstall(DependentPackage);
+end;
+
+function TTestUnistallBplSource.GetDescription: string;
+begin
+  Result := 'Uninstall Bpl Source Package';
+end;
+
+function TTestUnistallBplSource.GetStepCount: Integer;
+begin
+  Result := 1;
+end;
+
+function TTestUnistallBplSource.GetTestPackageName(
+  const aStep: Integer): string;
+begin
+  Result := 'Test_Thunderbird_Tree.json';
+end;
+
+function TTestUnistallBplSource.GetVersion(const aStep: Integer): TVersion;
 begin
   Result := TVersion.CreateAsLatestVersionOption;
 end;
