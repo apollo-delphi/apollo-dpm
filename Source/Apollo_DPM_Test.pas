@@ -410,7 +410,12 @@ var
   Files: TArray<string>;
   ProjectPackagesPath: string;
   VendorsPath: string;
+  DependentPackage: TDependentPackage;
 begin
+  DependentPackage := GetIDEPackage('Test_Thunderbird_Tree');
+  if Assigned(DependentPackage) then
+    FDPMEngine.Action_Uninstall(DependentPackage);
+
   VendorsPath := FDPMEngine.Path_GetVendors(ptCodeSource);
   if TDirectory.Exists(VendorsPath) then
   begin
@@ -632,13 +637,7 @@ end;
 
 procedure TTestInstallBplSource.DoAction(aPackage: TInitialPackage;
   aVersion: TVersion; const aStep: Integer);
-var
-  aIDEPackage: TDependentPackage;
 begin
-  aIDEPackage := GetIDEPackage('Test_Thunderbird_Tree');
-  if Assigned(aIDEPackage) then
-    FDPMEngine.Action_Uninstall(aIDEPackage);
-
   FDPMEngine.Action_Install(aPackage, aVersion);
 end;
 
@@ -677,6 +676,8 @@ begin
   AssertDirNotExists(FPackageDir);
   AssertFileNotExists(FBplPath);
   AssertBplNotInstalled(FBplPath);
+
+  AssertFileNotExists(FDPMEngine.Path_GetProjectPackages);
 end;
 
 procedure TTestUnistallBplSource.DoAction(aPackage: TInitialPackage;
@@ -684,12 +685,8 @@ procedure TTestUnistallBplSource.DoAction(aPackage: TInitialPackage;
 var
   DependentPackage: TDependentPackage;
 begin
+  FDPMEngine.Action_Install(aPackage, aVersion);
   DependentPackage := GetIDEPackage('Test_Thunderbird_Tree');
-  if not Assigned(DependentPackage) then
-  begin
-    FDPMEngine.Action_Install(aPackage, aVersion);
-    DependentPackage := GetIDEPackage('Test_Thunderbird_Tree');
-  end;
 
   FBplPath := DependentPackage.BplFileRefs[0];
   FPackageDir := FDPMEngine.Path_GetPackage(DependentPackage);
