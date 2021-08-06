@@ -1,4 +1,5 @@
 (*
+    dpm 06 aug 2021 14:34 sha:bf22a13a8b48935bb90e1bd4fa1dd6c6274cbb2e (verion 1)	
     
     Quick and Dirty component that looks like thunderbird's
     settings having nested panels inside a treelike structure.
