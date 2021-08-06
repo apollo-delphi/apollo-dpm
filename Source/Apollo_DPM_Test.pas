@@ -48,7 +48,6 @@ type
     function BoolToStr(const aBool: Boolean): string;
     function CreateTestPackage(const aPackageFileName: string): TPrivatePackage;
     function GetTestCasesPath: string;
-    procedure ClearTestProject;
   protected
     function GetDescription: string;
     function GetError: string;
@@ -66,6 +65,7 @@ type
     procedure AssertNil(aObject: TObject; const aObjName: string);
     procedure AssertObject(aObject: TObject; const aObjName: string);
     procedure AssertString(const aActual, aExpected: string);
+    procedure ClearTestProject; virtual;
     procedure Run;
   public
     constructor Create(aDPMEngine: TDPMEngine);
@@ -109,6 +109,7 @@ type
     function GetTestPackageName(const aStep: Integer): string;
     function GetVersion(const aStep: Integer): TVersion;
     procedure Asserts;
+    procedure ClearTestProject; override;
     procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
   end;
 
@@ -122,6 +123,18 @@ type
     function GetTestPackageName(const aStep: Integer): string;
     function GetVersion(const aStep: Integer): TVersion;
     procedure Asserts;
+    procedure ClearTestProject; override;
+    procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
+  end;
+
+  TTestUpdateBplSource = class(TTestCommon, ITestImpl)
+  protected
+    function GetDescription: string;
+    function GetStepCount: Integer;
+    function GetTestPackageName(const aStep: Integer): string;
+    function GetVersion(const aStep: Integer): TVersion;
+    procedure Asserts;
+    procedure ClearTestProject; override;
     procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
   end;
 
@@ -137,7 +150,8 @@ begin
     TTestUninstallCodeSource.Create(aDPMEngine),
     TTestUpdateCodeSource.Create(aDPMEngine),
     TTestInstallBplSource.Create(aDPMEngine),
-    TTestUnistallBplSource.Create(aDPMEngine)
+    TTestUnistallBplSource.Create(aDPMEngine),
+    TTestUpdateBplSource.Create(aDPMEngine)
   ];
 end;
 
@@ -410,12 +424,7 @@ var
   Files: TArray<string>;
   ProjectPackagesPath: string;
   VendorsPath: string;
-  DependentPackage: TDependentPackage;
 begin
-  DependentPackage := GetIDEPackage('Test_Thunderbird_Tree');
-  if Assigned(DependentPackage) then
-    FDPMEngine.Action_Uninstall(DependentPackage);
-
   VendorsPath := FDPMEngine.Path_GetVendors(ptCodeSource);
   if TDirectory.Exists(VendorsPath) then
   begin
@@ -616,11 +625,6 @@ var
   BplPath: string;
   Package: TDependentPackage;
 begin
-  Package := GetProjectPackage('Test_Thunderbird_Tree');
-  AssertObject(Package, 'Test_Thunderbird_Tree');
-  AssertBoolean(Package.IsDirect, True);
-  AssertDirExists(FDPMEngine.Path_GetPackage(Package));
-
   Package := GetIDEPackage('Test_Thunderbird_Tree');
   AssertObject(Package, 'Test_Thunderbird_Tree');
   AssertBoolean(Package.IsDirect, True);
@@ -633,6 +637,17 @@ begin
   AssertFileExists(BplPath);
 
   AssertBplInstalled(BplPath);
+end;
+
+procedure TTestInstallBplSource.ClearTestProject;
+var
+  DependentPackage: TDependentPackage;
+begin
+  inherited;
+
+  DependentPackage := GetIDEPackage('Test_Thunderbird_Tree');
+  if Assigned(DependentPackage) then
+    FDPMEngine.Action_Uninstall(DependentPackage);
 end;
 
 procedure TTestInstallBplSource.DoAction(aPackage: TInitialPackage;
@@ -680,6 +695,17 @@ begin
   AssertFileNotExists(FDPMEngine.Path_GetProjectPackages);
 end;
 
+procedure TTestUnistallBplSource.ClearTestProject;
+var
+  DependentPackage: TDependentPackage;
+begin
+  inherited;
+
+  DependentPackage := GetIDEPackage('Test_Thunderbird_Tree');
+  if Assigned(DependentPackage) then
+    FDPMEngine.Action_Uninstall(DependentPackage);
+end;
+
 procedure TTestUnistallBplSource.DoAction(aPackage: TInitialPackage;
   aVersion: TVersion; const aStep: Integer);
 var
@@ -713,6 +739,73 @@ end;
 function TTestUnistallBplSource.GetVersion(const aStep: Integer): TVersion;
 begin
   Result := TVersion.CreateAsLatestVersionOption;
+end;
+
+{ TTestUpdateBplSource }
+
+procedure TTestUpdateBplSource.Asserts;
+var
+  BplPath: string;
+  Package: TDependentPackage;
+begin
+  Package := GetProjectPackage('Test_Thunderbird_Tree');
+  AssertObject(Package, 'Test_Thunderbird_Tree');
+  AssertObject(Package.Version, 'Test_Thunderbird_Tree.Version');
+  AssertString(Package.Version.SHA, '08366f730fe3b30dea4c50c095df0c0b5cb0adaa');
+  AssertBoolean(Package.IsDirect, True);
+  AssertDirExists(FDPMEngine.Path_GetPackage(Package));
+
+  BplPath := '';
+  if (Length(Package.BplFileRefs) > 0) then
+    BplPath := Package.BplFileRefs[0];
+  AssertBoolean(BplPath.EndsWith('\Bpl\thunderbirdTree.bpl'), True);
+  AssertFileExists(BplPath);
+
+  AssertBplInstalled(BplPath);
+end;
+
+procedure TTestUpdateBplSource.ClearTestProject;
+var
+  DependentPackage: TDependentPackage;
+begin
+  inherited;
+
+  DependentPackage := GetIDEPackage('Test_Thunderbird_Tree');
+  if Assigned(DependentPackage) then
+    FDPMEngine.Action_Uninstall(DependentPackage);
+end;
+
+procedure TTestUpdateBplSource.DoAction(aPackage: TInitialPackage;
+  aVersion: TVersion; const aStep: Integer);
+begin
+  case aStep of
+    1: FDPMEngine.Action_Install(aPackage, aVersion);
+    2: FDPMEngine.Action_Update(aPackage, aVersion);
+  end;
+end;
+
+function TTestUpdateBplSource.GetDescription: string;
+begin
+  Result := 'Update Bpl Source Package';
+end;
+
+function TTestUpdateBplSource.GetStepCount: Integer;
+begin
+  Result := 2;
+end;
+
+function TTestUpdateBplSource.GetTestPackageName(const aStep: Integer): string;
+begin
+  Result := 'Test_Thunderbird_Tree.json';
+end;
+
+function TTestUpdateBplSource.GetVersion(const aStep: Integer): TVersion;
+begin
+  Result := TVersion.Create;
+  case aStep of
+    1: Result.SHA := 'c1468b962d14f6d160e35dc9018a4b29ac816292';
+    2: Result.SHA := '08366f730fe3b30dea4c50c095df0c0b5cb0adaa';
+  end;
 end;
 
 end.

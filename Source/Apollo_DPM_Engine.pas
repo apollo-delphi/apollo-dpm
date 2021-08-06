@@ -205,9 +205,7 @@ begin
         Result := TInstall.GetClass(InitialPackage.PackageType).Allowed(Self, InitialPackage, aVersion);
 
       fatUpdate:
-        Result := Assigned(aVersion) and
-          InitialPackage.IsInstalled and
-          (InitialPackage.DependentPackage.Version.SHA <> aVersion.SHA);
+        Result := TUpdate.GetClass(InitialPackage.PackageType).Allowed(Self, InitialPackage.DependentPackage, aVersion);
 
       fatUninstall:
         Result := TUninstall.GetClass(InitialPackage.PackageType).Allowed(Self, InitialPackage.DependentPackage, aVersion);
@@ -226,8 +224,7 @@ begin
         Result := False;
 
       fatUpdate:
-        Result := Assigned(aVersion) and
-          (DependentPackage.Version.SHA <> aVersion.SHA);
+        Result := TUpdate.GetClass(DependentPackage.PackageType).Allowed(Self, DependentPackage, aVersion);
 
       fatUninstall:
         Result := TUninstall.GetClass(DependentPackage.PackageType).Allowed(Self, DependentPackage, aVersion);
