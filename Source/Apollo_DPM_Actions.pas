@@ -59,13 +59,13 @@ type
     procedure AddPackageFiles(aInitialPackage: TInitialPackage; aVersion: TVersion);
   protected
     FInitialPackage: TInitialPackage;
+    function DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; virtual;
     function GetContentPath(aPackage: TPackage): string; virtual;
     function GetDependencyHandles(aVersion: TVersion): TPackageHandles; virtual;
     function GetInstallPackageHandle(aDependentPackage: TDependentPackage;
       aVersion: TVersion; const aIsDirect: Boolean = False): TPackageHandle;
     function RepoPathToFilePath(const aRepoPath: string): string;
     function PostProcessPackageHandles(const aPackageHandles: TPackageHandles): TPackageHandles;
-    procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean); virtual;
     procedure ProcessUninstallHandles(aPackageHandles: TPackageHandles); virtual;
   public
     class function Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
@@ -81,8 +81,8 @@ type
       aRequiredDependencies: TDependentPackageList): TPackageHandles;
     procedure AddUnitsToProject(aInitialPackage: TInitialPackage);
   protected
+    function DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
     function GetDependencyHandles(aVersion: TVersion): TPackageHandles; override;
-    procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean); override;
     procedure ProcessUninstallHandles(aPackageHandles: TPackageHandles); override;
   public
     class function Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
@@ -94,20 +94,20 @@ type
     function FindXmlNode(aNode: IXMLNode; const aNodeName: string): IXMLNode;
     function MakeBPL(const aProjectFileName, aPackagePath: string): string;
   protected
-    procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean); override;
+    function DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
   end;
 
   TInstallBplBinary = class(TInstall)
   protected
-    procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean); override;
+    function DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
   end;
 
   TInstallProjectTemplate = class(TInstall)
   private
     FProjectPath: string;
   protected
+    function DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
     function GetContentPath(aPackage: TPackage): string; override;
-    procedure DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean); override;
   public
     class function Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
       aVersion: TVersion): Boolean; override;
@@ -158,9 +158,13 @@ uses
 
 { TInstall }
 
-procedure TInstall.DoInstall(aInitialPackage: TInitialPackage;
-  aVersion: TVersion; const aIsDirect: Boolean);
+function TInstall.DoInstall(aInitialPackage: TInitialPackage;
+  aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage;
 begin
+  Result := TDependentPackage.CreateByInitial(aInitialPackage);
+  Result.Version := aVersion;
+  Result.IsDirect := aIsDirect;
+
   AddPackageFiles(aInitialPackage, aVersion);
 end;
 
@@ -185,7 +189,7 @@ begin
   case aPackageType of
     ptCodeSource: Result := TInstallCodeSource;
     ptBplSource: Result := TInstallBplSource;
-    ptBplBinary: Result := TInstall;
+    ptBplBinary: Result := TInstallBplBinary;
     ptProjectTemplate: Result := TInstallProjectTemplate;
   else
     raise Exception.CreateFmt('TInstall.GetClass: unknown PackageType %s',
@@ -343,14 +347,15 @@ begin
   Result := True;
 end;
 
-procedure TInstallProjectTemplate.DoInstall(aInitialPackage: TInitialPackage;
-  aVersion: TVersion; const aIsDirect: Boolean);
+function TInstallProjectTemplate.DoInstall(aInitialPackage: TInitialPackage;
+  aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage;
 var
   Extension: string;
   Files: TArray<string>;
   FileItem: string;
 begin
-  inherited;
+  Result := inherited DoInstall(aInitialPackage, aVersion, aIsDirect);
+  FreeAndNil(Result);
 
   Files := FDPMEngine.Files_Get(GetContentPath(aInitialPackage), '*');
 
@@ -478,16 +483,10 @@ begin
   end;
 end;
 
-procedure TInstallCodeSource.DoInstall(aInitialPackage: TInitialPackage;
-  aVersion: TVersion; const aIsDirect: Boolean);
-var
-  DependentPackage: TDependentPackage;
+function TInstallCodeSource.DoInstall(aInitialPackage: TInitialPackage;
+  aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage;
 begin
-  inherited;
-
-  DependentPackage := TDependentPackage.CreateByInitial(aInitialPackage);
-  DependentPackage.Version := aVersion;
-  DependentPackage.IsDirect := aIsDirect;
+  Result := inherited DoInstall(aInitialPackage, aVersion, aIsDirect);
 
   AddUnitsToProject(aInitialPackage);
 
@@ -495,7 +494,7 @@ begin
         //s:=GetActiveProject.ProjectOptions.Values['SrcDir'];
         //AddSearchPath;
 
-  FDPMEngine.Packages_GetProject.Add(DependentPackage);
+  FDPMEngine.Packages_GetProject.Add(Result);
 end;
 
 function TInstallCodeSource.GetDependencyHandles(
@@ -530,24 +529,49 @@ end;
 
 { TInstallBplBinary }
 
-procedure TInstallBplBinary.DoInstall(aInitialPackage: TInitialPackage;
-  aVersion: TVersion; const aIsDirect: Boolean);
+function TInstallBplBinary.DoInstall(aInitialPackage: TInitialPackage;
+  aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage;
+var
+  BinaryFileName: string;
+  BinaryFilePath: string;
+  BplPath: string;
+  FileItem: string;
+  Files: TArray<string>;
+  SourcePath: string;
 begin
-  inherited;
-  {if aInitialPackage.PackageType = ptBplSource then
+  Result := inherited DoInstall(aInitialPackage, aVersion, aIsDirect);
+
+  Files := FDPMEngine.Files_Get(FDPMEngine.Path_GetPackage(aInitialPackage), '*');
+  for BinaryFileName in aInitialPackage.BinaryFileRefs do
   begin
-    BplPaths := [];
-    for ProjectFileName in aInitialPackage.ProjectFileRefs do
-    begin
-      BplPath := MakeBPL(ProjectFileName, GetPackagePath(aInitialPackage));
-      DependentPackage.BplFileRefs := DependentPackage.BplFileRefs + [BplPath];
-    end;
+    BinaryFilePath := '';
+    for FileItem in Files do
+      if FileItem.EndsWith(BinaryFileName) then
+      begin
+        BinaryFilePath := FileItem;
+        Break;
+      end;
 
-    for BplPath in DependentPackage.BplFileRefs do
-      InstallBpl(BplPath);
+    if BinaryFilePath.IsEmpty then
+      raise Exception.CreateFmt('installing bpl: %s was not found.', [BinaryFileName]);
 
-    GetIDEPackages.Add(TDependentPackage.Create(DependentPackage.GetJSONString,
-      SyncVersionCache));}
+    SourcePath := BinaryFilePath;
+    BinaryFilePath := FDPMEngine.Path_Combine(FDPMEngine.Path_GetEnviroment('$(BDSCOMMONDIR)\Bpl'), BinaryFileName);
+    FDPMEngine.File_Move(SourcePath, BinaryFilePath);
+
+    Result.BplFileRefs := Result.BplFileRefs + [BinaryFilePath];
+  end;
+
+  for BplPath in Result.BplFileRefs do
+  begin
+    FDPMEngine.NotifyUI(Format('installing %s', [FDPMEngine.File_GetName(BplPath)]));
+    FDPMEngine.Bpl_Install(BplPath);
+  end;
+
+  if FDPMEngine.Project_IsOpened then
+    FDPMEngine.Packages_GetProject.Add(Result);
+
+  FDPMEngine.Packages_AddCopyToIDE(Result);
 end;
 
 { TUninstall }
@@ -590,6 +614,7 @@ begin
   case aPackageType of
     ptCodeSource: Result := TUninstallCodeSource;
     ptBplSource: Result := TUninstallBplSource;
+    ptBplBinary: Result := TUninstall;
     ptProjectTemplate: Result := TUninstall;
   else
     raise Exception.CreateFmt('TUninstall.GetClass: unknown PackageType %s',
@@ -701,6 +726,7 @@ begin
   case aPackageType of
     ptCodeSource: Result := TUpdateCodeSource;
     ptBplSource: Result := TUpdateBplSource;
+    ptBplBinary: Result := TUpdate;
     ptProjectTemplate: Result := TUpdate;
   else
     raise Exception.CreateFmt('TUpdate.GetClass: unknown PackageType %s',
@@ -751,35 +777,30 @@ end;
 
 { TInstallBplSource }
 
-procedure TInstallBplSource.DoInstall(aInitialPackage: TInitialPackage;
-  aVersion: TVersion; const aIsDirect: Boolean);
+function TInstallBplSource.DoInstall(aInitialPackage: TInitialPackage;
+  aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage;
 var
   BplPath: string;
-  DependentPackage: TDependentPackage;
   ProjectFileName: string;
 begin
-  inherited;
-
-  DependentPackage := TDependentPackage.CreateByInitial(aInitialPackage);
-  DependentPackage.Version := aVersion;
-  DependentPackage.IsDirect := aIsDirect;
+  Result := inherited DoInstall(aInitialPackage, aVersion, aIsDirect);
 
   for ProjectFileName in aInitialPackage.ProjectFileRefs do
   begin
     BplPath := MakeBPL(ProjectFileName, FDPMEngine.Path_GetPackage(aInitialPackage));
-    DependentPackage.BplFileRefs := DependentPackage.BplFileRefs + [BplPath];
+    Result.BplFileRefs := Result.BplFileRefs + [BplPath];
   end;
 
-  for BplPath in DependentPackage.BplFileRefs do
+  for BplPath in Result.BplFileRefs do
   begin
     FDPMEngine.NotifyUI(Format('installing %s', [FDPMEngine.File_GetName(BplPath)]));
     FDPMEngine.Bpl_Install(BplPath);
   end;
 
   if FDPMEngine.Project_IsOpened then
-    FDPMEngine.Packages_GetProject.Add(DependentPackage);
+    FDPMEngine.Packages_GetProject.Add(Result);
 
-  FDPMEngine.Packages_AddCopyToIDE(DependentPackage);
+  FDPMEngine.Packages_AddCopyToIDE(Result);
 end;
 
 function TInstallBplSource.FindXmlNode(aNode: IXMLNode;

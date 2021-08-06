@@ -98,6 +98,7 @@ type
     function File_GetExtension(const aPath: string): string;
     function File_GetName(const aPath: string): string;
     function File_GetText(const aPath: string): string;
+    function File_Move(const aSource, aDestination: string): Boolean;
     function Packages_AddCopyToIDE(aDependentPackage: TDependentPackage): TDependentPackageList;
     function Packages_GetIDE: TDependentPackageList;
     function Packages_GetPrivate: TPrivatePackageList;
@@ -680,6 +681,12 @@ end;
 function TDPMEngine.File_GetText(const aPath: string): string;
 begin
   Result := TFile.ReadAllText(aPath, TEncoding.ANSI);
+end;
+
+function TDPMEngine.File_Move(const aSource, aDestination: string): Boolean;
+begin
+  TFile.Move(aSource, aDestination);
+  Result := True;
 end;
 
 function TDPMEngine.Path_GetVendors(const aPackageType: TPackageType): string;

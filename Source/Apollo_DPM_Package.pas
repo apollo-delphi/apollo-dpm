@@ -390,7 +390,7 @@ begin
   else
     ProjectFileRefs := [];
 
-  if (PackageType = ptBplSource) and (Length(BinaryFileRefs) > 0) then
+  if (PackageType = ptBplBinary) and (Length(BinaryFileRefs) > 0) then
     AddStringArrToJSON(Result, BinaryFileRefs, cKeyBinaryFileRefs)
   else
     BinaryFileRefs := [];
