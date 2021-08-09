@@ -236,7 +236,7 @@ begin
   if not FDPMEngine.AreVersionsLoaded(FPackage.ID) then
     cbVersions.Items.AddObject(cStrLatestVersionOrCommit, TVersionComboItem.Create);
 
-  Versions := FDPMEngine.GetVersions(FPackage, True);
+  Versions := FDPMEngine.GetVersions(FPackage, True{aCachedOnly});
   for Version in Versions do
     cbVersions.Items.AddObject(Version.DisplayName, TVersionComboItem.Create(Version));
 end;
@@ -340,13 +340,13 @@ begin
 
   lblInstalled.Visible := False;
   FInstalledVersion := nil;
-  if FPackage is TDependentPackage then
+  if FPackage.InheritsFrom(TDependentPackage) then
   begin
     FInstalledVersion := (FPackage as TDependentPackage).Version;
     SetupInstalledLabel((FPackage as TDependentPackage));
   end
   else
-  if FPackage is TInitialPackage then
+  if FPackage.InheritsFrom(TInitialPackage) then
   begin
     if Assigned((FPackage as TInitialPackage).DependentPackage) then
     begin

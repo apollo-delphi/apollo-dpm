@@ -192,7 +192,7 @@ end;
 function TVersionCacheList.SyncVersion(const aPackageID: string;
   aVersion: TVersion): TVersion;
 begin
-  if ContainsSHA(aVersion.SHA) then
+  if ContainsSHA(aVersion.SHA) and ContainsLoadedPackageID(aPackageID) then
   begin
     Result := GetBySHA(aVersion.SHA);
     FreeAndNil(aVersion);

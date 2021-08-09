@@ -216,7 +216,7 @@ end;
 
 function TPackage.GetID: string;
 begin
-  Result := THashMD5.GetHashString(FRepoOwner + FRepoName).ToUpper;
+  Result := THashMD5.GetHashString(FRepoOwner + FRepoName + FName).ToUpper;
 end;
 
 function TPackage.GetJSON: TJSONObject;

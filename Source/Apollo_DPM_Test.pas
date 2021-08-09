@@ -138,6 +138,17 @@ type
     procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
   end;
 
+  TTestInstallBplBinary = class(TTestCommon, ITestImpl)
+  protected
+    function GetDescription: string;
+    function GetStepCount: Integer;
+    function GetTestPackageName(const aStep: Integer): string;
+    function GetVersion(const aStep: Integer): TVersion;
+    procedure Asserts;
+    procedure ClearTestProject; override;
+    procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
+  end;
+
   EWrongStep = class(Exception)
   public
     constructor Create;
@@ -151,7 +162,8 @@ begin
     TTestUpdateCodeSource.Create(aDPMEngine),
     TTestInstallBplSource.Create(aDPMEngine),
     TTestUnistallBplSource.Create(aDPMEngine),
-    TTestUpdateBplSource.Create(aDPMEngine)
+    TTestUpdateBplSource.Create(aDPMEngine),
+    TTestInstallBplBinary.Create(aDPMEngine)
   ];
 end;
 
@@ -806,6 +818,51 @@ begin
     1: Result.SHA := 'c1468b962d14f6d160e35dc9018a4b29ac816292';
     2: Result.SHA := '08366f730fe3b30dea4c50c095df0c0b5cb0adaa';
   end;
+end;
+
+{ TTestInstallBplBinary }
+
+procedure TTestInstallBplBinary.Asserts;
+begin
+
+end;
+
+procedure TTestInstallBplBinary.ClearTestProject;
+var
+  DependentPackage: TDependentPackage;
+begin
+  inherited;
+
+  DependentPackage := GetIDEPackage('Test_TRichView');
+  if Assigned(DependentPackage) then
+    FDPMEngine.Action_Uninstall(DependentPackage);
+end;
+
+procedure TTestInstallBplBinary.DoAction(aPackage: TInitialPackage;
+  aVersion: TVersion; const aStep: Integer);
+begin
+  FDPMEngine.Action_Install(aPackage, aVersion);
+end;
+
+function TTestInstallBplBinary.GetDescription: string;
+begin
+  Result := 'Install Bpl Binary Package';
+end;
+
+function TTestInstallBplBinary.GetStepCount: Integer;
+begin
+  Result := 1;
+end;
+
+function TTestInstallBplBinary.GetTestPackageName(const aStep: Integer): string;
+begin
+  Result := 'Test_TRichView.json';
+end;
+
+function TTestInstallBplBinary.GetVersion(const aStep: Integer): TVersion;
+begin
+  Result := TVersion.Create;
+  Result.SHA := 'c49e2d846f488cf12e83cd2e2ff1aee1c8acf49e';
 end;
 
 end.

@@ -49,6 +49,9 @@ type
     procedure RemovePackageFromLists(const aPackageID: string; aDependentPackage: TDependentPackage); override;
   end;
 
+  TUninstallBplBinary = class(TUninstallBplSource)
+  end;
+
   TInstall = class;
   TInstallClass = class of TInstall;
 
@@ -89,15 +92,24 @@ type
       aVersion: TVersion): Boolean; override;
   end;
 
-  TInstallBplSource = class(TInstall)
+  TInstallBplCustomFunc = reference to function(const aFilePath: string): string;
+
+  TInstallBplCommon = class(TInstall)
+  protected
+    procedure DoBplInstall(aInitialPackage: TInitialPackage;
+      aDependentPackage: TDependentPackage; const aFileRefs: TArray<string>;
+      aCustomFunc: TInstallBplCustomFunc);
+  end;
+
+  TInstallBplSource = class(TInstallBplCommon)
   private
     function FindXmlNode(aNode: IXMLNode; const aNodeName: string): IXMLNode;
-    function MakeBPL(const aProjectFileName, aPackagePath: string): string;
+    function MakeBPL(const aProjectFilePath: string): string;
   protected
     function DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
   end;
 
-  TInstallBplBinary = class(TInstall)
+  TInstallBplBinary = class(TInstallBplCommon)
   protected
     function DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
   end;
@@ -531,47 +543,21 @@ end;
 
 function TInstallBplBinary.DoInstall(aInitialPackage: TInitialPackage;
   aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage;
-var
-  BinaryFileName: string;
-  BinaryFilePath: string;
-  BplPath: string;
-  FileItem: string;
-  Files: TArray<string>;
-  SourcePath: string;
 begin
   Result := inherited DoInstall(aInitialPackage, aVersion, aIsDirect);
 
-  Files := FDPMEngine.Files_Get(FDPMEngine.Path_GetPackage(aInitialPackage), '*');
-  for BinaryFileName in aInitialPackage.BinaryFileRefs do
-  begin
-    BinaryFilePath := '';
-    for FileItem in Files do
-      if FileItem.EndsWith(BinaryFileName) then
-      begin
-        BinaryFilePath := FileItem;
-        Break;
-      end;
+  DoBplInstall(aInitialPackage, Result, aInitialPackage.BinaryFileRefs,
+    function(const aFilePath: string): string
+    var
+      FileName: string;
+    begin
+      FileName := FDPMEngine.File_GetName(aFilePath);
+      Result := FDPMEngine.Path_Combine(FDPMEngine.Path_GetEnviroment('$(BDSCOMMONDIR)\Bpl'), FileName);
 
-    if BinaryFilePath.IsEmpty then
-      raise Exception.CreateFmt('installing bpl: %s was not found.', [BinaryFileName]);
-
-    SourcePath := BinaryFilePath;
-    BinaryFilePath := FDPMEngine.Path_Combine(FDPMEngine.Path_GetEnviroment('$(BDSCOMMONDIR)\Bpl'), BinaryFileName);
-    FDPMEngine.File_Move(SourcePath, BinaryFilePath);
-
-    Result.BplFileRefs := Result.BplFileRefs + [BinaryFilePath];
-  end;
-
-  for BplPath in Result.BplFileRefs do
-  begin
-    FDPMEngine.NotifyUI(Format('installing %s', [FDPMEngine.File_GetName(BplPath)]));
-    FDPMEngine.Bpl_Install(BplPath);
-  end;
-
-  if FDPMEngine.Project_IsOpened then
-    FDPMEngine.Packages_GetProject.Add(Result);
-
-  FDPMEngine.Packages_AddCopyToIDE(Result);
+      FDPMEngine.NotifyUI(Format('coping %s to %s', [FileName, Result]));
+      FDPMEngine.File_Move(aFilePath, Result);
+    end
+  );
 end;
 
 { TUninstall }
@@ -594,7 +580,7 @@ var
   Path: string;
 begin
   Path := FDPMEngine.Path_GetPackage(aPackage);
-  if Path.IsEmpty then
+  if (Path.IsEmpty) or not FDPMEngine.Directory_Exists(Path) then
     Exit;
 
   FDPMEngine.NotifyUI('deleting ' + Path);
@@ -614,7 +600,7 @@ begin
   case aPackageType of
     ptCodeSource: Result := TUninstallCodeSource;
     ptBplSource: Result := TUninstallBplSource;
-    ptBplBinary: Result := TUninstall;
+    ptBplBinary: Result := TUninstallBplBinary;
     ptProjectTemplate: Result := TUninstall;
   else
     raise Exception.CreateFmt('TUninstall.GetClass: unknown PackageType %s',
@@ -779,28 +765,15 @@ end;
 
 function TInstallBplSource.DoInstall(aInitialPackage: TInitialPackage;
   aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage;
-var
-  BplPath: string;
-  ProjectFileName: string;
 begin
   Result := inherited DoInstall(aInitialPackage, aVersion, aIsDirect);
 
-  for ProjectFileName in aInitialPackage.ProjectFileRefs do
-  begin
-    BplPath := MakeBPL(ProjectFileName, FDPMEngine.Path_GetPackage(aInitialPackage));
-    Result.BplFileRefs := Result.BplFileRefs + [BplPath];
-  end;
-
-  for BplPath in Result.BplFileRefs do
-  begin
-    FDPMEngine.NotifyUI(Format('installing %s', [FDPMEngine.File_GetName(BplPath)]));
-    FDPMEngine.Bpl_Install(BplPath);
-  end;
-
-  if FDPMEngine.Project_IsOpened then
-    FDPMEngine.Packages_GetProject.Add(Result);
-
-  FDPMEngine.Packages_AddCopyToIDE(Result);
+  DoBplInstall(aInitialPackage, Result, aInitialPackage.ProjectFileRefs,
+    function(const aFilePath: string): string
+    begin
+      Result := MakeBPL(aFilePath);
+    end
+  );
 end;
 
 function TInstallBplSource.FindXmlNode(aNode: IXMLNode;
@@ -824,35 +797,19 @@ begin
       end;
 end;
 
-function TInstallBplSource.MakeBPL(const aProjectFileName,
-  aPackagePath: string): string;
+function TInstallBplSource.MakeBPL(const aProjectFilePath: string): string;
 var
   ConsoleOutput: string;
-  FileItem: string;
-  Files: TArray<string>;
   FrameworkDir: string;
   MSBuildPath: string;
   OutputFile: string;
   OutputPath: string;
-  ProjectFilePath: string;
   RsVarsPath: string;
   StringList: TStringList;
   XmlFile: IXMLDocument;
   XmlNode: IXMLNode;
 begin
-  FDPMEngine.NotifyUI(Format('compiling %s', [aProjectFileName]));
-
-  ProjectFilePath := '';
-  Files := FDPMEngine.Files_Get(aPackagePath, '*');
-  for FileItem in Files do
-    if FileItem.EndsWith(aProjectFileName) then
-    begin
-      ProjectFilePath := FileItem;
-      Break;
-    end;
-
-  if ProjectFilePath.IsEmpty then
-    raise Exception.CreateFmt('compiling bpl: %s was not found.', [aProjectFileName]);
+  FDPMEngine.NotifyUI(Format('compiling %s', [FDPMEngine.File_GetName(aProjectFilePath)]));
 
   RsVarsPath := FDPMEngine.Path_Combine(FDPMEngine.Path_GetEnviroment('$(BDSBIN)'), 'rsvars.bat');
 
@@ -871,11 +828,11 @@ begin
     raise Exception.Create('compiling bpl: can`t find .NET FrameworkDir');
 
   MSBuildPath := FDPMEngine.Path_Combine(FrameworkDir, 'MSBuild.exe');
-  ConsoleOutput := FDPMEngine.Console_Run(Format('%s "%s" /t:Make', [MSBuildPath, ProjectFilePath]));
+  ConsoleOutput := FDPMEngine.Console_Run(Format('%s "%s" /t:Make', [MSBuildPath, aProjectFilePath]));
 
   //FUINotifyProc(ConsoleOutput);
 
-  XmlFile := LoadXMLDocument(ProjectFilePath);
+  XmlFile := LoadXMLDocument(aProjectFilePath);
 
   XmlNode := FindXmlNode(XmlFile.Node, 'DCC_BplOutput');
   if Assigned(XmlNode) and not XmlNode.Text.IsEmpty then
@@ -1017,6 +974,54 @@ begin
   finally
     UninstallBplSource.Free;
   end;
+end;
+
+{ TInstallBplCommon }
+
+procedure TInstallBplCommon.DoBplInstall(aInitialPackage: TInitialPackage;
+  aDependentPackage: TDependentPackage; const aFileRefs: TArray<string>;
+  aCustomFunc: TInstallBplCustomFunc);
+var
+  BplPath: string;
+  FileName: string;
+  FilePath: string;
+  Files: TArray<string>;
+  FilesItem: string;
+  PackagePath: string;
+begin
+  PackagePath := FDPMEngine.Path_GetPackage(aInitialPackage);
+  Files := FDPMEngine.Files_Get(PackagePath, '*');
+  for FileName in aFileRefs do
+  begin
+    FilePath := '';
+
+    for FilesItem in Files do
+      if FilesItem.EndsWith(FileName) then
+      begin
+        FilePath := FilesItem;
+        Break;
+      end;
+
+    if FilePath.IsEmpty then
+      raise Exception.CreateFmt('installing bpl: %s was not found.', [FilePath]);
+
+    BplPath := aCustomFunc(FilePath);
+
+    aDependentPackage.BplFileRefs := aDependentPackage.BplFileRefs + [BplPath];
+  end;
+  FDPMEngine.Directory_DeleteIfEmpty(PackagePath);
+  FDPMEngine.Directory_DeleteIfEmpty(FDPMEngine.Path_GetVendors(aInitialPackage.PackageType));
+
+  for BplPath in aDependentPackage.BplFileRefs do
+  begin
+    FDPMEngine.NotifyUI(Format('installing %s', [FDPMEngine.File_GetName(BplPath)]));
+    FDPMEngine.Bpl_Install(BplPath);
+  end;
+
+  if FDPMEngine.Project_IsOpened then
+    FDPMEngine.Packages_GetProject.Add(aDependentPackage);
+
+  FDPMEngine.Packages_AddCopyToIDE(aDependentPackage);
 end;
 
 end.

@@ -365,7 +365,9 @@ end;
 function TDPMEngine.Directory_DeleteIfEmpty(const aPath: string): Boolean;
 begin
   Result := False;
-  if Length(TDirectory.GetDirectories(aPath, '*', TSearchOption.soTopDirectoryOnly)) = 0 then
+  if (Length(TDirectory.GetDirectories(aPath, '*', TSearchOption.soTopDirectoryOnly)) = 0) and
+     (Length(Files_Get(aPath, '*')) = 0)
+  then
   begin
     TDirectory.Delete(aPath);
     Result := True;
