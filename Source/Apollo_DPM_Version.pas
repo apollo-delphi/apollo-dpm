@@ -50,8 +50,8 @@ type
     FLoadedPackageIDs: TArray<string>;
     function ContainsSHA(const aSHA: string): Boolean;
     function GetBySHA(const aSHA: string): TVersion;
-  public
     procedure AddLoadedPackageID(const aPackageID: string);
+  public
     function ContainsLoadedPackageID(const aPackageID: string): Boolean;
     function GetByPackageID(const aPackageID: string): TArray<TVersion>;
     function SyncVersion(const aPackageID: string; aVersion: TVersion): TVersion;
@@ -201,6 +201,7 @@ begin
   begin
     Result := aVersion;
     Add(TVersionCache.Create(aPackageID, aVersion));
+    AddLoadedPackageID(aPackageID);
   end;
 end;
 

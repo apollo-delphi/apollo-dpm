@@ -33,7 +33,6 @@ type
     function GetVersionCacheList: TVersionCacheList;
     function RepoPathToFilePath(const aRepoPath: string): string;
     function SaveAsPrivatePackage(aPackage: TInitialPackage): string;
-    function SyncVersionCache(const aPackageID: string; aVersion: TVersion): TVersion;
     procedure AddApolloMenuItem;
     procedure AddDPMMenuItem;
     procedure ApplySettings;
@@ -119,6 +118,7 @@ type
     function Project_GetTest: IOTAProject;
     function Project_IsOpened: Boolean;
     function Project_SetActive(aProject: IOTAProject): IOTAProject;
+    function Versions_SyncCache(const aPackageID: string; aVersion: TVersion): TVersion;
     property NotifyUI: TUINotifyProc read FUINotifyProc;
     property TestMode: Boolean read FTestMode write FTestMode;
   end;
@@ -398,7 +398,7 @@ begin
       Blob := FGHAPI.GetRepoBlob(TreeNode.URL);
       sJSON := TNetEncoding.Base64.Decode(Blob.Content);
 
-      PackageList := TDependentPackageList.Create(sJSON, SyncVersionCache);
+      PackageList := TDependentPackageList.Create(sJSON, Versions_SyncCache);
       try
         for i := PackageList.Count - 1 downto 0 do
         begin
@@ -558,7 +558,7 @@ function TDPMEngine.Packages_AddCopyToIDE(
   aDependentPackage: TDependentPackage): TDependentPackageList;
 begin
   Packages_GetIDE.Add(TDependentPackage.Create(aDependentPackage.GetJSONString,
-    SyncVersionCache));
+    Versions_SyncCache));
 
   Result := Packages_GetIDE;
 end;
@@ -572,7 +572,7 @@ begin
     if TFile.Exists(Path_GetIDEPackages) then
     begin
       sJSON := TFile.ReadAllText(Path_GetIDEPackages, TEncoding.ANSI);
-      FIDEPackages := TDependentPackageList.Create(sJSON, SyncVersionCache);
+      FIDEPackages := TDependentPackageList.Create(sJSON, Versions_SyncCache);
     end
     else
       FIDEPackages := TDependentPackageList.Create;
@@ -637,7 +637,7 @@ begin
     if TFile.Exists(Path_GetProjectPackages) then
     begin
       sJSON := TFile.ReadAllText(Path_GetProjectPackages, TEncoding.ANSI);
-      FProjectPackages := TDependentPackageList.Create(sJSON, SyncVersionCache);
+      FProjectPackages := TDependentPackageList.Create(sJSON, Versions_SyncCache);
     end
     else
       FProjectPackages := TDependentPackageList.Create;
@@ -842,7 +842,7 @@ procedure TDPMEngine.LoadRepoVersions(aPackage: TPackage);
     Version := TVersion.Create;
     Version.Assign(aTag);
 
-    SyncVersionCache(aPackage.ID, Version);
+    Versions_SyncCache(aPackage.ID, Version);
   end;
 
 var
@@ -856,8 +856,6 @@ begin
 
   Tag := FGHAPI.GetMasterBranch(aPackage.RepoOwner, aPackage.RepoName);
   CreateVersion(Tag);
-
-  GetVersionCacheList.AddLoadedPackageID(aPackage.ID);
 end;
 
 procedure TDPMEngine.LockActions;
@@ -1072,7 +1070,7 @@ begin
   aPackage.FilePath := SaveAsPrivatePackage(aPackage);
 end;
 
-function TDPMEngine.SyncVersionCache(const aPackageID: string; aVersion: TVersion): TVersion;
+function TDPMEngine.Versions_SyncCache(const aPackageID: string; aVersion: TVersion): TVersion;
 begin
   Result := GetVersionCacheList.SyncVersion(aPackageID, aVersion);
 end;

@@ -33,7 +33,7 @@ type
   ['{811F30EC-DF80-4EB2-884D-68D7A4A70814}']
     function GetDescription: string;
     function GetStepCount: Integer;
-    function GetTestPackageName(const aStep: Integer): string;
+    function GetTestPackageFileName(const aStep: Integer): string;
     function GetVersion(const aStep: Integer): TVersion;
     procedure Asserts;
     procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
@@ -76,7 +76,7 @@ type
   protected
     function GetDescription: string;
     function GetStepCount: Integer;
-    function GetTestPackageName(const aStep: Integer): string;
+    function GetTestPackageFileName(const aStep: Integer): string;
     function GetVersion(const aStep: Integer): TVersion;
     procedure Asserts;
     procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
@@ -86,7 +86,7 @@ type
   protected
     function GetDescription: string;
     function GetStepCount: Integer;
-    function GetTestPackageName(const aStep: Integer): string;
+    function GetTestPackageFileName(const aStep: Integer): string;
     function GetVersion(const aStep: Integer): TVersion;
     procedure Asserts;
     procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
@@ -96,7 +96,7 @@ type
   protected
     function GetDescription: string;
     function GetStepCount: Integer;
-    function GetTestPackageName(const aStep: Integer): string;
+    function GetTestPackageFileName(const aStep: Integer): string;
     function GetVersion(const aStep: Integer): TVersion;
     procedure Asserts;
     procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
@@ -106,7 +106,7 @@ type
   protected
     function GetDescription: string;
     function GetStepCount: Integer;
-    function GetTestPackageName(const aStep: Integer): string;
+    function GetTestPackageFileName(const aStep: Integer): string;
     function GetVersion(const aStep: Integer): TVersion;
     procedure Asserts;
     procedure ClearTestProject; override;
@@ -120,7 +120,7 @@ type
   protected
     function GetDescription: string;
     function GetStepCount: Integer;
-    function GetTestPackageName(const aStep: Integer): string;
+    function GetTestPackageFileName(const aStep: Integer): string;
     function GetVersion(const aStep: Integer): TVersion;
     procedure Asserts;
     procedure ClearTestProject; override;
@@ -131,7 +131,7 @@ type
   protected
     function GetDescription: string;
     function GetStepCount: Integer;
-    function GetTestPackageName(const aStep: Integer): string;
+    function GetTestPackageFileName(const aStep: Integer): string;
     function GetVersion(const aStep: Integer): TVersion;
     procedure Asserts;
     procedure ClearTestProject; override;
@@ -142,7 +142,7 @@ type
   protected
     function GetDescription: string;
     function GetStepCount: Integer;
-    function GetTestPackageName(const aStep: Integer): string;
+    function GetTestPackageFileName(const aStep: Integer): string;
     function GetVersion(const aStep: Integer): TVersion;
     procedure Asserts;
     procedure ClearTestProject; override;
@@ -155,7 +155,18 @@ type
   protected
     function GetDescription: string;
     function GetStepCount: Integer;
-    function GetTestPackageName(const aStep: Integer): string;
+    function GetTestPackageFileName(const aStep: Integer): string;
+    function GetVersion(const aStep: Integer): TVersion;
+    procedure Asserts;
+    procedure ClearTestProject; override;
+    procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
+  end;
+
+  TTestUpdateBplBinary = class(TTestCommon, ITestImpl)
+  protected
+    function GetDescription: string;
+    function GetStepCount: Integer;
+    function GetTestPackageFileName(const aStep: Integer): string;
     function GetVersion(const aStep: Integer): TVersion;
     procedure Asserts;
     procedure ClearTestProject; override;
@@ -171,12 +182,13 @@ function GetTests(aDPMEngine: TDPMEngine): TArray<ITest>;
 begin
   Result := [
     TTestInstallCodeSource.Create(aDPMEngine),
-    TTestUninstallCodeSource.Create(aDPMEngine),
     TTestUpdateCodeSource.Create(aDPMEngine),
+    TTestUninstallCodeSource.Create(aDPMEngine),
     TTestInstallBplSource.Create(aDPMEngine),
-    TTestUnistallBplSource.Create(aDPMEngine),
     TTestUpdateBplSource.Create(aDPMEngine),
+    TTestUnistallBplSource.Create(aDPMEngine),
     TTestInstallBplBinary.Create(aDPMEngine),
+    TTestUpdateBplBinary.Create(aDPMEngine),
     TTestUninstallBplBinary.Create(aDPMEngine)
   ];
 end;
@@ -226,7 +238,7 @@ begin
   Result := 2;
 end;
 
-function TTestInstallCodeSource.GetTestPackageName(const aStep: Integer): string;
+function TTestInstallCodeSource.GetTestPackageFileName(const aStep: Integer): string;
 begin
   case aStep of
     1: Result := 'Apollo_DB_SQLite.json';
@@ -255,6 +267,7 @@ procedure TTestCommon.Run;
 var
   DPMProject: IOTAProject;
   i: Integer;
+  NeedToFreeVersion: Boolean;
   TestPackage: TPrivatePackage;
   TestProject: IOTAProject;
   Version: TVersion;
@@ -269,10 +282,22 @@ begin
 
     for i := 1 to FTestImpl.GetStepCount do
     begin
-      TestPackage := CreateTestPackage(FTestImpl.GetTestPackageName(i));
+      TestPackage := CreateTestPackage(FTestImpl.GetTestPackageFileName(i));
       Version := FTestImpl.GetVersion(i);
+      NeedToFreeVersion := False;
+      try
+        if Assigned(Version) and not Version.SHA.IsEmpty then
+          Version := FDPMEngine.Versions_SyncCache(TestPackage.ID, Version)
+        else
+          NeedToFreeVersion := True;
 
-      FTestImpl.DoAction(TestPackage, Version, i);
+        FTestImpl.DoAction(TestPackage, Version, i);
+      finally
+        TestPackage.Free;
+
+        if Assigned(Version) and NeedToFreeVersion then
+          Version.Free;
+      end;
     end;
 
     FTestImpl.Asserts;
@@ -552,7 +577,7 @@ begin
   Result := 2;
 end;
 
-function TTestUninstallCodeSource.GetTestPackageName(const aStep: Integer): string;
+function TTestUninstallCodeSource.GetTestPackageFileName(const aStep: Integer): string;
 begin
   case aStep of
     1: Result := 'Apollo_DB_SQLite.json';
@@ -609,7 +634,7 @@ begin
   Result := 2;
 end;
 
-function TTestUpdateCodeSource.GetTestPackageName(const aStep: Integer): string;
+function TTestUpdateCodeSource.GetTestPackageFileName(const aStep: Integer): string;
 begin
   case aStep of
     1:  Result := 'Apollo_Helpers.json';
@@ -692,7 +717,7 @@ begin
   Result := 1;
 end;
 
-function TTestInstallBplSource.GetTestPackageName(const aStep: Integer): string;
+function TTestInstallBplSource.GetTestPackageFileName(const aStep: Integer): string;
 begin
   Result := 'Test_Thunderbird_Tree.json';
 end;
@@ -756,7 +781,7 @@ begin
   Result := 1;
 end;
 
-function TTestUnistallBplSource.GetTestPackageName(
+function TTestUnistallBplSource.GetTestPackageFileName(
   const aStep: Integer): string;
 begin
   Result := 'Test_Thunderbird_Tree.json';
@@ -820,7 +845,7 @@ begin
   Result := 2;
 end;
 
-function TTestUpdateBplSource.GetTestPackageName(const aStep: Integer): string;
+function TTestUpdateBplSource.GetTestPackageFileName(const aStep: Integer): string;
 begin
   Result := 'Test_Thunderbird_Tree.json';
 end;
@@ -877,7 +902,7 @@ begin
   Result := 1;
 end;
 
-function TTestInstallBplBinary.GetTestPackageName(const aStep: Integer): string;
+function TTestInstallBplBinary.GetTestPackageFileName(const aStep: Integer): string;
 begin
   Result := 'Test_TRichView.json';
 end;
@@ -934,7 +959,7 @@ begin
   Result := 2;
 end;
 
-function TTestUninstallBplBinary.GetTestPackageName(
+function TTestUninstallBplBinary.GetTestPackageFileName(
   const aStep: Integer): string;
 begin
   Result := 'Test_TRichView.json';
@@ -943,6 +968,68 @@ end;
 function TTestUninstallBplBinary.GetVersion(const aStep: Integer): TVersion;
 begin
   Result := TVersion.CreateAsLatestVersionOption;
+end;
+
+{ TTestUpdateBplBinary }
+
+procedure TTestUpdateBplBinary.Asserts;
+var
+  Package: TDependentPackage;
+begin
+  Package := GetProjectPackage('Test_TRichView');
+  AssertObject(Package, 'Test_TRichView');
+  AssertObject(Package.Version, 'Test_TRichView.Version');
+  AssertString(Package.Version.SHA, '9b4bfa8f32c312d256fa12be6089e33c226fbafc');
+  AssertBoolean(Package.IsDirect, True);
+  AssertInteger(Length(Package.BplFileRefs), 1);
+  AssertFileExists(Package.BplFileRefs[0]);
+  AssertBplInstalled(Package.BplFileRefs[0]);
+  AssertDirNotExists(FDPMEngine.Path_GetPackage(Package));
+end;
+
+procedure TTestUpdateBplBinary.ClearTestProject;
+var
+  DependentPackage: TDependentPackage;
+begin
+  inherited;
+
+  DependentPackage := GetIDEPackage('Test_TRichView');
+  if Assigned(DependentPackage) then
+    FDPMEngine.Action_Uninstall(DependentPackage);
+end;
+
+
+procedure TTestUpdateBplBinary.DoAction(aPackage: TInitialPackage;
+  aVersion: TVersion; const aStep: Integer);
+begin
+  case aStep of
+    1: FDPMEngine.Action_Install(aPackage, aVersion);
+    2: FDPMEngine.Action_Update(aPackage, aVersion);
+  end;
+end;
+
+function TTestUpdateBplBinary.GetDescription: string;
+begin
+  Result := 'Update Bpl Binary Package';
+end;
+
+function TTestUpdateBplBinary.GetStepCount: Integer;
+begin
+  Result := 2;
+end;
+
+function TTestUpdateBplBinary.GetTestPackageFileName(const aStep: Integer): string;
+begin
+  Result := 'Test_TRichView.json';
+end;
+
+function TTestUpdateBplBinary.GetVersion(const aStep: Integer): TVersion;
+begin
+  Result := TVersion.Create;
+  case aStep of
+    1: Result.SHA := 'c49e2d846f488cf12e83cd2e2ff1aee1c8acf49e';
+    2: Result.SHA := '9b4bfa8f32c312d256fa12be6089e33c226fbafc';
+  end;
 end;
 
 end.
