@@ -149,6 +149,19 @@ type
     procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
   end;
 
+  TTestUninstallBplBinary = class(TTestCommon, ITestImpl)
+  private
+    FBplPath: string;
+  protected
+    function GetDescription: string;
+    function GetStepCount: Integer;
+    function GetTestPackageName(const aStep: Integer): string;
+    function GetVersion(const aStep: Integer): TVersion;
+    procedure Asserts;
+    procedure ClearTestProject; override;
+    procedure DoAction(aPackage: TInitialPackage; aVersion: TVersion; const aStep: Integer);
+  end;
+
   EWrongStep = class(Exception)
   public
     constructor Create;
@@ -163,7 +176,8 @@ begin
     TTestInstallBplSource.Create(aDPMEngine),
     TTestUnistallBplSource.Create(aDPMEngine),
     TTestUpdateBplSource.Create(aDPMEngine),
-    TTestInstallBplBinary.Create(aDPMEngine)
+    TTestInstallBplBinary.Create(aDPMEngine),
+    TTestUninstallBplBinary.Create(aDPMEngine)
   ];
 end;
 
@@ -823,8 +837,17 @@ end;
 { TTestInstallBplBinary }
 
 procedure TTestInstallBplBinary.Asserts;
+var
+  Package: TDependentPackage;
 begin
-
+  Package := GetProjectPackage('Test_TRichView');
+  AssertObject(Package, 'Test_TRichView');
+  AssertObject(Package.Version, 'Test_TRichView.Version');
+  AssertString(Package.Version.SHA, 'c49e2d846f488cf12e83cd2e2ff1aee1c8acf49e');
+  AssertBoolean(Package.IsDirect, True);
+  AssertFileExists(Package.BplFileRefs[0]);
+  AssertBplInstalled(Package.BplFileRefs[0]);
+  AssertDirNotExists(FDPMEngine.Path_GetPackage(Package));
 end;
 
 procedure TTestInstallBplBinary.ClearTestProject;
@@ -863,6 +886,63 @@ function TTestInstallBplBinary.GetVersion(const aStep: Integer): TVersion;
 begin
   Result := TVersion.Create;
   Result.SHA := 'c49e2d846f488cf12e83cd2e2ff1aee1c8acf49e';
+end;
+
+{ TTestUninstallBplBinary }
+
+procedure TTestUninstallBplBinary.Asserts;
+var
+  Package: TDependentPackage;
+begin
+  Package := GetProjectPackage('Test_TRichView');
+  AssertNil(Package, 'Test_TRichView');
+  AssertFileNotExists(FBplPath);
+  AssertBplNotInstalled(FBplPath);
+end;
+
+procedure TTestUninstallBplBinary.ClearTestProject;
+var
+  DependentPackage: TDependentPackage;
+begin
+  inherited;
+
+  DependentPackage := GetIDEPackage('Test_TRichView');
+  if Assigned(DependentPackage) then
+    FDPMEngine.Action_Uninstall(DependentPackage);
+end;
+
+procedure TTestUninstallBplBinary.DoAction(aPackage: TInitialPackage;
+  aVersion: TVersion; const aStep: Integer);
+begin
+  case aStep of
+    1:
+      begin
+        FDPMEngine.Action_Install(aPackage, aVersion);
+        FBplPath := aPackage.BinaryFileRefs[0];
+      end;
+    2: FDPMEngine.Action_Uninstall(aPackage);
+  end;
+end;
+
+function TTestUninstallBplBinary.GetDescription: string;
+begin
+  Result := 'Uninstall Bpl Binary Package';
+end;
+
+function TTestUninstallBplBinary.GetStepCount: Integer;
+begin
+  Result := 2;
+end;
+
+function TTestUninstallBplBinary.GetTestPackageName(
+  const aStep: Integer): string;
+begin
+  Result := 'Test_TRichView.json';
+end;
+
+function TTestUninstallBplBinary.GetVersion(const aStep: Integer): TVersion;
+begin
+  Result := TVersion.CreateAsLatestVersionOption;
 end;
 
 end.

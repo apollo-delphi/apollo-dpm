@@ -157,6 +157,12 @@ type
     procedure ProcessUninstallHandles(aPackageHandles: TPackageHandles); override;
   end;
 
+  TUpdateBplBinary = class(TUpdate)
+  protected
+    procedure ProcessInstallHandles(aPackageHandles: TPackageHandles); override;
+    procedure ProcessUninstallHandles(aPackageHandles: TPackageHandles); override;
+  end;
+
 implementation
 
 uses
@@ -712,7 +718,7 @@ begin
   case aPackageType of
     ptCodeSource: Result := TUpdateCodeSource;
     ptBplSource: Result := TUpdateBplSource;
-    ptBplBinary: Result := TUpdate;
+    ptBplBinary: Result := TUpdateBplBinary;
     ptProjectTemplate: Result := TUpdate;
   else
     raise Exception.CreateFmt('TUpdate.GetClass: unknown PackageType %s',
@@ -1022,6 +1028,40 @@ begin
     FDPMEngine.Packages_GetProject.Add(aDependentPackage);
 
   FDPMEngine.Packages_AddCopyToIDE(aDependentPackage);
+end;
+
+{ TUpdateBplBinary }
+
+procedure TUpdateBplBinary.ProcessInstallHandles(
+  aPackageHandles: TPackageHandles);
+var
+  PackageHandle: TPackageHandle;
+  InstallBplBinary: TInstallBplBinary;
+begin
+  InstallBplBinary := TInstallBplBinary.Create(FDPMEngine, nil, nil);
+  try
+    for PackageHandle in aPackageHandles do
+      if PackageHandle.PackageAction = paInstall then
+        InstallBplBinary.DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
+  finally
+    InstallBplBinary.Free;
+  end;
+end;
+
+procedure TUpdateBplBinary.ProcessUninstallHandles(
+  aPackageHandles: TPackageHandles);
+var
+  PackageHandle: TPackageHandle;
+  UninstallBplBinary: TUninstallBplBinary;
+begin
+  UninstallBplBinary := TUninstallBplBinary.Create(FDPMEngine, nil);
+  try
+    for PackageHandle in aPackageHandles do
+      if PackageHandle.PackageAction = paUninstall then
+        UninstallBplBinary.DoUninstall(PackageHandle.Package as TDependentPackage);
+  finally
+    UninstallBplBinary.Free;
+  end;
 end;
 
 end.
