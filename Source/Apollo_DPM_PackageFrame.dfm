@@ -145,6 +145,10 @@ object PackageFrame: TPackageFrame
     AutoHotkeys = maManual
     Left = 136
     Top = 8
+    object mniAdd: TMenuItem
+      Caption = 'Add'
+      OnClick = mniAddClick
+    end
     object mniInstall: TMenuItem
       Caption = 'Install'
       OnClick = mniInstallClick

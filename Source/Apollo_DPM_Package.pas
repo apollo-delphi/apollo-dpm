@@ -91,7 +91,9 @@ type
   TDependentPackage = class(TPackage)
   private
     FBplFileRefs: TArray<string>;
+    FInstalled: Boolean;
     FIsDirect: Boolean;
+    FSourceRefs: TArray<string>;
     FVersion: TVersion;
   protected
     function GetJSON: TJSONObject; override;
@@ -102,7 +104,9 @@ type
     constructor CreateByInitial(aInitialPackage: TInitialPackage;
      const aOwnes: Boolean = True);
     property BplFileRefs: TArray<string> read FBplFileRefs write FBplFileRefs;
+    property Installed: Boolean read FInstalled write FInstalled;
     property IsDirect: Boolean read FIsDirect write FIsDirect;
+    property SourceRefs: TArray<string> read FSourceRefs;
     property Version: TVersion read FVersion write FVersion;
   end;
 

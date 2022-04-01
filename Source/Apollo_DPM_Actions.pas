@@ -55,14 +55,25 @@ type
   TInstall = class;
   TInstallClass = class of TInstall;
 
-  TInstall = class abstract(TDPMAction)
+  TInstall = class(TDPMAction)
+  protected
+    procedure AddPackageFiles(aPackage: TPackage; aVersion: TVersion);
+  public
+    class function Allowed(aPackage: TDependentPackage): Boolean;
+    class function GetClass(const aPackageType: TPackageType): TInstallClass;
+  end;
+
+  TAdd = class;
+  TAddClass = class of TAdd;
+
+  TAdd = class abstract(TDPMAction)
   strict private
     FVersion: TVersion;
     function SaveContent(const aPackagePath, aRepoPath, aContent: string): string;
     procedure AddPackageFiles(aInitialPackage: TInitialPackage; aVersion: TVersion);
   protected
     FInitialPackage: TInitialPackage;
-    function DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; virtual;
+    function DoAdd(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; virtual;
     function GetContentPath(aPackage: TPackage): string; virtual;
     function GetDependencyHandles(aVersion: TVersion): TPackageHandles; virtual;
     function GetInstallPackageHandle(aDependentPackage: TDependentPackage;
@@ -70,21 +81,22 @@ type
     function RepoPathToFilePath(const aRepoPath: string): string;
     function PostProcessPackageHandles(const aPackageHandles: TPackageHandles): TPackageHandles;
     procedure ProcessUninstallHandles(aPackageHandles: TPackageHandles); virtual;
+    procedure SavePackages; virtual;
   public
     class function Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
       aVersion: TVersion): Boolean; virtual;
-    class function GetClass(const aPackageType: TPackageType): TInstallClass;
+    class function GetClass(const aPackageType: TPackageType): TAddClass;
     function Run: TPackageHandles;
     constructor Create(aDPMEngine: TDPMEngine; aPackage: TInitialPackage; aVersion: TVersion);
   end;
 
-  TInstallCodeSource = class(TInstall)
+  TAddCodeSource = class(TAdd)
   private
     function ProcessRequiredDependencies(const aCaption: string;
       aRequiredDependencies: TDependentPackageList): TPackageHandles;
     procedure AddUnitsToProject(aInitialPackage: TInitialPackage);
   protected
-    function DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
+    function DoAdd(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
     function GetDependencyHandles(aVersion: TVersion): TPackageHandles; override;
     procedure ProcessUninstallHandles(aPackageHandles: TPackageHandles); override;
   public
@@ -94,32 +106,33 @@ type
 
   TInstallBplCustomFunc = reference to function(const aFilePath: string): string;
 
-  TInstallBplCommon = class(TInstall)
+  TAddBplCommon = class(TAdd)
   protected
     procedure DoBplInstall(aInitialPackage: TInitialPackage;
       aDependentPackage: TDependentPackage; const aFileRefs: TArray<string>;
       aCustomFunc: TInstallBplCustomFunc);
   end;
 
-  TInstallBplSource = class(TInstallBplCommon)
+  TAddBplSource = class(TAddBplCommon)
   private
     function FindXmlNode(aNode: IXMLNode; const aNodeName: string): IXMLNode;
     function MakeBPL(const aProjectFilePath: string): string;
   protected
-    function DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
+    function DoAdd(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
   end;
 
-  TInstallBplBinary = class(TInstallBplCommon)
+  TAddBplBinary = class(TAddBplCommon)
   protected
-    function DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
+    function DoAdd(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
   end;
 
-  TInstallProjectTemplate = class(TInstall)
+  TAddProjectTemplate = class(TAdd)
   private
     FProjectPath: string;
   protected
-    function DoInstall(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
+    function DoAdd(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
     function GetContentPath(aPackage: TPackage): string; override;
+    procedure SavePackages; override;
   public
     class function Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
       aVersion: TVersion): Boolean; override;
@@ -174,9 +187,9 @@ uses
   System.TypInfo,
   Xml.XMLDoc;
 
-{ TInstall }
+{ TAdd }
 
-function TInstall.DoInstall(aInitialPackage: TInitialPackage;
+function TAdd.DoAdd(aInitialPackage: TInitialPackage;
   aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage;
 begin
   Result := TDependentPackage.CreateByInitial(aInitialPackage);
@@ -186,7 +199,7 @@ begin
   AddPackageFiles(aInitialPackage, aVersion);
 end;
 
-class function TInstall.Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
+class function TAdd.Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
   aVersion: TVersion): Boolean;
 begin
   Result :=
@@ -194,7 +207,7 @@ begin
     not aPackage.IsInstalled;
 end;
 
-constructor TInstall.Create(aDPMEngine: TDPMEngine;
+constructor TAdd.Create(aDPMEngine: TDPMEngine;
   aPackage: TInitialPackage; aVersion: TVersion);
 begin
   FDPMEngine := aDPMEngine;
@@ -202,30 +215,30 @@ begin
   FVersion := aVersion;
 end;
 
-class function TInstall.GetClass(const aPackageType: TPackageType): TInstallClass;
+class function TAdd.GetClass(const aPackageType: TPackageType): TAddClass;
 begin
   case aPackageType of
-    ptCodeSource: Result := TInstallCodeSource;
-    ptBplSource: Result := TInstallBplSource;
-    ptBplBinary: Result := TInstallBplBinary;
-    ptProjectTemplate: Result := TInstallProjectTemplate;
+    ptCodeSource: Result := TAddCodeSource;
+    ptBplSource: Result := TAddBplSource;
+    ptBplBinary: Result := TAddBplBinary;
+    ptProjectTemplate: Result := TAddProjectTemplate;
   else
-    raise Exception.CreateFmt('TInstall.GetClass: unknown PackageType %s',
+    raise Exception.CreateFmt('TAdd.GetClass: unknown PackageType %s',
       [GetEnumName(TypeInfo(TPackageType), Ord(aPackageType))]);
   end;
 end;
 
-function TInstall.GetContentPath(aPackage: TPackage): string;
+function TAdd.GetContentPath(aPackage: TPackage): string;
 begin
   Result := FDPMEngine.Path_GetPackage(aPackage);
 end;
 
-function TInstall.GetDependencyHandles(aVersion: TVersion): TPackageHandles;
+function TAdd.GetDependencyHandles(aVersion: TVersion): TPackageHandles;
 begin
   Result := [];
 end;
 
-function TInstall.GetInstallPackageHandle(aDependentPackage: TDependentPackage;
+function TAdd.GetInstallPackageHandle(aDependentPackage: TDependentPackage;
   aVersion: TVersion; const aIsDirect: Boolean = False): TPackageHandle;
 var
   InitialPackage: TInitialPackage;
@@ -244,7 +257,7 @@ begin
   Result := TPackageHandle.CreateInstallHandle(InitialPackage, aVersion, aIsDirect, NeedToFree);
 end;
 
-function TInstall.PostProcessPackageHandles(
+function TAdd.PostProcessPackageHandles(
   const aPackageHandles: TPackageHandles): TPackageHandles;
 var
   i: Integer;
@@ -269,11 +282,11 @@ begin
   end;
 end;
 
-procedure TInstall.ProcessUninstallHandles(aPackageHandles: TPackageHandles);
+procedure TAdd.ProcessUninstallHandles(aPackageHandles: TPackageHandles);
 begin
 end;
 
-function TInstall.Run: TPackageHandles;
+function TAdd.Run: TPackageHandles;
 var
   PackageHandle: TPackageHandle;
   Version: TVersion;
@@ -291,12 +304,12 @@ begin
 
     for PackageHandle in Result do
       if PackageHandle.PackageAction = paInstall then
-        DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
+        DoAdd(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
 
     if FDPMEngine.Project_IsOpened then
       FDPMEngine.SaveActiveProject;
 
-    FDPMEngine.SavePackages;
+    SavePackages;
     Result := PostProcessPackageHandles(Result);
 
     FDPMEngine.NotifyUI('succeeded');
@@ -309,7 +322,7 @@ begin
   end;
 end;
 
-procedure TInstall.AddPackageFiles(aInitialPackage: TInitialPackage;
+procedure TAdd.AddPackageFiles(aInitialPackage: TInitialPackage;
   aVersion: TVersion);
 var
   Blob: TBlob;
@@ -333,7 +346,7 @@ begin
   end;
 end;
 
-function TInstall.RepoPathToFilePath(const aRepoPath: string): string;
+function TAdd.RepoPathToFilePath(const aRepoPath: string): string;
 var
   RepoPathPart: string;
   RepoPathParts: TArray<string>;
@@ -345,7 +358,7 @@ begin
     Result := FDPMEngine.Path_Combine(Result, RepoPathPart);
 end;
 
-function TInstall.SaveContent(const aPackagePath, aRepoPath,
+function TAdd.SaveContent(const aPackagePath, aRepoPath,
   aContent: string): string;
 var
   Bytes: TBytes;
@@ -357,22 +370,27 @@ begin
   FDPMEngine.WriteFile(Result, Bytes);
 end;
 
-{ TInstallProjectTemplate }
+procedure TAdd.SavePackages;
+begin
+  FDPMEngine.SavePackages;
+end;
 
-class function TInstallProjectTemplate.Allowed(aDPMEngine: TDPMEngine;
+{ TAddProjectTemplate }
+
+class function TAddProjectTemplate.Allowed(aDPMEngine: TDPMEngine;
   aPackage: TInitialPackage; aVersion: TVersion): Boolean;
 begin
   Result := True;
 end;
 
-function TInstallProjectTemplate.DoInstall(aInitialPackage: TInitialPackage;
+function TAddProjectTemplate.DoAdd(aInitialPackage: TInitialPackage;
   aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage;
 var
   Extension: string;
   Files: TArray<string>;
   FileItem: string;
 begin
-  Result := inherited DoInstall(aInitialPackage, aVersion, aIsDirect);
+  Result := inherited DoAdd(aInitialPackage, aVersion, aIsDirect);
   FreeAndNil(Result);
 
   Files := FDPMEngine.Files_Get(GetContentPath(aInitialPackage), '*');
@@ -395,7 +413,7 @@ begin
   end;
 end;
 
-function TInstallProjectTemplate.GetContentPath(aPackage: TPackage): string;
+function TAddProjectTemplate.GetContentPath(aPackage: TPackage): string;
 begin
   if FProjectPath.IsEmpty then
   begin
@@ -407,9 +425,13 @@ begin
   Result := FProjectPath;
 end;
 
-{ TInstallCodeSource }
+procedure TAddProjectTemplate.SavePackages;
+begin
+end;
 
-function TInstallCodeSource.ProcessRequiredDependencies(const aCaption: string;
+{ TAddCodeSource }
+
+function TAddCodeSource.ProcessRequiredDependencies(const aCaption: string;
   aRequiredDependencies: TDependentPackageList): TPackageHandles;
 var
   InstalledDependency: TDependentPackage;
@@ -452,14 +474,14 @@ begin
   end;
 end;
 
-class function TInstallCodeSource.Allowed(aDPMEngine: TDPMEngine;
+class function TAddCodeSource.Allowed(aDPMEngine: TDPMEngine;
   aPackage: TInitialPackage; aVersion: TVersion): Boolean;
 begin
   Result := inherited Allowed(aDPMEngine, aPackage, aVersion)
     and aDPMEngine.Project_IsOpened;
 end;
 
-procedure TInstallCodeSource.AddUnitsToProject(aInitialPackage: TInitialPackage);
+procedure TAddCodeSource.AddUnitsToProject(aInitialPackage: TInitialPackage);
 var
   Allow: Boolean;
   FileItem: string;
@@ -501,10 +523,10 @@ begin
   end;
 end;
 
-function TInstallCodeSource.DoInstall(aInitialPackage: TInitialPackage;
+function TAddCodeSource.DoAdd(aInitialPackage: TInitialPackage;
   aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage;
 begin
-  Result := inherited DoInstall(aInitialPackage, aVersion, aIsDirect);
+  Result := inherited DoAdd(aInitialPackage, aVersion, aIsDirect);
 
   AddUnitsToProject(aInitialPackage);
 
@@ -515,7 +537,7 @@ begin
   FDPMEngine.Packages_GetProject.Add(Result);
 end;
 
-function TInstallCodeSource.GetDependencyHandles(
+function TAddCodeSource.GetDependencyHandles(
   aVersion: TVersion): TPackageHandles;
 var
   RequiredDependencies: TDependentPackageList;
@@ -529,7 +551,7 @@ begin
   end;
 end;
 
-procedure TInstallCodeSource.ProcessUninstallHandles(
+procedure TAddCodeSource.ProcessUninstallHandles(
   aPackageHandles: TPackageHandles);
 var
   PackageHandle: TPackageHandle;
@@ -545,12 +567,12 @@ begin
   end;
 end;
 
-{ TInstallBplBinary }
+{ TAddBplBinary }
 
-function TInstallBplBinary.DoInstall(aInitialPackage: TInitialPackage;
+function TAddBplBinary.DoAdd(aInitialPackage: TInitialPackage;
   aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage;
 begin
-  Result := inherited DoInstall(aInitialPackage, aVersion, aIsDirect);
+  Result := inherited DoAdd(aInitialPackage, aVersion, aIsDirect);
 
   DoBplInstall(aInitialPackage, Result, aInitialPackage.BinaryFileRefs,
     function(const aFilePath: string): string
@@ -571,7 +593,7 @@ end;
 class function TUninstall.Allowed(aDPMEngine: TDPMEngine; aPackage: TDependentPackage;
   aVersion: TVersion): Boolean;
 begin
-  Result := Assigned(aPackage);
+  Result := Assigned(aPackage) and aPackage.Installed;
 end;
 
 constructor TUninstall.Create(aDPMEngine: TDPMEngine;
@@ -733,15 +755,15 @@ end;
 
 function TUpdate.Run: TPackageHandles;
 var
-  Install: TInstall;
+  Add: TAdd;
 begin
   FDPMEngine.NotifyUI(Format(#13#10 + 'updating %s', [FDependentPackage.Name]));
   FDPMEngine.NotifyUI(Format('from %s to %s ', [FDependentPackage.Version.DisplayName, FVersion.DisplayName]));
   try
-    Install := TInstall.Create(FDPMEngine, nil, nil);
+    Add := TAdd.Create(FDPMEngine, nil, nil);
     try
       Result := [TPackageHandle.CreateUninstallHandle(FDependentPackage)];
-      Result := Result + [Install.GetInstallPackageHandle(FDependentPackage, FVersion, True{aIsDirect})];
+      Result := Result + [Add.GetInstallPackageHandle(FDependentPackage, FVersion, True{aIsDirect})];
 
       Result := Result + GetDependencyHandles(Result.GetFirstInstallPackage);
 
@@ -751,12 +773,12 @@ begin
       if FDPMEngine.Project_IsOpened then
         FDPMEngine.SaveActiveProject;
 
-      Result := Install.PostProcessPackageHandles(Result);
+      Result := Add.PostProcessPackageHandles(Result);
       FDPMEngine.SavePackages;
 
       FDPMEngine.NotifyUI('succeeded');
     finally
-      Install.Free;
+      Add.Free;
     end;
   except
     on E: Exception do
@@ -767,12 +789,12 @@ begin
   end;
 end;
 
-{ TInstallBplSource }
+{ TAddBplSource }
 
-function TInstallBplSource.DoInstall(aInitialPackage: TInitialPackage;
+function TAddBplSource.DoAdd(aInitialPackage: TInitialPackage;
   aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage;
 begin
-  Result := inherited DoInstall(aInitialPackage, aVersion, aIsDirect);
+  Result := inherited DoAdd(aInitialPackage, aVersion, aIsDirect);
 
   DoBplInstall(aInitialPackage, Result, aInitialPackage.ProjectFileRefs,
     function(const aFilePath: string): string
@@ -782,7 +804,7 @@ begin
   );
 end;
 
-function TInstallBplSource.FindXmlNode(aNode: IXMLNode;
+function TAddBplSource.FindXmlNode(aNode: IXMLNode;
   const aNodeName: string): IXMLNode;
 var
   i: Integer;
@@ -803,7 +825,7 @@ begin
       end;
 end;
 
-function TInstallBplSource.MakeBPL(const aProjectFilePath: string): string;
+function TAddBplSource.MakeBPL(const aProjectFilePath: string): string;
 var
   ConsoleOutput: string;
   FrameworkDir: string;
@@ -888,13 +910,13 @@ end;
 
 function TUpdateCodeSource.GetDependencyHandles(aInitialPackage: TInitialPackage): TPackageHandles;
 var
-  InstallCodeSource: TInstallCodeSource;
+  AddCodeSource: TAddCodeSource;
   InstalledDependencies: TDependentPackageList;
   InstalledDependency: TDependentPackage;
   RequiredDependencies: TDependentPackageList;
   RequiredDependency: TDependentPackage;
 begin
-  InstallCodeSource := TInstallCodeSource.Create(FDPMEngine, nil, nil);
+  AddCodeSource := TAddCodeSource.Create(FDPMEngine, nil, nil);
   InstalledDependencies := FDPMEngine.Package_LoadDependencies(FDependentPackage);
   RequiredDependencies := FDPMEngine.Package_LoadDependencies(aInitialPackage, FVersion);
   try
@@ -907,10 +929,10 @@ begin
       Result := Result + [TPackageHandle.CreateUninstallHandle(InstalledDependency)];
     end;
 
-    Result := Result + InstallCodeSource.ProcessRequiredDependencies(Format('Updating package %s version conflict', [FDependentPackage.Name]),
+    Result := Result + AddCodeSource.ProcessRequiredDependencies(Format('Updating package %s version conflict', [FDependentPackage.Name]),
       RequiredDependencies);
   finally
-    InstallCodeSource.Free;
+    AddCodeSource.Free;
     InstalledDependencies.Free;
     RequiredDependencies.Free;
   end;
@@ -919,16 +941,16 @@ end;
 procedure TUpdateCodeSource.ProcessInstallHandles(
   aPackageHandles: TPackageHandles);
 var
+  AddCodeSource: TAddCodeSource;
   PackageHandle: TPackageHandle;
-  InstallCodeSource: TInstallCodeSource;
 begin
-  InstallCodeSource := TInstallCodeSource.Create(FDPMEngine, nil, nil);
+  AddCodeSource := TAddCodeSource.Create(FDPMEngine, nil, nil);
   try
     for PackageHandle in aPackageHandles do
       if PackageHandle.PackageAction = paInstall then
-        InstallCodeSource.DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
+        AddCodeSource.DoAdd(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
   finally
-    InstallCodeSource.Free;
+    AddCodeSource.Free;
   end;
 end;
 
@@ -953,16 +975,16 @@ end;
 procedure TUpdateBplSource.ProcessInstallHandles(
   aPackageHandles: TPackageHandles);
 var
+  AddBplSource: TAddBplSource;
   PackageHandle: TPackageHandle;
-  InstallBplSource: TInstallBplSource;
 begin
-  InstallBplSource := TInstallBplSource.Create(FDPMEngine, nil, nil);
+  AddBplSource := TAddBplSource.Create(FDPMEngine, nil, nil);
   try
     for PackageHandle in aPackageHandles do
       if PackageHandle.PackageAction = paInstall then
-        InstallBplSource.DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
+        AddBplSource.DoAdd(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
   finally
-    InstallBplSource.Free;
+    AddBplSource.Free;
   end;
 end;
 
@@ -982,9 +1004,9 @@ begin
   end;
 end;
 
-{ TInstallBplCommon }
+{ TAddBplCommon }
 
-procedure TInstallBplCommon.DoBplInstall(aInitialPackage: TInitialPackage;
+procedure TAddBplCommon.DoBplInstall(aInitialPackage: TInitialPackage;
   aDependentPackage: TDependentPackage; const aFileRefs: TArray<string>;
   aCustomFunc: TInstallBplCustomFunc);
 var
@@ -1035,16 +1057,16 @@ end;
 procedure TUpdateBplBinary.ProcessInstallHandles(
   aPackageHandles: TPackageHandles);
 var
+  AddBplBinary: TAddBplBinary;
   PackageHandle: TPackageHandle;
-  InstallBplBinary: TInstallBplBinary;
 begin
-  InstallBplBinary := TInstallBplBinary.Create(FDPMEngine, nil, nil);
+  AddBplBinary := TAddBplBinary.Create(FDPMEngine, nil, nil);
   try
     for PackageHandle in aPackageHandles do
       if PackageHandle.PackageAction = paInstall then
-        InstallBplBinary.DoInstall(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
+        AddBplBinary.DoAdd(PackageHandle.Package as TInitialPackage, PackageHandle.Version, PackageHandle.IsDirect);
   finally
-    InstallBplBinary.Free;
+    AddBplBinary.Free;
   end;
 end;
 
@@ -1062,6 +1084,42 @@ begin
   finally
     UninstallBplBinary.Free;
   end;
+end;
+
+{ TInstall }
+
+procedure TInstall.AddPackageFiles(aPackage: TPackage; aVersion: TVersion);
+var
+  Blob: TBlob;
+  NodePath: string;
+  TreeNode: TTreeNode;
+begin
+  {aVersion.RepoTree := FDPMEngine.LoadRepoTree(aInitialPackage, aVersion);
+
+  for TreeNode in aVersion.RepoTree do
+  begin
+    if TreeNode.FileType <> 'blob' then
+      Continue;
+
+    if aInitialPackage.AllowPath(TreeNode.Path) then
+    begin
+      Blob := FDPMEngine.GHAPI.GetRepoBlob(TreeNode.URL);
+
+      NodePath := aInitialPackage.ApplyPathMoves(TreeNode.Path);
+      SaveContent(GetContentPath(aInitialPackage), NodePath, Blob.Content);
+    end;
+  end;}
+end;
+
+class function TInstall.Allowed(aPackage: TDependentPackage): Boolean;
+begin
+  Result := not aPackage.Installed;
+end;
+
+class function TInstall.GetClass(
+  const aPackageType: TPackageType): TInstallClass;
+begin
+  Result := TInstall;
 end;
 
 end.

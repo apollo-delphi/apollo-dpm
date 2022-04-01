@@ -233,6 +233,19 @@ var
   PackageHandles: TPackageHandles;
 begin
   case aFrameActionType of
+    fatAdd:
+      begin
+        AsyncLoad(nil,
+          procedure
+          begin
+            PackageHandles := FDPMEngine.Action_Add(aPackage as TInitialPackage, aVersion);
+          end,
+          procedure
+          begin
+            UpdateFrames(PackageHandles);
+          end
+        );
+      end;
     fatInstall:
       begin
         AsyncLoad(nil,

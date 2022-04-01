@@ -225,7 +225,7 @@ end;
 procedure TTestInstallCodeSource.DoAction(aPackage: TInitialPackage;
   aVersion: TVersion; const aStep: Integer);
 begin
-  FDPMEngine.Action_Install(aPackage, aVersion);
+  FDPMEngine.Action_Add(aPackage, aVersion);
 end;
 
 function TTestInstallCodeSource.GetDescription: string;
@@ -558,9 +558,9 @@ var
   DependentPackage: TDependentPackage;
 begin
   case aStep of
-    1: FDPMEngine.Action_Install(aPackage, aVersion);
+    1: FDPMEngine.Action_Add(aPackage, aVersion);
     2:begin
-        FDPMEngine.Action_Install(aPackage, aVersion);
+        FDPMEngine.Action_Add(aPackage, aVersion);
         DependentPackage := GetProjectPackage(aPackage.Name);
         FDPMEngine.Action_Uninstall(DependentPackage);
       end;
@@ -617,7 +617,7 @@ procedure TTestUpdateCodeSource.DoAction(aPackage: TInitialPackage;
   aVersion: TVersion; const aStep: Integer);
 begin
   case aStep of
-    1:  FDPMEngine.Action_Install(aPackage, aVersion);
+    1:  FDPMEngine.Action_Add(aPackage, aVersion);
     2:  FDPMEngine.Action_Update(aPackage, aVersion);
   else
     raise EWrongStep.Create
@@ -704,7 +704,7 @@ end;
 procedure TTestInstallBplSource.DoAction(aPackage: TInitialPackage;
   aVersion: TVersion; const aStep: Integer);
 begin
-  FDPMEngine.Action_Install(aPackage, aVersion);
+  FDPMEngine.Action_Add(aPackage, aVersion);
 end;
 
 function TTestInstallBplSource.GetDescription: string;
@@ -762,7 +762,7 @@ procedure TTestUnistallBplSource.DoAction(aPackage: TInitialPackage;
 var
   DependentPackage: TDependentPackage;
 begin
-  FDPMEngine.Action_Install(aPackage, aVersion);
+  FDPMEngine.Action_Add(aPackage, aVersion);
   DependentPackage := GetIDEPackage('Test_Thunderbird_Tree');
 
   FBplPath := DependentPackage.BplFileRefs[0];
@@ -830,7 +830,7 @@ procedure TTestUpdateBplSource.DoAction(aPackage: TInitialPackage;
   aVersion: TVersion; const aStep: Integer);
 begin
   case aStep of
-    1: FDPMEngine.Action_Install(aPackage, aVersion);
+    1: FDPMEngine.Action_Add(aPackage, aVersion);
     2: FDPMEngine.Action_Update(aPackage, aVersion);
   end;
 end;
@@ -889,7 +889,7 @@ end;
 procedure TTestInstallBplBinary.DoAction(aPackage: TInitialPackage;
   aVersion: TVersion; const aStep: Integer);
 begin
-  FDPMEngine.Action_Install(aPackage, aVersion);
+  FDPMEngine.Action_Add(aPackage, aVersion);
 end;
 
 function TTestInstallBplBinary.GetDescription: string;
@@ -942,7 +942,7 @@ begin
   case aStep of
     1:
       begin
-        FDPMEngine.Action_Install(aPackage, aVersion);
+        FDPMEngine.Action_Add(aPackage, aVersion);
         FBplPath := aPackage.BinaryFileRefs[0];
       end;
     2: FDPMEngine.Action_Uninstall(aPackage);
@@ -1003,7 +1003,7 @@ procedure TTestUpdateBplBinary.DoAction(aPackage: TInitialPackage;
   aVersion: TVersion; const aStep: Integer);
 begin
   case aStep of
-    1: FDPMEngine.Action_Install(aPackage, aVersion);
+    1: FDPMEngine.Action_Add(aPackage, aVersion);
     2: FDPMEngine.Action_Update(aPackage, aVersion);
   end;
 end;

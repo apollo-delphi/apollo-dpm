@@ -3,14 +3,26 @@ unit Apollo_DPM_PackageFrame;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
-  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls,
-  Vcl.Menus, Vcl.Buttons, Vcl.ComCtrls, Vcl.ToolWin, Vcl.WinXCtrls,
-  Vcl.ExtCtrls,
   Apollo_DPM_Engine,
   Apollo_DPM_Package,
   Apollo_DPM_Types,
-  Apollo_DPM_Version;
+  Apollo_DPM_Version,
+  System.Classes,
+  System.SysUtils,
+  System.Variants,
+  Vcl.Buttons,
+  Vcl.ComCtrls,
+  Vcl.Controls,
+  Vcl.Dialogs,
+  Vcl.ExtCtrls,
+  Vcl.Forms,
+  Vcl.Graphics,
+  Vcl.Menus,
+  Vcl.StdCtrls,
+  Vcl.ToolWin,
+  Vcl.WinXCtrls,
+  Winapi.Messages,
+  Winapi.Windows;
 
 type
   TPackageFrame = class(TFrame)
@@ -21,16 +33,17 @@ type
     cbVersions: TComboBox;
     lblVersion: TLabel;
     aiVersionLoad: TActivityIndicator;
-    mniInstall: TMenuItem;
+    mniAdd: TMenuItem;
     btnAction: TSpeedButton;
     pnlActions: TPanel;
     btnActionDropDown: TSpeedButton;
     lblInstalled: TLabel;
     mniUninstall: TMenuItem;
     mniUpdate: TMenuItem;
+    mniInstall: TMenuItem;
     procedure mniEditPackageClick(Sender: TObject);
     procedure cbVersionsDropDown(Sender: TObject);
-    procedure mniInstallClick(Sender: TObject);
+    procedure mniAddClick(Sender: TObject);
     procedure btnActionDropDownClick(Sender: TObject);
     procedure mniUninstallClick(Sender: TObject);
     procedure cbVersionsChange(Sender: TObject);
@@ -40,6 +53,7 @@ type
     procedure mniUpdateClick(Sender: TObject);
     procedure FrameResize(Sender: TObject);
     procedure FrameClick(Sender: TObject);
+    procedure mniInstallClick(Sender: TObject);
   private
     FDPMEngine: TDPMEngine;
     FForLock: TArray<TMenuItem>;
@@ -204,7 +218,7 @@ begin
 
   FDPMEngine := aDPMEngine;
 
-  FForLock := [mniInstall, mniUninstall, mniUpdate];
+  FForLock := [mniAdd, mniUninstall, mniUpdate];
 end;
 
 destructor TPackageFrame.Destroy;
@@ -264,7 +278,23 @@ end;
 
 procedure TPackageFrame.SetupInstalledLabel(aDependentPackage: TDependentPackage);
 begin
-  if FDPMEngine.Packages_GetProject.GetByID(aDependentPackage.ID) = nil then
+  if aDependentPackage.Installed then
+  begin
+    if aDependentPackage.IsDirect then
+    begin
+      lblInstalled.Caption := 'installed';
+      lblInstalled.Font.Color := clGreen;
+    end
+    else
+    begin
+      lblInstalled.Caption := 'indirect';
+      lblInstalled.Font.Color := clMaroon;
+    end;
+
+    lblInstalled.Visible := True;
+  end;
+
+  {if FDPMEngine.Packages_GetProject.GetByID(aDependentPackage.ID) = nil then
   begin
     lblInstalled.Caption := 'ide only';
     lblInstalled.Font.Color := clGreen;
@@ -281,7 +311,7 @@ begin
     lblInstalled.Font.Color := clMaroon;
   end;
 
-  lblInstalled.Visible := True;
+  lblInstalled.Visible := True;}
 end;
 
 procedure TPackageFrame.UnlockActions;
@@ -376,6 +406,12 @@ begin
   ActionWrapper(fatInstall, FPackage, GetSelectedVersion);
 end;
 
+procedure TPackageFrame.mniAddClick(Sender: TObject);
+begin
+  SetActionBtnMenuItem(mniAdd);
+  ActionWrapper(fatAdd, FPackage, GetSelectedVersion);
+end;
+
 procedure TPackageFrame.mniUninstallClick(Sender: TObject);
 begin
   SetActionBtnMenuItem(mniUninstall);
@@ -397,9 +433,10 @@ end;
 
 procedure TPackageFrame.SetAllowedActions;
 begin
-  mniInstall.Visible := FOnAllowAction(fatInstall, FPackage, GetSelectedVersion);
+  mniAdd.Visible := FOnAllowAction(fatAdd, FPackage, GetSelectedVersion);
   mniUpdate.Visible := FOnAllowAction(fatUpdate, FPackage, GetSelectedVersion);
   mniUninstall.Visible := FOnAllowAction(fatUninstall, FPackage, GetSelectedVersion);
+  mniInstall.Visible := FOnAllowAction(fatInstall, FPackage, GetSelectedVersion);
   mniEditPackage.Visible := FOnAllowAction(fatEditPackage, FPackage, nil);
 end;
 

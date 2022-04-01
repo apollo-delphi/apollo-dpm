@@ -78,9 +78,11 @@ type
   private
     FProjectPackages: TDependentPackageList;
     FTestMode: Boolean;
+    function Packages_GetDependentPackageList(var aPackageList: TDependentPackageList; const aPackageListPath: string): TDependentPackageList;
     function Path_GetIDEPackages: string;
     procedure FreePackageLists;
   public
+    function Action_Add(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
     function Action_Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
     function Action_Uninstall(aPackage: TPackage): TPackageHandles;
     function Action_Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
@@ -202,14 +204,17 @@ begin
     InitialPackage := aPackage as TInitialPackage;
 
     case aFrameActionType of
-      fatInstall:
-        Result := TInstall.GetClass(InitialPackage.PackageType).Allowed(Self, InitialPackage, aVersion);
+      fatAdd:
+        Result := TAdd.GetClass(InitialPackage.PackageType).Allowed(Self, InitialPackage, aVersion);
 
       fatUpdate:
         Result := TUpdate.GetClass(InitialPackage.PackageType).Allowed(Self, InitialPackage.DependentPackage, aVersion);
 
       fatUninstall:
         Result := TUninstall.GetClass(InitialPackage.PackageType).Allowed(Self, InitialPackage.DependentPackage, aVersion);
+
+      fatInstall:
+        Result := False;
 
       fatEditPackage:
         Result := True;
@@ -221,7 +226,7 @@ begin
     DependentPackage := aPackage as TDependentPackage;
 
     case aFrameActionType of
-      fatInstall:
+      fatAdd:
         Result := False;
 
       fatUpdate:
@@ -229,6 +234,9 @@ begin
 
       fatUninstall:
         Result := TUninstall.GetClass(DependentPackage.PackageType).Allowed(Self, DependentPackage, aVersion);
+
+      fatInstall:
+        Result := TInstall.GetClass(DependentPackage.PackageType).Allowed(DependentPackage);
 
       fatEditPackage:
         Result := False;
@@ -563,22 +571,39 @@ begin
   Result := Packages_GetIDE;
 end;
 
-function TDPMEngine.Packages_GetIDE: TDependentPackageList;
+function TDPMEngine.Packages_GetDependentPackageList(var aPackageList: TDependentPackageList;
+  const aPackageListPath: string): TDependentPackageList;
 var
+  Package: TDependentPackage;
+  PackagePath: string;
   sJSON: string;
 begin
-  if not Assigned(FIDEPackages) then
+  if not Assigned(aPackageList) then
   begin
-    if TFile.Exists(Path_GetIDEPackages) then
+    if TFile.Exists(aPackageListPath) then
     begin
-      sJSON := TFile.ReadAllText(Path_GetIDEPackages, TEncoding.ANSI);
-      FIDEPackages := TDependentPackageList.Create(sJSON, Versions_SyncCache);
+      sJSON := TFile.ReadAllText(aPackageListPath, TEncoding.ANSI);
+      aPackageList := TDependentPackageList.Create(sJSON, Versions_SyncCache);
+
+      for Package in aPackageList do
+      begin
+        PackagePath := Path_GetPackage(Package);
+        if Directory_Exists(PackagePath) then
+          Package.Installed := True
+        else
+          Package.Installed := False;
+      end;
     end
     else
-      FIDEPackages := TDependentPackageList.Create;
+      aPackageList := TDependentPackageList.Create;
   end;
 
-  Result := FIDEPackages;
+  Result := aPackageList;
+end;
+
+function TDPMEngine.Packages_GetIDE: TDependentPackageList;
+begin
+  Result := Packages_GetDependentPackageList(FIDEPackages, Path_GetIDEPackages);
 end;
 
 function TDPMEngine.Packages_GetPrivate: TPrivatePackageList;
@@ -629,21 +654,8 @@ begin
 end;
 
 function TDPMEngine.Packages_GetProject: TDependentPackageList;
-var
-  sJSON: string;
 begin
-  if not Assigned(FProjectPackages) then
-  begin
-    if TFile.Exists(Path_GetProjectPackages) then
-    begin
-      sJSON := TFile.ReadAllText(Path_GetProjectPackages, TEncoding.ANSI);
-      FProjectPackages := TDependentPackageList.Create(sJSON, Versions_SyncCache);
-    end
-    else
-      FProjectPackages := TDependentPackageList.Create;
-  end;
-
-  Result := FProjectPackages;
+  Result := Packages_GetDependentPackageList(FProjectPackages, Path_GetProjectPackages);
 end;
 
 function TDPMEngine.Path_GetProjectPackages: string;
@@ -723,12 +735,12 @@ begin
   Result := GetVersionCacheList.GetByPackageID(aPackage.ID);
 end;
 
-function TDPMEngine.Action_Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
+function TDPMEngine.Action_Add(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
 var
-  Action: TInstall;
+  Action: TAdd;
 begin
   LockActions;
-  Action := TInstall.GetClass(aInitialPackage.PackageType).Create(Self, aInitialPackage, aVersion);
+  Action := TAdd.GetClass(aInitialPackage.PackageType).Create(Self, aInitialPackage, aVersion);
   try
     Action.TestMode := TestMode;
     Result := Action.Run;
@@ -1022,6 +1034,12 @@ begin
         Break;
       end;
   end;
+end;
+
+function TDPMEngine.Action_Install(aInitialPackage: TInitialPackage;
+  aVersion: TVersion): TPackageHandles;
+begin
+
 end;
 
 function TDPMEngine.Action_Uninstall(aPackage: TPackage): TPackageHandles;
