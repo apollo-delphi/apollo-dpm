@@ -57,13 +57,12 @@ type
 
   TInstall = class(TDPMAction)
   strict private
-    procedure SaveContent(aPackage: TPackage; const aRelativeFilePath, aContent: string);
-  private
     FDependentPackage: TDependentPackage;
+    procedure AddPackageFiles(aPackage: TDependentPackage);
+    procedure SaveContent(aPackage: TPackage; const aRelativeFilePath, aContent: string);
   protected
     function GetContentPath(aPackage: TPackage): string; virtual;
-    procedure AddPackageFiles(aPackage: TDependentPackage);
-    procedure DoInstall;
+    procedure DoInstall(aPackage: TDependentPackage);
   public
     class function Allowed(aPackage: TDependentPackage): Boolean;
     class function GetClass(const aPackageType: TPackageType): TInstallClass;
@@ -204,7 +203,7 @@ begin
   Result.IsDirect := aIsDirect;
 
   DefineRoutes(Result, aInitialPackage, aVersion);
-  AddPackageFiles(Result);
+  DoInstall(Result);
 end;
 
 class function TAdd.Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
@@ -1102,10 +1101,10 @@ begin
   FDependentPackage := aPackage;
 end;
 
-procedure TInstall.DoInstall;
+procedure TInstall.DoInstall(aPackage: TDependentPackage);
 begin
-  AddPackageFiles(FDependentPackage);
-  FDependentPackage.Installed := True;
+  AddPackageFiles(aPackage);
+  aPackage.Installed := True;
 end;
 
 class function TInstall.GetClass(
@@ -1125,7 +1124,7 @@ begin
     FDependentPackage.Version.DisplayName]));
   try
     Result := [TPackageHandle.CreateInstallHandle(FDependentPackage)];
-    DoInstall;
+    DoInstall(FDependentPackage);
 
     FDPMEngine.NotifyUI('succeeded');
   except
