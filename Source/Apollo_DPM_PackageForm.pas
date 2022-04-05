@@ -604,7 +604,7 @@ end;
 procedure TPackageForm.ReadFromControls;
 var
   i: Integer;
-  PathMove: TPathMove;
+  PathMove: TRoute;
 begin
   FPackage.PackageType := TPackageType(cbPackageType.ItemIndex);
   FPackage.Name := leName.Text;
@@ -661,7 +661,7 @@ end;
 
 procedure TPackageForm.WriteToControls;
 var
-  PathMove: TPathMove;
+  PathMove: TRoute;
   Value: string;
 begin
   case FPackage.Visibility of

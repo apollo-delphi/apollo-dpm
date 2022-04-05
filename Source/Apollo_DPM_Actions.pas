@@ -56,25 +56,32 @@ type
   TInstallClass = class of TInstall;
 
   TInstall = class(TDPMAction)
+  strict private
+    procedure SaveContent(aPackage: TPackage; const aRelativeFilePath, aContent: string);
+  private
+    FDependentPackage: TDependentPackage;
   protected
-    procedure AddPackageFiles(aPackage: TPackage; aVersion: TVersion);
+    function GetContentPath(aPackage: TPackage): string; virtual;
+    procedure AddPackageFiles(aPackage: TDependentPackage);
+    procedure DoInstall;
   public
     class function Allowed(aPackage: TDependentPackage): Boolean;
     class function GetClass(const aPackageType: TPackageType): TInstallClass;
+    function Run: TPackageHandles;
+    constructor Create(aDPMEngine: TDPMEngine; aPackage: TDependentPackage);
   end;
 
   TAdd = class;
   TAddClass = class of TAdd;
 
-  TAdd = class abstract(TDPMAction)
+  TAdd = class abstract(TInstall)
   strict private
     FVersion: TVersion;
-    function SaveContent(const aPackagePath, aRepoPath, aContent: string): string;
-    procedure AddPackageFiles(aInitialPackage: TInitialPackage; aVersion: TVersion);
-  protected
+    procedure DefineRoutes(aDependentPackage: TDependentPackage; aInitialPackage: TInitialPackage; aVersion: TVersion);
+  private
     FInitialPackage: TInitialPackage;
+  protected
     function DoAdd(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; virtual;
-    function GetContentPath(aPackage: TPackage): string; virtual;
     function GetDependencyHandles(aVersion: TVersion): TPackageHandles; virtual;
     function GetInstallPackageHandle(aDependentPackage: TDependentPackage;
       aVersion: TVersion; const aIsDirect: Boolean = False): TPackageHandle;
@@ -196,7 +203,8 @@ begin
   Result.Version := aVersion;
   Result.IsDirect := aIsDirect;
 
-  AddPackageFiles(aInitialPackage, aVersion);
+  DefineRoutes(Result, aInitialPackage, aVersion);
+  AddPackageFiles(Result);
 end;
 
 class function TAdd.Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
@@ -226,11 +234,6 @@ begin
     raise Exception.CreateFmt('TAdd.GetClass: unknown PackageType %s',
       [GetEnumName(TypeInfo(TPackageType), Ord(aPackageType))]);
   end;
-end;
-
-function TAdd.GetContentPath(aPackage: TPackage): string;
-begin
-  Result := FDPMEngine.Path_GetPackage(aPackage);
 end;
 
 function TAdd.GetDependencyHandles(aVersion: TVersion): TPackageHandles;
@@ -322,11 +325,11 @@ begin
   end;
 end;
 
-procedure TAdd.AddPackageFiles(aInitialPackage: TInitialPackage;
-  aVersion: TVersion);
+procedure TAdd.DefineRoutes(aDependentPackage: TDependentPackage;
+  aInitialPackage: TInitialPackage; aVersion: TVersion);
 var
-  Blob: TBlob;
   NodePath: string;
+  RelativeFilePath: string;
   TreeNode: TTreeNode;
 begin
   aVersion.RepoTree := FDPMEngine.LoadRepoTree(aInitialPackage, aVersion);
@@ -338,10 +341,10 @@ begin
 
     if aInitialPackage.AllowPath(TreeNode.Path) then
     begin
-      Blob := FDPMEngine.GHAPI.GetRepoBlob(TreeNode.URL);
-
       NodePath := aInitialPackage.ApplyPathMoves(TreeNode.Path);
-      SaveContent(GetContentPath(aInitialPackage), NodePath, Blob.Content);
+      RelativeFilePath := RepoPathToFilePath(NodePath);
+
+      aDependentPackage.AddRoute(TreeNode.URL, RelativeFilePath);
     end;
   end;
 end;
@@ -356,18 +359,6 @@ begin
 
   for RepoPathPart in RepoPathParts do
     Result := FDPMEngine.Path_Combine(Result, RepoPathPart);
-end;
-
-function TAdd.SaveContent(const aPackagePath, aRepoPath,
-  aContent: string): string;
-var
-  Bytes: TBytes;
-begin
-  Result := FDPMEngine.Path_Combine(aPackagePath, RepoPathToFilePath(aRepoPath));
-  Bytes := TNetEncoding.Base64.DecodeStringToBytes(aContent);
-
-  FDPMEngine.NotifyUI('writing ' + Result);
-  FDPMEngine.WriteFile(Result, Bytes);
 end;
 
 procedure TAdd.SavePackages;
@@ -1088,27 +1079,16 @@ end;
 
 { TInstall }
 
-procedure TInstall.AddPackageFiles(aPackage: TPackage; aVersion: TVersion);
+procedure TInstall.AddPackageFiles(aPackage: TDependentPackage);
 var
   Blob: TBlob;
-  NodePath: string;
-  TreeNode: TTreeNode;
+  Route: TRoute;
 begin
-  {aVersion.RepoTree := FDPMEngine.LoadRepoTree(aInitialPackage, aVersion);
-
-  for TreeNode in aVersion.RepoTree do
+  for Route in aPackage.Routes do
   begin
-    if TreeNode.FileType <> 'blob' then
-      Continue;
-
-    if aInitialPackage.AllowPath(TreeNode.Path) then
-    begin
-      Blob := FDPMEngine.GHAPI.GetRepoBlob(TreeNode.URL);
-
-      NodePath := aInitialPackage.ApplyPathMoves(TreeNode.Path);
-      SaveContent(GetContentPath(aInitialPackage), NodePath, Blob.Content);
-    end;
-  end;}
+    Blob := FDPMEngine.GHAPI.GetRepoBlob(Route.Source);
+    SaveContent(aPackage, Route.Destination, Blob.Content);
+  end;
 end;
 
 class function TInstall.Allowed(aPackage: TDependentPackage): Boolean;
@@ -1116,10 +1096,57 @@ begin
   Result := not aPackage.Installed;
 end;
 
+constructor TInstall.Create(aDPMEngine: TDPMEngine; aPackage: TDependentPackage);
+begin
+  FDPMEngine := aDPMEngine;
+  FDependentPackage := aPackage;
+end;
+
+procedure TInstall.DoInstall;
+begin
+  AddPackageFiles(FDependentPackage);
+  FDependentPackage.Installed := True;
+end;
+
 class function TInstall.GetClass(
   const aPackageType: TPackageType): TInstallClass;
 begin
   Result := TInstall;
+end;
+
+function TInstall.GetContentPath(aPackage: TPackage): string;
+begin
+  Result := FDPMEngine.Path_GetPackage(aPackage);
+end;
+
+function TInstall.Run: TPackageHandles;
+begin
+  FDPMEngine.NotifyUI(Format(#13#10 + 'installing %s %s', [FDependentPackage.Name,
+    FDependentPackage.Version.DisplayName]));
+  try
+    Result := [TPackageHandle.CreateInstallHandle(FDependentPackage)];
+    DoInstall;
+
+    FDPMEngine.NotifyUI('succeeded');
+  except
+    on E: Exception do
+    begin
+      FDPMEngine.NotifyUI(E.Message);
+      FDPMEngine.NotifyUI('installation failed');
+    end;
+  end;
+end;
+
+procedure TInstall.SaveContent(aPackage: TPackage; const aRelativeFilePath, aContent: string);
+var
+  Bytes: TBytes;
+  FilePath: string;
+begin
+  Bytes := TNetEncoding.Base64.DecodeStringToBytes(aContent);
+  FilePath := FDPMEngine.Path_Combine(GetContentPath(aPackage), aRelativeFilePath);
+
+  FDPMEngine.NotifyUI('writing ' + FilePath);
+  FDPMEngine.WriteFile(FilePath, Bytes);
 end;
 
 end.

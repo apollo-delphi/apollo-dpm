@@ -24,8 +24,8 @@ const
     'Project Template'
   );
 
-  cKeyAddingUnitsOption = 'addingUnitsOption';
   cKeyAddingUnitRefs = 'addingUnitRefs';
+  cKeyAddingUnitsOption = 'addingUnitsOption';
   cKeyAddSearchPath = 'addSearchPath';
   cKeyAdjustment = 'adjustment';
   cKeyBinaryFileRefs = 'binaryFileRefs';
@@ -44,12 +44,13 @@ const
   cKeyProjectFileRefs = 'projectFileRefs';
   cKeyRepoName = 'repoName';
   cKeyRepoOwner = 'repoOwner';
+  cKeyRoutes = 'routes';
   cKeyShowIndirectPkgs = 'showIndirectPkgs';
   cKeySource = 'source';
   cKeyVersion = 'version';
+  cKeyVersionDate = 'date';
   cKeyVersionName = 'name';
   cKeyVersionSHA = 'sha';
-  cKeyVersionDate = 'date';
 
   cNavInstalledToIDE = 'Installed to IDE';
   cNavPrivatePackages = 'Private Packages';

@@ -30,8 +30,9 @@ type
     PackageID: string;
     Version: TVersion;
     constructor CreateInstallHandle(aPackage: TInitialPackage; aVersion: TVersion;
-      const aIsDirect: Boolean; aNeedToFree: Boolean);
-    constructor CreateUninstallHandle(aPackage: TDependentPackage);
+      const aIsDirect: Boolean; aNeedToFree: Boolean); overload;
+    constructor CreateInstallHandle(aPackage: TDependentPackage); overload;
+    constructor CreateUninstallHandle(const aPackage: TDependentPackage);
   end;
 
   TPackageHandles = TArray<TPackageHandle>;
@@ -73,7 +74,17 @@ begin
   NeedToFree := aNeedToFree;
 end;
 
-constructor TPackageHandle.CreateUninstallHandle(aPackage: TDependentPackage);
+constructor TPackageHandle.CreateInstallHandle(aPackage: TDependentPackage);
+begin
+  PackageAction := paInstall;
+  Package := aPackage;
+  PackageID := Package.ID;
+  Version := nil;
+  IsDirect := False;
+  NeedToFree := False;
+end;
+
+constructor TPackageHandle.CreateUninstallHandle(const aPackage: TDependentPackage);
 begin
   PackageAction := paUninstall;
   Package := aPackage;

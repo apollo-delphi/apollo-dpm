@@ -83,7 +83,7 @@ type
     procedure FreePackageLists;
   public
     function Action_Add(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
-    function Action_Install(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;
+    function Action_Install(aPackage: TPackage): TPackageHandles;
     function Action_Uninstall(aPackage: TPackage): TPackageHandles;
     function Action_Update(aPackage: TPackage; aVersion: TVersion): TPackageHandles;
     function Bpl_Install(const aBplPath: string): Boolean;
@@ -1036,10 +1036,21 @@ begin
   end;
 end;
 
-function TDPMEngine.Action_Install(aInitialPackage: TInitialPackage;
-  aVersion: TVersion): TPackageHandles;
+function TDPMEngine.Action_Install(aPackage: TPackage): TPackageHandles;
+var
+  Action: TInstall;
+  DependentPackage: TDependentPackage;
 begin
-
+  LockActions;
+  DependentPackage := GetDependentPackage(aPackage);
+  Action := TInstall.GetClass(aPackage.PackageType).Create(Self, DependentPackage);
+  try
+    Action.TestMode := TestMode;
+    Result := Action.Run;
+  finally
+    Action.Free;
+    UnlockActions;
+  end;
 end;
 
 function TDPMEngine.Action_Uninstall(aPackage: TPackage): TPackageHandles;

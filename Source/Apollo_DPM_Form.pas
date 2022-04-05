@@ -251,7 +251,7 @@ begin
         AsyncLoad(nil,
           procedure
           begin
-            PackageHandles := FDPMEngine.Action_Install(aPackage as TInitialPackage, aVersion);
+            PackageHandles := FDPMEngine.Action_Install(aPackage);
           end,
           procedure
           begin

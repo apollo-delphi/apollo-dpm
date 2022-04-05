@@ -12,6 +12,11 @@ type
 
   TPackageType = (ptCodeSource, ptBplSource, ptBplBinary, ptProjectTemplate);
 
+  TRoute = record
+    Destination: string;
+    Source: string;
+  end;
+
   TPackage = class abstract
   private
     FDescription: string;
@@ -22,10 +27,12 @@ type
     FRepoOwner: string;
     FVisibility: TVisibility;
     function GetID: string;
+    function GetRouteArrFromJSON(aJSONArray: TJSONArray): TArray<TRoute>;
+    procedure AddStringArrToJSON(aJSONObj: TJSONObject; aStrArr: TArray<string>; const aKey: string);
+    procedure AddRouteArrToJSON(aJSONObj: TJSONObject; aRoutes: TArray<TRoute>; const aKey: string);
     procedure FreeJSON;
   protected
     function GetJSON: TJSONObject; virtual;
-    procedure AddStringArrToJSON(aJSONObj: TJSONObject; aStrArr: TArray<string>; const aKey: string);
     procedure Init; virtual;
     procedure SetJSON(aJSONObj: TJSONObject); virtual;
   public
@@ -45,11 +52,6 @@ type
 
   TPackageClass = class of TPackage;
 
-  TPathMove = record
-    Destination: string;
-    Source: string;
-  end;
-
   TFilterListType = (fltNone, fltBlack, fltWhite);
   TAddingUnitsOption = (auAll, auSpecified, auNothing);
 
@@ -64,7 +66,7 @@ type
     FDependentPackage: TDependentPackage;
     FFilterList: TArray<string>;
     FFilterListType: TFilterListType;
-    FPathMoves: TArray<TPathMove>;
+    FPathMoves: TArray<TRoute>;
     FProjectFileRefs: TArray<string>;
     function AllowByBlackList(const aPath: string): Boolean;
     function AllowByWhiteList(const aPath: string): Boolean;
@@ -84,7 +86,7 @@ type
     property DependentPackage: TDependentPackage read FDependentPackage write FDependentPackage;
     property FilterList: TArray<string> read FFilterList write FFilterList;
     property FilterListType: TFilterListType read FFilterListType write FFilterListType;
-    property PathMoves: TArray<TPathMove> read FPathMoves write FPathMoves;
+    property PathMoves: TArray<TRoute> read FPathMoves write FPathMoves;
     property ProjectFileRefs: TArray<string> read FProjectFileRefs write FProjectFileRefs;
   end;
 
@@ -93,12 +95,14 @@ type
     FBplFileRefs: TArray<string>;
     FInstalled: Boolean;
     FIsDirect: Boolean;
-    FSourceRefs: TArray<string>;
+    FRoutes: TArray<TRoute>;
     FVersion: TVersion;
   protected
     function GetJSON: TJSONObject; override;
+    procedure Init; override;
     procedure SetJSON(aJSONObj: TJSONObject); override;
   public
+    procedure AddRoute(const aSource, aDestination: string);
     constructor Create(const aJSONString: string;
       aVersionCacheSyncFunc: TVersionCacheSyncFunc); reintroduce;
     constructor CreateByInitial(aInitialPackage: TInitialPackage;
@@ -106,7 +110,7 @@ type
     property BplFileRefs: TArray<string> read FBplFileRefs write FBplFileRefs;
     property Installed: Boolean read FInstalled write FInstalled;
     property IsDirect: Boolean read FIsDirect write FIsDirect;
-    property SourceRefs: TArray<string> read FSourceRefs;
+    property Routes: TArray<TRoute> read FRoutes;
     property Version: TVersion read FVersion write FVersion;
   end;
 
@@ -197,6 +201,30 @@ begin
   inherited;
 end;
 
+procedure TPackage.AddRouteArrToJSON(aJSONObj: TJSONObject;
+  aRoutes: TArray<TRoute>; const aKey: string);
+var
+  Route: TRoute;
+  jsnRoute: TJSONObject;
+  jsnRoutes: TJSONArray;
+begin
+  if Length(aRoutes) > 0 then
+  begin
+    jsnRoutes := TJSONArray.Create;
+
+    for Route in aRoutes do
+    begin
+      jsnRoute := TJSONObject.Create;
+      jsnRoute.AddPair(cKeySource, Route.Source);
+      jsnRoute.AddPair(cKeyDestination, Route.Destination);
+
+      jsnRoutes.Add(jsnRoute);
+    end;
+
+    aJSONObj.AddPair(aKey, jsnRoutes);
+  end;
+end;
+
 procedure TPackage.AddStringArrToJSON(aJSONObj: TJSONObject;
   aStrArr: TArray<string>; const aKey: string);
 var
@@ -242,6 +270,22 @@ end;
 function TPackage.GetJSONString: string;
 begin
   Result := GetJSON.ToJSON
+end;
+
+function TPackage.GetRouteArrFromJSON(aJSONArray: TJSONArray): TArray<TRoute>;
+var
+  jsnVal: TJSONValue;
+  Route: TRoute;
+begin
+  Result := [];
+
+  for jsnVal in aJSONArray do
+  begin
+    Route.Source := (jsnVal as TJSONObject).GetValue(cKeySource).Value;
+    Route.Destination := (jsnVal as TJSONObject).GetValue(cKeyDestination).Value;
+
+    Result := Result + [Route];
+  end;
 end;
 
 procedure TPackage.Init;
@@ -292,7 +336,7 @@ end;
 
 function TInitialPackage.ApplyPathMoves(const aPath: string): string;
 var
-  PathMove: TPathMove;
+  PathMove: TRoute;
 begin
   Result := aPath;
 
@@ -317,7 +361,6 @@ var
   jsnFilterList: TJSONArray;
   jsnPathMoves: TJSONArray;
   jsnVal: TJSONValue;
-  PathMove: TPathMove;
 begin
   inherited;
 
@@ -331,13 +374,7 @@ begin
 
   PathMoves := [];
   if aJSONObj.TryGetValue(cKeyPathMoves, jsnPathMoves) then
-    for jsnVal in jsnPathMoves do
-    begin
-      PathMove.Source := (jsnVal as TJSONObject).GetValue(cKeySource).Value;
-      PathMove.Destination := (jsnVal as TJSONObject).GetValue(cKeyDestination).Value;
-
-      PathMoves := PathMoves + [PathMove];
-    end;
+    PathMoves := GetRouteArrFromJSON(jsnPathMoves);
 
   if aJSONObj.TryGetValue(cKeyProjectFileRefs, jsnPrjFileRefs) then
     for jsnVal in jsnPrjFileRefs do
@@ -359,10 +396,6 @@ begin
 end;
 
 function TInitialPackage.GetJSON: TJSONObject;
-var
-  PathMove: TPathMove;
-  jsnPathMove: TJSONObject;
-  jsnPathMoves: TJSONArray;
 begin
   Result := inherited GetJSON;
 
@@ -373,21 +406,7 @@ begin
   else
     FilterList := [];
 
-  if Length(FPathMoves) > 0 then
-  begin
-    jsnPathMoves := TJSONArray.Create;
-
-    for PathMove in PathMoves do
-    begin
-      jsnPathMove := TJSONObject.Create;
-      jsnPathMove.AddPair(cKeySource, PathMove.Source);
-      jsnPathMove.AddPair(cKeyDestination, PathMove.Destination);
-
-      jsnPathMoves.Add(jsnPathMove);
-    end;
-
-    Result.AddPair(cKeyPathMoves, jsnPathMoves);
-  end;
+  AddRouteArrToJSON(Result, FPathMoves, cKeyPathMoves);
 
   if (PackageType = ptBplSource) and (Length(ProjectFileRefs) > 0) then
     AddStringArrToJSON(Result, ProjectFileRefs, cKeyProjectFileRefs)
@@ -595,12 +614,25 @@ begin
   jsnVersion := aJSONObj.GetValue(cKeyVersion) as TJSONObject;
   Version := TVersion.Create(jsnVersion);
 
+  if aJSONObj.TryGetValue(cKeyRoutes, jsnArr) then
+    FRoutes := GetRouteArrFromJSON(jsnArr);
+
   if aJSONObj.TryGetValue(cKeyBplFileRef, jsnArr) then
     for jsnVal in jsnArr do
       BplFileRefs := BplFileRefs + [jsnVal.Value];
 
   if aJSONObj.TryGetValue<Boolean>(cKeyIsDirect, bVal) then
     FIsDirect := bVal;
+end;
+
+procedure TDependentPackage.AddRoute(const aSource, aDestination: string);
+var
+  Route: TRoute;
+begin
+  Route.Source := aSource;
+  Route.Destination := aDestination;
+
+  FRoutes := FRoutes + [Route];
 end;
 
 constructor TDependentPackage.Create(const aJSONString: string;
@@ -616,10 +648,19 @@ begin
 
   Result.AddPair(cKeyVersion, Version.GetJSON);
 
+  AddRouteArrToJSON(Result, Routes, cKeyRoutes);
+
   if Length(BplFileRefs) > 0 then
     AddStringArrToJSON(Result, BplFileRefs, cKeyBplFileRef);
 
   Result.AddPair(cKeyIsDirect, TJSONBool.Create(FIsDirect));
+end;
+
+procedure TDependentPackage.Init;
+begin
+  inherited;
+
+  FRoutes := [];
 end;
 
 end.
