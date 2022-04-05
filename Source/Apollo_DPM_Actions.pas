@@ -293,7 +293,7 @@ var
   PackageHandle: TPackageHandle;
   Version: TVersion;
 begin
-  FDPMEngine.NotifyUI(Format(#13#10'installing %s... ', [FInitialPackage.Name]));
+  FDPMEngine.NotifyUI(Format(#13#10'adding %s... ', [FInitialPackage.Name]));
   try
     Version := FDPMEngine.DefineVersion(FInitialPackage, FVersion);
     Result := [TPackageHandle.CreateInstallHandle(FInitialPackage, Version, True{IsDirect}, False{NeedToFree})];
@@ -319,7 +319,7 @@ begin
     on E: Exception do
     begin
       FDPMEngine.NotifyUI(E.Message);
-      FDPMEngine.NotifyUI('installation failed');
+      FDPMEngine.NotifyUI('addition failed');
     end;
   end;
 end;

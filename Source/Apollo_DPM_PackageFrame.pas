@@ -278,6 +278,9 @@ end;
 
 procedure TPackageFrame.SetupInstalledLabel(aDependentPackage: TDependentPackage);
 begin
+  if aDependentPackage.PackageType = ptProjectTemplate then
+    Exit;
+
   if aDependentPackage.Installed then
   begin
     if aDependentPackage.IsDirect then
