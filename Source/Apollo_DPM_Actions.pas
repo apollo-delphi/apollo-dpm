@@ -85,7 +85,7 @@ type
     function GetInstallPackageHandle(aDependentPackage: TDependentPackage;
       aVersion: TVersion; const aIsDirect: Boolean = False): TPackageHandle;
     function RepoPathToFilePath(const aRepoPath: string): string;
-    function PostProcessPackageHandles(const aPackageHandles: TPackageHandles): TPackageHandles;
+    function PostProcessPackageHandles(const aPackageHandles: TPackageHandles): TPackageHandles; virtual;
     procedure ProcessUninstallHandles(aPackageHandles: TPackageHandles); virtual;
     procedure SavePackages; virtual;
   public
@@ -138,6 +138,7 @@ type
   protected
     function DoAdd(aInitialPackage: TInitialPackage; aVersion: TVersion; const aIsDirect: Boolean): TDependentPackage; override;
     function GetContentPath(aPackage: TPackage): string; override;
+    function PostProcessPackageHandles(const aPackageHandles: TPackageHandles): TPackageHandles; override;
     procedure SavePackages; override;
   public
     class function Allowed(aDPMEngine: TDPMEngine; aPackage: TInitialPackage;
@@ -381,6 +382,7 @@ var
   FileItem: string;
 begin
   Result := inherited DoAdd(aInitialPackage, aVersion, aIsDirect);
+  aInitialPackage.DependentPackage := nil;
   FreeAndNil(Result);
 
   Files := FDPMEngine.Files_Get(GetContentPath(aInitialPackage), '*');
@@ -413,6 +415,12 @@ begin
   end;
 
   Result := FProjectPath;
+end;
+
+function TAddProjectTemplate.PostProcessPackageHandles(
+  const aPackageHandles: TPackageHandles): TPackageHandles;
+begin
+  Result := [];
 end;
 
 procedure TAddProjectTemplate.SavePackages;
