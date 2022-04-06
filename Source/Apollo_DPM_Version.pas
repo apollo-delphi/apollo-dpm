@@ -192,7 +192,7 @@ end;
 function TVersionCacheList.SyncVersion(const aPackageID: string;
   aVersion: TVersion; const aLoadedFromRepo: Boolean): TVersion;
 begin
-  if ContainsSHA(aVersion.SHA) and ContainsLoadedPackageID(aPackageID) then
+  if ContainsSHA(aVersion.SHA) then
   begin
     Result := GetBySHA(aVersion.SHA);
     FreeAndNil(aVersion);
@@ -201,9 +201,10 @@ begin
   begin
     Result := aVersion;
     Add(TVersionCache.Create(aPackageID, aVersion));
-    if aLoadedFromRepo then
-      AddLoadedPackageID(aPackageID);
   end;
+
+  if aLoadedFromRepo then
+    AddLoadedPackageID(aPackageID);
 end;
 
 function TVersionCacheList.ContainsLoadedPackageID(const aPackageID: string): Boolean;

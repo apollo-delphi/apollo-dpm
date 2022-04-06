@@ -247,10 +247,11 @@ var
 begin
   ClearVersionsCombo;
 
-  if not FDPMEngine.AreVersionsLoaded(FPackage.ID) then
+  Versions := FDPMEngine.GetVersions(FPackage, True{aCachedOnly});
+
+  if Length(Versions) = 0 then
     cbVersions.Items.AddObject(cStrLatestVersionOrCommit, TVersionComboItem.Create);
 
-  Versions := FDPMEngine.GetVersions(FPackage, True{aCachedOnly});
   for Version in Versions do
     cbVersions.Items.AddObject(Version.DisplayName, TVersionComboItem.Create(Version));
 end;

@@ -49,7 +49,7 @@ type
     procedure UnlockActions;
     function GetProjectGroup: IOTAProjectGroup;
   public
-    function AreVersionsLoaded(const aPackageID: string): Boolean;
+    function AreVersionsLoaded(const aPackageID: string): Boolean; //move to private
     function AllowAction(const aFrameActionType: TFrameActionType;
       aPackage: TPackage; aVersion: TVersion): Boolean;
     function DefineVersion(aPackage: TPackage; aVersion: TVersion): TVersion;
