@@ -287,7 +287,7 @@ begin
       NeedToFreeVersion := False;
       try
         if Assigned(Version) and not Version.SHA.IsEmpty then
-          Version := FDPMEngine.Versions_SyncCache(TestPackage.ID, Version)
+          Version := FDPMEngine.Versions_SyncCache(TestPackage.ID, Version, False{aLoadedFromRepo})
         else
           NeedToFreeVersion := True;
 

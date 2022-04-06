@@ -120,7 +120,7 @@ type
     function Project_GetTest: IOTAProject;
     function Project_IsOpened: Boolean;
     function Project_SetActive(aProject: IOTAProject): IOTAProject;
-    function Versions_SyncCache(const aPackageID: string; aVersion: TVersion): TVersion;
+    function Versions_SyncCache(const aPackageID: string; aVersion: TVersion; const aLoadedFromRepo: Boolean): TVersion;
     property NotifyUI: TUINotifyProc read FUINotifyProc;
     property TestMode: Boolean read FTestMode write FTestMode;
   end;
@@ -854,7 +854,7 @@ procedure TDPMEngine.LoadRepoVersions(aPackage: TPackage);
     Version := TVersion.Create;
     Version.Assign(aTag);
 
-    Versions_SyncCache(aPackage.ID, Version);
+    Versions_SyncCache(aPackage.ID, Version, True{aLoadedFromRepo});
   end;
 
 var
@@ -1099,9 +1099,10 @@ begin
   aPackage.FilePath := SaveAsPrivatePackage(aPackage);
 end;
 
-function TDPMEngine.Versions_SyncCache(const aPackageID: string; aVersion: TVersion): TVersion;
+function TDPMEngine.Versions_SyncCache(const aPackageID: string; aVersion: TVersion;
+  const aLoadedFromRepo: Boolean): TVersion;
 begin
-  Result := GetVersionCacheList.SyncVersion(aPackageID, aVersion);
+  Result := GetVersionCacheList.SyncVersion(aPackageID, aVersion, aLoadedFromRepo);
 end;
 
 procedure TDPMEngine.WriteFile(const aPath: string; const aBytes: TBytes);

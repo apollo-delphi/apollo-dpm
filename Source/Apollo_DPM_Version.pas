@@ -54,11 +54,11 @@ type
   public
     function ContainsLoadedPackageID(const aPackageID: string): Boolean;
     function GetByPackageID(const aPackageID: string): TArray<TVersion>;
-    function SyncVersion(const aPackageID: string; aVersion: TVersion): TVersion;
+    function SyncVersion(const aPackageID: string; aVersion: TVersion; const aLoadedFromRepo: Boolean): TVersion;
     constructor Create; reintroduce;
   end;
 
-  TVersionCacheSyncFunc = function(const aPackageID: string; aVersion: TVersion): TVersion of object;
+  TVersionCacheSyncFunc = function(const aPackageID: string; aVersion: TVersion; const aLoadedFromRepo: Boolean): TVersion of object;
 
 implementation
 
@@ -190,7 +190,7 @@ begin
 end;
 
 function TVersionCacheList.SyncVersion(const aPackageID: string;
-  aVersion: TVersion): TVersion;
+  aVersion: TVersion; const aLoadedFromRepo: Boolean): TVersion;
 begin
   if ContainsSHA(aVersion.SHA) and ContainsLoadedPackageID(aPackageID) then
   begin
@@ -201,7 +201,8 @@ begin
   begin
     Result := aVersion;
     Add(TVersionCache.Create(aPackageID, aVersion));
-    AddLoadedPackageID(aPackageID);
+    if aLoadedFromRepo then
+      AddLoadedPackageID(aPackageID);
   end;
 end;
 

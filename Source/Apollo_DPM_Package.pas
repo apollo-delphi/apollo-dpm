@@ -639,7 +639,7 @@ constructor TDependentPackage.Create(const aJSONString: string;
   aVersionCacheSyncFunc: TVersionCacheSyncFunc);
 begin
   inherited Create(aJSONString);
-  Version := aVersionCacheSyncFunc(ID, Version);
+  Version := aVersionCacheSyncFunc(ID, Version, False{aLoadedFromRepo});
 end;
 
 function TDependentPackage.GetJSON: TJSONObject;
