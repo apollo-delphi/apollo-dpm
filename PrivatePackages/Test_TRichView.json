@@ -1,0 +1,1 @@
+{"id":"51653770B2732A1F6321FB94F52F6240","name":"Test_TRichView","description":"Bpl binary testing package","repoOwner":"apollo-delphi","repoName":"apollo-dpm","packageType":2,"filterListType":2,"filterList":["TestCases\/TestBplBinaryPackage\/RVPkgDXE8.bpl"],"pathMoves":[{"source":"TestCases\/TestBplBinaryPackage\/","destination":""}],"binaryFileRefs":["RVPkgDXE8.bpl"]}
