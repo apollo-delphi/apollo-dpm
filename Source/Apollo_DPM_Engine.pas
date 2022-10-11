@@ -53,7 +53,6 @@ type
     function AllowAction(const aFrameActionType: TFrameActionType;
       aPackage: TPackage; aVersion: TVersion): Boolean;
     function DefineVersion(aPackage: TPackage; aVersion: TVersion): TVersion;
-    function GetVersions(aPackage: TPackage; aCachedOnly: Boolean = False): TArray<TVersion>;
     function LoadRepoData(const aRepoURL: string; out aRepoOwner, aRepoName, aError: string): Boolean;
     function LoadRepoTree(aPackage: TPackage; aVersion: TVersion): TTree;
     function SaveContent(const aPackagePath, aRepoPath, aContent: string): string;
@@ -105,6 +104,7 @@ type
     function Packages_GetPrivate: TPrivatePackageList;
     function Packages_GetProject: TDependentPackageList;
     function Package_FindInitial(const aPackageID: string): TInitialPackage;
+    function Package_GetVersions(aPackage: TPackage; aCachedOnly: Boolean = False): TArray<TVersion>;
     function Package_LoadDependencies(aDependentPackage: TDependentPackage): TDependentPackageList; overload;
     function Package_LoadDependencies(aInitialPackage: TInitialPackage; aVersion: TVersion): TDependentPackageList; overload;
     function Path_Combine(const aPath1, aPath2: string): string;
@@ -135,8 +135,11 @@ uses
   Apollo_DPM_Pipes,
   Apollo_DPM_Validation,
   System.Classes,
+  System.Generics.Collections,
+  System.Generics.Defaults,
   System.IOUtils, {must be used in this unit only}
   System.NetEncoding,
+  System.RegularExpressions,
   System.Types,
   Vcl.Controls;
 
@@ -344,7 +347,7 @@ begin
   if not aVersion.SHA.IsEmpty then
     Exit(aVersion);
 
-  Versions := GetVersions(aPackage);
+  Versions := Package_GetVersions(aPackage);
   if Length(Versions) > 0 then
     Exit(Versions[0])
   else
@@ -727,12 +730,84 @@ begin
   Result := FVersionCacheList;
 end;
 
-function TDPMEngine.GetVersions(aPackage: TPackage; aCachedOnly: Boolean = False): TArray<TVersion>;
+function GetNameNumbers(const aName: string): TArray<Integer>;
+var
+  Match: TMatch;
+  Value: Integer;
 begin
+  Result := [];
+
+  Match := TRegEx.Match(aName, '\d+');
+  while Match.Success do
+  begin
+    Value := StrToInt64Def(Match.Value, -1);
+    if Value > -1 then
+      Result := Result + [Value];
+
+    Match := Match.NextMatch;
+  end;
+end;
+
+function TDPMEngine.Package_GetVersions(aPackage: TPackage; aCachedOnly: Boolean = False): TArray<TVersion>;
+var
+  Comparison: TComparison<TVersion>;
+  PackageVersions: TObjectList<TVersion>;
+begin
+  Result := [];
+
   if (not aCachedOnly) and (not AreVersionsLoaded(aPackage.ID)) then
     LoadRepoVersions(aPackage);
 
-  Result := GetVersionCacheList.GetByPackageID(aPackage.ID);
+  PackageVersions := GetVersionCacheList.GetByPackageID(aPackage.ID);
+  try
+    Comparison := function(const Left, Right: TVersion): Integer
+      var
+        i: Integer;
+        LeftNameNumbers: TArray<Integer>;
+        RightNameNumbers: TArray<Integer>;
+      begin
+        if (Left.Date > TDate(0)) and (Right.Date > TDate(0)) then
+          Result := TComparer<TDateTime>.Default.Compare(Left.Date, Right.Date)
+        else
+        if (not Left.Name.IsEmpty) and (not Right.Name.IsEmpty) then
+        begin
+          LeftNameNumbers := GetNameNumbers(Left.Name);
+          RightNameNumbers := GetNameNumbers(Right.Name);
+
+          if Length(LeftNameNumbers) = Length(RightNameNumbers) then
+          begin
+            Result := 0;
+            for i := 0 to Length(LeftNameNumbers) - 1 do
+              if LeftNameNumbers[i] > RightNameNumbers[i] then
+              begin
+                Result := -1;
+                Break;
+              end
+              else
+              if LeftNameNumbers[i] < RightNameNumbers[i] then
+              begin
+                Result := 1;
+                Break;
+              end;
+          end
+          else
+          if Length(LeftNameNumbers) > Length(RightNameNumbers) then
+            Result := -1
+          else
+            Result := 1;
+        end
+        else
+        if (not Left.Name.IsEmpty) and Right.Name.IsEmpty then
+          Result := -1
+        else
+          Result := 1;
+      end;
+
+    PackageVersions.Sort(TComparer<TVersion>.Construct(Comparison));
+    Result := PackageVersions.ToArray;
+  finally
+    PackageVersions.Free;
+  end;
 end;
 
 function TDPMEngine.Action_Add(aInitialPackage: TInitialPackage; aVersion: TVersion): TPackageHandles;

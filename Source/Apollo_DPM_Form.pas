@@ -431,7 +431,7 @@ begin
   if aPackage is TInitialPackage then
   begin
     InitialPackage := aPackage as TInitialPackage;
-    Version := FDPMEngine.GetVersions(InitialPackage)[0];
+    Version := FDPMEngine.Package_GetVersions(InitialPackage)[0];
     //Version := FDPMEngine.DefineVersion(InitialPackage, Version);
   end
   else

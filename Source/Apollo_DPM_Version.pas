@@ -53,7 +53,7 @@ type
     procedure AddLoadedPackageID(const aPackageID: string);
   public
     function ContainsLoadedPackageID(const aPackageID: string): Boolean;
-    function GetByPackageID(const aPackageID: string): TArray<TVersion>;
+    function GetByPackageID(const aPackageID: string): TObjectList<TVersion>;
     function SyncVersion(const aPackageID: string; aVersion: TVersion; const aLoadedFromRepo: Boolean): TVersion;
     constructor Create; reintroduce;
   end;
@@ -230,15 +230,15 @@ begin
 end;
 
 function TVersionCacheList.GetByPackageID(
-  const aPackageID: string): TArray<TVersion>;
+  const aPackageID: string): TObjectList<TVersion>;
 var
   VersionCache: TVersionCache;
 begin
-  Result := [];
+  Result := TObjectList<TVersion>.Create(False{aO});
 
   for VersionCache in Self do
     if VersionCache.FPackageID = aPackageID then
-      Result := Result + [VersionCache.Version];
+      Result.Add(VersionCache.Version);
 end;
 
 function TVersionCacheList.GetBySHA(const aSHA: string): TVersion;

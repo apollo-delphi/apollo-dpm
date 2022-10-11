@@ -172,7 +172,7 @@ begin
   AsyncLoad(aiVersionLoad,
     procedure
     begin
-      FDPMEngine.GetVersions(FPackage);
+      FDPMEngine.Package_GetVersions(FPackage);
     end,
     procedure
     begin
@@ -247,7 +247,7 @@ var
 begin
   ClearVersionsCombo;
 
-  Versions := FDPMEngine.GetVersions(FPackage, True{aCachedOnly});
+  Versions := FDPMEngine.Package_GetVersions(FPackage, True{aCachedOnly});
 
   if Length(Versions) = 0 then
     cbVersions.Items.AddObject(cStrLatestVersionOrCommit, TVersionComboItem.Create);
@@ -343,7 +343,7 @@ begin
   for i := 0 to cbVersions.Items.Count - 1 do
   begin
     VersionComboItem := cbVersions.Items.Objects[i] as TVersionComboItem;
-    if VersionComboItem.FVersion.SHA = aVersion.SHA then
+    if Assigned(VersionComboItem) and (VersionComboItem.FVersion.SHA = aVersion.SHA) then
       Exit(i);
   end;
 end;

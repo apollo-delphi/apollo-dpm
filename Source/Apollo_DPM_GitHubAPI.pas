@@ -123,6 +123,7 @@ begin
 
       Tag.Name := jsnObj.GetValue('name').Value;
       Tag.SHA := (jsnObj.GetValue('commit') as TJSONObject).GetValue('sha').Value;
+      Tag.Date := 0;
 
       Result := Result + [Tag];
     end;
