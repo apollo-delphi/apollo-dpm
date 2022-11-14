@@ -90,7 +90,8 @@ begin
   FIdHTTP.Request.CacheControl := 'no-cache';
 
   FIdSSLIOHandlerSocketOpenSSL := TIdSSLIOHandlerSocketOpenSSL.Create;
-  FIdSSLIOHandlerSocketOpenSSL.SSLOptions.SSLVersions := [sslvSSLv23];
+  FIdSSLIOHandlerSocketOpenSSL.SSLOptions.Mode := sslmClient;
+  FIdSSLIOHandlerSocketOpenSSL.SSLOptions.Method := sslvTLSv1_2;
   FIdHTTP.IOHandler := FIdSSLIOHandlerSocketOpenSSL;
 
   FIdCompressorZLib := TIdCompressorZLib.Create(nil);
